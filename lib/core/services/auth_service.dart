@@ -10,7 +10,7 @@ import '../utils/validators.dart';
 class AuthService {
   static AuthService? _instance;
   static SharedPreferences? _prefs;
-  static final fb.FirebaseAuth _firebaseAuth = fb.FirebaseAuth.instance;
+  fb.FirebaseAuth get _firebaseAuth => fb.FirebaseAuth.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   UserModel? _currentUser;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
@@ -36,6 +36,14 @@ class AuthService {
     }
 
     _loadCurrentUser();
+
+    if (_currentUser == null) {
+      try {
+        await restoreSessionFromFirebase();
+      } catch (_) {
+        _currentUser = null;
+      }
+    }
   }
 
   UserModel? get currentUser => _currentUser;
@@ -50,10 +58,70 @@ class AuthService {
       if (jsonString != null && jsonString.isNotEmpty) {
         final json = jsonDecode(jsonString) as Map<String, dynamic>;
         _currentUser = UserModel.fromJson(json);
+      } else {
+        _currentUser = null;
       }
     } catch (e) {
       _currentUser = null;
     }
+  }
+
+  Future<UserModel?> restoreSessionFromFirebase() async {
+    final fbUser = _firebaseAuth.currentUser;
+    if (fbUser == null) {
+      _currentUser = null;
+      await _prefs!.remove('current_user');
+      return null;
+    }
+
+    if (_currentUser != null && _currentUser!.id == fbUser.uid) {
+      return _currentUser;
+    }
+
+    final email = fbUser.email ?? '';
+    final displayName = fbUser.displayName ?? email.split('@').first;
+    final now = DateTime.now().toIso8601String();
+    final userData = <String, dynamic>{
+      'id': fbUser.uid,
+      'email': email,
+      'displayName': displayName,
+      'username': InputValidators.sanitizeUsername(displayName),
+      'photoUrl': fbUser.photoURL,
+      'bio': null,
+      'isOnline': true,
+      'lastSeen': now,
+      'createdAt': now,
+      'updatedAt': now,
+      'preferences': <String, dynamic>{},
+      'statistics': <String, dynamic>{},
+      'isGoogleAccount': _detectGoogleAccount(fbUser),
+    };
+
+    final users = _getRegisteredUsers();
+    final index = users.indexWhere((u) => u['id'] == fbUser.uid);
+    if (index >= 0) {
+      final stored = Map<String, dynamic>.from(users[index]);
+      stored.forEach((k, v) {
+        if (v != null && (userData[k] == null || userData[k] == '')) {
+          userData[k] = v;
+        }
+      });
+      userData['id'] = fbUser.uid;
+      userData['email'] = userData['email'] == '' ? (stored['email'] ?? email) : userData['email'];
+    }
+
+    final restored = UserModel.fromJson(userData);
+    _currentUser = restored;
+    await _prefs!.setString('current_user', jsonEncode(restored.toJson()));
+
+    if (index >= 0) {
+      users[index] = userData;
+    } else {
+      users.add(userData);
+    }
+    await _saveRegisteredUsers(users);
+
+    return restored;
   }
 
   bool _isEmail(String input) {

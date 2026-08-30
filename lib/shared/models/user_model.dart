@@ -33,16 +33,19 @@ class UserModel extends Equatable {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
-    id: json['id'] as String,
-    email: json['email'] as String,
-    displayName: json['displayName'] as String,
+    id: json['id'] as String? ?? '',
+    email: json['email'] as String? ?? '',
+    displayName: json['displayName'] as String? ?? 'User',
     username: json['username'] as String?,
     photoUrl: json['photoUrl'] as String?,
     bio: json['bio'] as String?,
     isOnline: json['isOnline'] as bool? ?? false,
-    lastSeen: DateTime.parse(json['lastSeen'] as String),
-    createdAt: DateTime.parse(json['createdAt'] as String),
-    updatedAt: DateTime.parse(json['updatedAt'] as String),
+    lastSeen: DateTime.tryParse(json['lastSeen'] as String? ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0),
+    createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+        DateTime.now(),
+    updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '') ??
+        DateTime.now(),
     preferences: (json['preferences'] as Map<String, dynamic>?) ?? {},
     statistics: (json['statistics'] as Map<String, dynamic>?) ?? {},
     isGoogleAccount: json['isGoogleAccount'] as bool? ?? false,

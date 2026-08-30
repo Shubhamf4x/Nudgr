@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nudgr/core/services/auth_service.dart';
 import 'package:nudgr/core/utils/validators.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('InputValidators.sanitizeUsername', () {
@@ -58,6 +62,61 @@ void main() {
         InputValidators.maxNoteTitleLength,
       );
       expect(clamped.length, InputValidators.maxNoteTitleLength);
+    });
+  });
+
+  group('AuthService session restore', () {
+    test('restores the stored session on app restart', () async {
+      SharedPreferences.setMockInitialValues({
+        'auth_version': '2.0',
+        'current_user': jsonEncode({
+          'id': 'uid-restore-1',
+          'email': 'a@example.com',
+          'displayName': 'Restore User',
+          'username': 'restoreuser',
+          'photoUrl': null,
+          'bio': null,
+          'isOnline': true,
+          'lastSeen': '2026-08-30T10:00:00.000',
+          'createdAt': '2026-08-30T09:00:00.000',
+          'updatedAt': '2026-08-30T10:00:00.000',
+          'preferences': <String, dynamic>{},
+          'statistics': <String, dynamic>{},
+          'isGoogleAccount': false,
+        }),
+      });
+
+      final auth = AuthService.getInstance();
+      await auth.initialize();
+
+      expect(auth.isAuthenticated, isTrue);
+      expect(auth.currentUser!.id, 'uid-restore-1');
+    });
+
+    test('malformed stored session still restores instead of forcing login',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'auth_version': '2.0',
+        'current_user':
+            '{"id":"uid-2","email":"b@example.com","displayName":"User B","lastSeen":null,"createdAt":null,"updatedAt":null,"preferences":null,"statistics":null}',
+      });
+
+      final auth = AuthService.getInstance();
+      await auth.initialize();
+
+      expect(auth.isAuthenticated, isTrue);
+      expect(auth.currentUser!.displayName, 'User B');
+    });
+
+    test('missing session leaves the user unauthenticated', () async {
+      SharedPreferences.setMockInitialValues({
+        'auth_version': '2.0',
+      });
+
+      final auth = AuthService.getInstance();
+      await auth.initialize();
+
+      expect(auth.isAuthenticated, isFalse);
     });
   });
 }
