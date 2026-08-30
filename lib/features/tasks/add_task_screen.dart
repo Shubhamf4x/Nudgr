@@ -1,4 +1,4 @@
-﻿import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/app_text_styles.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -124,8 +124,6 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
             )
           : null,
       categoryId: _categoryId,
-      // Persist the display name so the category chip shows on the card
-      // and matches the filter chips on the Tasks page.
       categoryName: _categoryId == null
           ? null
           : _categoryLabels

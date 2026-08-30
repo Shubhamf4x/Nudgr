@@ -82,15 +82,10 @@ class NotificationService {
     if (!_initialized) {
       tz_data.initializeTimeZones();
 
-      // tz.local defaults to UTC unless explicitly configured, which made
-      // scheduled reminders fire at the wrong local time. Resolve the
-      // device's IANA timezone name and use it as the local location.
       try {
         final tzInfo = await FlutterTimezone.getLocalTimezone();
         tz.setLocalLocation(tz.getLocation(tzInfo.identifier));
       } catch (_) {
-        // Fallback: build a fixed-offset location from the device offset.
-        // IANA Etc zones invert the sign: Etc/GMT-2 == UTC+2.
         try {
           final offset = DateTime.now().timeZoneOffset;
           final name = 'Etc/GMT${offset.isNegative ? '+' : '-'}${offset.inHours.abs()}';
@@ -271,9 +266,6 @@ class NotificationService {
     );
   }
 
-  /// Asks for notification permission exactly once, at a sensible moment
-  /// (onboarding completion or first entry into the app) instead of during
-  /// login. Shows a brief context dialog, then the OS permission prompt.
   static Future<void> requestPermissionOnce(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool('notification_prompt_shown') ?? false) return;

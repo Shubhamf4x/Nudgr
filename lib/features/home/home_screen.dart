@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -189,8 +189,6 @@ class _HomeScreenState extends State<HomeScreen>
             child: CircleAvatar(
               radius: 28,
               backgroundColor: Colors.transparent,
-              // Downsample at decode time: the picked photo can be 800x800,
-              // decoding it full-size for a 56px avatar wastes memory.
               backgroundImage: hasImage
                   ? ResizeImage(
                       FileImage(File(_profileImagePath!)),
@@ -558,7 +556,6 @@ class ActivityGraphPainter extends CustomPainter {
       points.add(Offset(x, y));
     }
 
-    // Fill
     final fillPath = Path();
     fillPath.moveTo(points.first.dx, height - padB);
     fillPath.lineTo(points.first.dx, points.first.dy);
@@ -582,7 +579,6 @@ class ActivityGraphPainter extends CustomPainter {
         ).createShader(Rect.fromLTWH(0, 0, width, height)),
     );
 
-    // Line
     final linePath = Path();
     linePath.moveTo(points.first.dx, points.first.dy);
     for (int i = 0; i < points.length - 1; i++) {
@@ -604,12 +600,10 @@ class ActivityGraphPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round,
     );
 
-    // Dot
     final lp = points.last;
     canvas.drawCircle(lp, 5, Paint()..color = const Color(0xFF6C63FF));
     canvas.drawCircle(lp, 3, Paint()..color = Colors.white);
 
-    // Dashed line
     final dashPaint = Paint()
       ..color = const Color(0xFF6C63FF).withValues(alpha: 0.4)
       ..strokeWidth = 1;

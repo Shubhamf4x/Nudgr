@@ -10,8 +10,6 @@ class StepsService {
   static void Function(int sensorValue)? _onStepUpdate;
   static void Function(bool granted)? _onPermissionResult;
 
-  // In-memory cache for today's record: the hardware sensor fires very
-  // frequently, and decoding the full JSON history on every event is wasteful.
   StepDayModel? _todayCache;
   String _cacheDate = '';
 
@@ -63,8 +61,6 @@ class StepsService {
     _channel.invokeMethod('stopListening').catchError((_) {});
   }
 
-  /// Native side calls back when the ACTIVITY_RECOGNITION dialog resolves,
-  /// so the app can start tracking immediately after the user grants it.
   void setPermissionResultHandler(void Function(bool granted)? handler) {
     _onPermissionResult = handler;
     _installHandler();
@@ -153,14 +149,10 @@ class StepsService {
     }
     await _saveStepHistory(history);
 
-    // Refresh the cache with what was just written.
     _todayCache = record;
     _cacheDate = todayKey;
   }
 
-  /// Merges a step record restored from the cloud (new device/reinstall).
-  /// The larger of local vs cloud wins so live sensor data is never
-  /// rolled back; today's sensor baseline is always preserved.
   Future<void> mergeCloudStepDay(String date, int stepCount) async {
     final history = getStepHistory();
     final index = history.indexWhere((r) => r.date == date);
@@ -190,8 +182,6 @@ class StepsService {
     }
   }
 
-  /// Wipes all local step history (used when the device's data switches
-  /// to a different account).
   Future<void> clearStepHistory() async {
     await _prefs?.remove('step_history');
     await _prefs?.remove('step_goal_notification_date');

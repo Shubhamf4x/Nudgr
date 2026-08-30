@@ -20,7 +20,6 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isAuthenticated => _state == AuthState.authenticated;
 
-  /// Cloud sync is enabled only for Google-signed-in accounts.
   bool get cloudSyncEnabled => _user?.isGoogleAccount ?? false;
 
   Future<void> initialize() async {
@@ -38,10 +37,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Guards against account switching: if the on-device data belongs to a
-  /// different UID, it is wiped before the new session takes ownership.
-  /// This keeps reinstalls (local restore) and Google cloud restore from
-  /// ever mixing two users' data.
   Future<void> _activateSession() async {
     final owner = _db.getDataOwnerUid();
     if (owner != null && owner != _user!.id) {

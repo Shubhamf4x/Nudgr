@@ -43,8 +43,6 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            // R8 code shrinking + resource shrinking: removes unused Java/Kotlin
-            // code and resources from the release APK.
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

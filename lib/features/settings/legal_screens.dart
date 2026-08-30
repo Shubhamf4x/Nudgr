@@ -2,11 +2,6 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/color_constants.dart';
 
-/// Legal documents shown in Settings. Content reflects what Nudgr actually
-/// does: local-first storage, optional cloud sync for Google accounts via
-/// Firebase, on-device step counting, and Bluetooth mesh chat with no server
-/// involvement. Update the "last updated" date when the app changes.
-
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
@@ -33,9 +28,6 @@ class TermsOfServiceScreen extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Privacy policy content
-// ---------------------------------------------------------------------------
 const List<(String, List<String>)> _privacySections = [
   ('Overview', [
     'Nudgr ("the app", "we", "us") is a productivity application that provides '
@@ -144,9 +136,6 @@ const List<(String, List<String>)> _privacySections = [
   ]),
 ];
 
-// ---------------------------------------------------------------------------
-// Terms of service content
-// ---------------------------------------------------------------------------
 const List<(String, List<String>)> _termsSections = [
   ('Acceptance of Terms', [
     'By installing or using Nudgr ("the app") you agree to these Terms of '
@@ -223,9 +212,6 @@ const List<(String, List<String>)> _termsSections = [
   ]),
 ];
 
-// ---------------------------------------------------------------------------
-// Shared legal page scaffold
-// ---------------------------------------------------------------------------
 class _LegalScreen extends StatelessWidget {
   final String title;
   final String lastUpdated;

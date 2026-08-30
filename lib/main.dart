@@ -24,8 +24,6 @@ import 'features/auth/onboarding_screen.dart';
 import 'features/main_shell.dart';
 
 Future<void> main() async {
-  // Global error handlers: unexpected errors are logged instead of crashing
-  // the app, which keeps background work (sync, steps, timers) resilient.
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
   };
@@ -37,17 +35,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // Firebase App Check — protects Firestore/Auth backends from non-app traffic.
-  // Debug builds use the debug provider (register its token in the Firebase
-  // console); release builds use Play Integrity. Activation never blocks app
-  // startup, and with App Check enforcement left in monitoring mode the app
-  // keeps working even while tokens are being rolled out.
   try {
     await FirebaseAppCheck.instance.activate(
       androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
     );
   } catch (_) {
-    // App Check is a hardening layer, never a startup blocker.
   }
 
   await DatabaseService.getInstance().initialize();
@@ -56,8 +48,6 @@ Future<void> main() async {
   await NotificationService.getInstance().initialize();
   await SyncService.getInstance().initialize();
 
-  // Resolve the startup screen before the first frame so the app opens
-  // directly into Home / Onboarding / Login — no splash screen needed.
   final authProvider = AuthProvider();
   await authProvider.initialize();
 
@@ -96,8 +86,6 @@ class NudgrApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NotesProvider()),
         ChangeNotifierProvider(create: (_) => CalendarProvider()),
         ChangeNotifierProvider(create: (_) => FocusProvider()),
-        // Eagerly start step tracking so counting begins at launch,
-        // not only after the Steps tab has been opened.
         ChangeNotifierProvider(create: (_) => StepsProvider()..initialize()),
         ChangeNotifierProvider(create: (_) => BitChatProvider()),
       ],

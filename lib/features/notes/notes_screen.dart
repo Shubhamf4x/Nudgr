@@ -70,8 +70,6 @@ class _NotesScreenState extends State<NotesScreen> {
               ],
             ),
           ),
-          // The floating + appears only once notes exist — when the list is
-          // empty the centered "Add Note" button in the empty state covers it.
           floatingActionButton:
               (!data.isLoading && data.filteredNotes.isNotEmpty)
                   ? FloatingActionButton(
@@ -247,8 +245,6 @@ class _MasonryGrid extends StatelessWidget {
   double _estimateCardHeight(NoteModel note, double width) {
     final titleLen = note.title.length;
 
-    // Must mirror NoteCard's preview logic: maxLines depends on the number
-    // of NON-EMPTY content lines (3 / 5 / 7), tags stripped.
     final hasContent = note.content.trim().isNotEmpty;
     int previewLines = 0;
     if (hasContent) {
@@ -260,13 +256,11 @@ class _MasonryGrid extends StatelessWidget {
 
     double baseHeight = 14 + 14 + 8;
 
-    // ~7.2px per character at fontSize 14, capped at 2 lines.
     final titleLines = (titleLen / (width / 7.2)).ceil().clamp(1, 2);
     baseHeight += titleLines * 20.0;
 
     if (hasContent) {
       baseHeight += 8;
-      // RichText line height at fontSize 12 with height 1.4 is ~16.8px.
       baseHeight += maxLines * 17.0;
     }
 

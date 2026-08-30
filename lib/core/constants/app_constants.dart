@@ -7,8 +7,5 @@ class AppConstants {
   static const int defaultLongBreak = 15;
   static const int defaultSessionsBeforeLongBreak = 4;
 
-  /// GitHub repository ("username/repo") used for the free check-for-updates
-  /// system. Publish a GitHub Release with an APK asset and users will be
-  /// notified of updates. Replace the placeholder with your real repository.
   static const String githubRepo = 'Shubhamf4x/Nudgr';
 }

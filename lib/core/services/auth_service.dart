@@ -60,19 +60,14 @@ class AuthService {
     return input.contains('@') && input.contains('.');
   }
 
-  /// Detects how the Firebase user is authenticated. Google accounts get
-  /// cloud sync; email/password accounts are local-only.
   bool _detectGoogleAccount(fb.User fbUser) {
     if (fbUser.isAnonymous) return false;
     return fbUser.providerData.any((info) => info.providerId == 'google.com');
   }
 
-  // ── Login ──────────────────────────────────────────────────────────
-
   Future<UserModel> login({required String email, required String password}) async {
     final input = email.trim().toLowerCase();
 
-    // Step 1: Resolve username → email via Firestore (with short timeout)
     String resolvedEmail = input;
     if (!_isEmail(input)) {
       try {
@@ -84,7 +79,6 @@ class AuthService {
       }
     }
 
-    // Step 2: Firebase Auth sign-in (with timeout)
     try {
       final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
         email: resolvedEmail,
@@ -172,8 +166,6 @@ class AuthService {
     return data['email'] as String;
   }
 
-  // ── Register ───────────────────────────────────────────────────────
-
   Future<UserModel> register({
     required String email,
     required String password,
@@ -181,15 +173,12 @@ class AuthService {
     String? username,
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
-    // Sanitise the username BEFORE any uniqueness check or Firestore write so
-    // the `usernames` mapping doc ID is always a safe, normalized value.
     final finalUsername = InputValidators.sanitizeUsername(
       (username != null && username.isNotEmpty)
           ? username
           : displayName,
     );
 
-    // Check username uniqueness (short timeout — skip if Firestore unavailable)
     try {
       final usernameDoc = await _usernamesRef.doc(finalUsername).get()
           .timeout(const Duration(seconds: 3));
@@ -200,7 +189,6 @@ class AuthService {
       if (e.toString().contains('Username already taken')) rethrow;
     }
 
-    // Create Firebase Auth account (with timeout)
     fb.User? fbUser;
     try {
       final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
@@ -220,7 +208,6 @@ class AuthService {
     }
     if (fbUser == null) throw Exception('Firebase registration failed');
 
-    // Build user data
     final now = DateTime.now().toIso8601String();
     final userData = <String, dynamic>{
       'id': fbUser.uid,
@@ -240,11 +227,9 @@ class AuthService {
         'totalNotes': 0,
         'focusMinutes': 0,
       },
-      // Email/password accounts are local-only (no cloud sync).
       'isGoogleAccount': false,
     };
 
-    // Save locally FIRST (instant)
     final users = _getRegisteredUsers();
     users.add(userData);
     _saveRegisteredUsers(users);
@@ -253,14 +238,11 @@ class AuthService {
     _currentUser = userModel;
     _prefs!.setString('current_user', jsonEncode(userModel.toJson()));
 
-    // Firestore writes (non-blocking, fire-and-forget)
     _syncUsernameMapping(finalUsername, normalizedEmail, fbUser.uid);
     _syncUserToFirestore(userData);
 
     return userModel;
   }
-
-  // ── Google Sign-In ─────────────────────────────────────────────────
 
   Future<UserModel> signInWithGoogle() async {
     final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
@@ -336,7 +318,6 @@ class AuthService {
           'totalNotes': 0,
           'focusMinutes': 0,
         },
-        // Google accounts get full cloud sync.
         'isGoogleAccount': true,
       };
       users.add(userData);
@@ -350,17 +331,12 @@ class AuthService {
     return userModel;
   }
 
-  // ── Firestore Helpers (non-blocking) ───────────────────────────────
-
   void _syncUserToFirestore(Map<String, dynamic> userData) {
     try {
       _usersRef.doc(userData['id'] as String).set(userData, SetOptions(merge: true));
     } catch (_) {}
   }
 
-  /// Restores profile data pulled from the cloud (used when a Google user
-  /// logs in on a fresh device/reinstall). The cloud copy only wins when it
-  /// is strictly newer than the local one, so offline edits are never lost.
   void mergeCloudProfile(Map<String, dynamic> cloudData) {
     if (_currentUser == null) return;
 
@@ -400,8 +376,6 @@ class AuthService {
       });
     } catch (_) {}
   }
-
-  // ── Profile ────────────────────────────────────────────────────────
 
   Future<void> logout() async {
     try {
@@ -532,8 +506,6 @@ class AuthService {
     final normalizedEmail = email.trim().toLowerCase();
     await _firebaseAuth.sendPasswordResetEmail(email: normalizedEmail);
   }
-
-  // ── Helpers ────────────────────────────────────────────────────────
 
   String _firebaseAuthErrorMessage(fb.FirebaseAuthException e) {
     switch (e.code) {

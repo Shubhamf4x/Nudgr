@@ -4,16 +4,6 @@ import 'dart:io';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../constants/app_constants.dart';
 
-/// Free "check for updates" system built on GitHub Releases.
-///
-/// How to publish an update (no cost, no server needed):
-///   1. Create a GitHub repository and push the project.
-///   2. Set the repository in [AppConstants.githubRepo] ("user/repo").
-///   3. Build a release APK, then on GitHub: Releases -> "Draft a new
-///      release" -> create a tag like v1.0.1 -> attach the APK file
-///      (e.g. nudgr-v1.0.1.apk) -> publish the release.
-///   4. Users tapping "Check for updates" in the app will be told a new
-///      version exists and can download it straight from the release.
 class UpdateService {
   static const String _apiBase = 'https://api.github.com/repos';
 
@@ -54,7 +44,6 @@ class UpdateService {
       client.close();
 
       if (response.statusCode != 200) {
-        // 404 = repo exists but has no releases yet.
         return UpdateCheckError(
           response.statusCode == 404
               ? 'No releases published yet. Upload an APK in a GitHub Release.'
@@ -88,7 +77,6 @@ class UpdateService {
       return UpdateUpToDate(currentVersion: localVersion);
     }
 
-    // Prefer a direct .apk asset link; fall back to the release page.
     String? downloadUrl;
     final assets = release['assets'];
     if (assets is List) {
@@ -123,7 +111,6 @@ class UpdateService {
     return v;
   }
 
-  /// Segment-wise numeric semver comparison: 1.2.10 > 1.2.9, 2.0.0 > 1.9.9.
   static bool _isNewerVersion(String remote, String local) {
     final r = _parseSegments(remote);
     final l = _parseSegments(local);
@@ -133,7 +120,7 @@ class UpdateService {
       final lv = i < l.length ? l[i] : 0;
       if (rv != lv) return rv > lv;
     }
-    return false; // identical versions
+    return false;
   }
 
   static List<int> _parseSegments(String version) {
@@ -144,7 +131,6 @@ class UpdateService {
   }
 }
 
-/// Result of an update check.
 sealed class UpdateCheckResult {
   const UpdateCheckResult();
 }

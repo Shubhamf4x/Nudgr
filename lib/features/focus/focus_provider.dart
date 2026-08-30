@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../shared/models/focus_session_model.dart';
 import '../../core/constants/app_constants.dart';

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../shared/models/task_model.dart';
 import '../../shared/models/note_model.dart';
 import '../../core/services/database_service.dart';

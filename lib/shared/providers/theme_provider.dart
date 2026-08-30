@@ -125,7 +125,6 @@ class ThemeProvider extends ChangeNotifier {
     );
   }
 
-  // === LIGHT ===
   ThemeData get _lightTheme {
     final tt = _buildTextTheme(ThemeData.light().textTheme);
     return ThemeData(
@@ -142,7 +141,6 @@ class ThemeProvider extends ChangeNotifier {
     );
   }
 
-  // === DARK ===
   ThemeData get _darkTheme {
     final tt = _buildTextTheme(ThemeData.dark().textTheme);
     return ThemeData(
@@ -161,7 +159,6 @@ class ThemeProvider extends ChangeNotifier {
     );
   }
 
-  // === MIDNIGHT ===
   ThemeData get _midnightTheme {
     final tt = _buildTextTheme(ThemeData.dark().textTheme);
     return ThemeData(
@@ -180,7 +177,6 @@ class ThemeProvider extends ChangeNotifier {
     );
   }
 
-  // === NEON PURPLE ===
   ThemeData get _neonPurpleTheme {
     final tt = _buildTextTheme(ThemeData.dark().textTheme);
     return ThemeData(
@@ -199,7 +195,6 @@ class ThemeProvider extends ChangeNotifier {
     );
   }
 
-  // === ELECTRIC BLUE ===
   ThemeData get _electricBlueTheme {
     final tt = _buildTextTheme(ThemeData.dark().textTheme);
     return ThemeData(
@@ -218,7 +213,6 @@ class ThemeProvider extends ChangeNotifier {
     );
   }
 
-  // === EMERALD ===
   ThemeData get _emeraldTheme {
     final tt = _buildTextTheme(ThemeData.dark().textTheme);
     return ThemeData(
@@ -237,7 +231,6 @@ class ThemeProvider extends ChangeNotifier {
     );
   }
 
-  // === OCEAN ===
   ThemeData get _oceanTheme {
     final tt = _buildTextTheme(ThemeData.dark().textTheme);
     return ThemeData(

@@ -6,8 +6,6 @@ class SyncProvider extends ChangeNotifier {
   final SyncService _syncService = SyncService.getInstance();
   Timer? _pollTimer;
 
-  // Snapshot used to avoid notifying listeners when nothing changed —
-  // without this, the 5s poll would rebuild consumers even when idle.
   String _lastSnapshot = '';
 
   SyncStatus get status => _syncService.status;

@@ -1,4 +1,4 @@
-﻿import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/app_text_styles.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../shared/models/task_model.dart';
@@ -73,8 +73,6 @@ class _TasksScreenState extends State<TasksScreen> {
               ],
             ),
           ),
-          // The floating + appears only once tasks exist â€” when the list is
-          // empty the centered "Add Task" button in the empty state covers it.
           floatingActionButton:
               (!data.isLoading && data.filteredTasks.isNotEmpty)
                   ? FloatingActionButton(

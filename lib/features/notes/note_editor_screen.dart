@@ -100,7 +100,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final openTag = '[$tag]';
     final closeTag = '[/$tag]';
 
-    // Find the innermost tag pair that encloses a given range
     List<int>? findEnclosingPair(String s, int rangeStart, int rangeEnd) {
       int openIdx = -1;
       int depth = 0;
@@ -142,13 +141,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       final start = selection.start;
       final end = selection.end;
 
-      // Try to find enclosing tag pair for the entire selection range
       final pair = findEnclosingPair(text, end, start);
       if (pair != null) {
         final innerStart = pair[0] + openTag.length;
         final innerEnd = pair[1] - closeTag.length;
         final innerText = text.substring(innerStart, innerEnd);
-        // Selection is inside or covers this tag pair — remove it
         final newText = text.substring(0, pair[0]) + innerText + text.substring(pair[1]);
         final newSelStart = start - openTag.length;
         final newSelEnd = end - openTag.length;
@@ -160,7 +157,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           ),
         );
       } else {
-        // No enclosing tag — wrap the selection
         final selectedText = text.substring(start, end);
         final newText = text.substring(0, start) + openTag + selectedText + closeTag + text.substring(end);
         _contentController.value = TextEditingValue(
@@ -173,7 +169,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       }
     } else {
       final cursor = selection.baseOffset;
-      // Collapsed cursor — find enclosing tag and remove it
       final pair = findEnclosingPair(text, cursor, cursor);
       if (pair != null) {
         final innerStart = pair[0] + openTag.length;
@@ -186,7 +181,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           selection: TextSelection.collapsed(offset: newPos.clamp(0, newText.length)),
         );
       } else {
-        // No enclosing tag — insert empty tag pair
         final newText = text.substring(0, cursor) + openTag + closeTag + text.substring(cursor);
         _contentController.value = TextEditingValue(
           text: newText,
@@ -217,8 +211,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final now = DateTime.now();
     final provider = context.read<NotesProvider>();
 
-    // Keep user input within the limits enforced by firestore.rules so
-    // cloud sync never rejects the write.
     final title = InputValidators.clampLength(
       _titleController.text.trim().isNotEmpty ? _titleController.text.trim() : 'Untitled',
       InputValidators.maxNoteTitleLength,

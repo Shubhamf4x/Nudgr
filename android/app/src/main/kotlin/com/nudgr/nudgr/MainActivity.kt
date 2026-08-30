@@ -106,12 +106,10 @@ class MainActivity : FlutterActivity(), SensorEventListener {
     }
 
     private fun sendNotification(title: String, body: String) {
-        // Handled by Flutter's flutter_local_notifications
     }
 
     override fun onPause() {
         super.onPause()
-        // Keep listening in background for step counting
     }
 
     override fun onDestroy() {

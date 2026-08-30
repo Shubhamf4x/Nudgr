@@ -69,8 +69,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     if (!mounted) return;
 
-    // Request notification permission at the proper moment — after the
-    // user has finished onboarding, not during login.
     await NotificationService.requestPermissionOnce(context);
 
     if (!mounted) return;

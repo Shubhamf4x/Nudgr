@@ -23,8 +23,6 @@ class DatabaseService {
     await _ensureDefaultCategories();
   }
 
-  /// Seeds the built-in categories once so the Tasks page filter chips and
-  /// the Add Task screen category picker stay in sync (same IDs).
   Future<void> _ensureDefaultCategories() async {
     if (getCategories().isNotEmpty) return;
     final now = DateTime.now();
@@ -211,12 +209,8 @@ class DatabaseService {
     await _prefs!.remove(_dataOwnerKey);
   }
 
-  // ── Local data ownership ──────────────────────────────────────────
   static const String _dataOwnerKey = 'local_data_owner_uid';
 
-  /// UID that currently owns the on-device data. Used to detect account
-  /// switching so one user's local notes/tasks are never merged into
-  /// another user's cloud account.
   String? getDataOwnerUid() => _prefs!.getString(_dataOwnerKey);
 
   Future<void> setDataOwnerUid(String uid) async {

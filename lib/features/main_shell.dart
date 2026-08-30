@@ -30,8 +30,6 @@ class _MainShellState extends State<MainShell> {
       const ProfileScreen(key: PageStorageKey('profile')),
     ];
 
-    // For users who skipped onboarding (e.g. returning users on a restored
-    // install), ask for notification permission once at first app entry.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       NotificationService.requestPermissionOnce(context);

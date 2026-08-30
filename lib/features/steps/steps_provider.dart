@@ -97,7 +97,6 @@ class StepsProvider extends ChangeNotifier {
     }
   }
 
-  /// Called when the native ACTIVITY_RECOGNITION dialog resolves.
   void _onPermissionResult(bool granted) {
     if (!granted) return;
     _state = _state.copyWith(hasPermission: true);
@@ -110,13 +109,9 @@ class StepsProvider extends ChangeNotifier {
 
   Future<bool> requestPermission() async {
     final granted = await _stepsService.requestActivityPermission();
-    // On Android 10+ the system dialog is async: requestActivityPermission
-    // returns false immediately and _onPermissionResult fires once the user
-    // answers. Only finalize here when permission was already granted.
     if (granted) {
       _onPermissionResult(true);
     } else {
-      // Re-check once in case the dialog resolved synchronously.
       final nowGranted = await _stepsService.isActivityPermissionGranted();
       if (nowGranted) _onPermissionResult(true);
     }
@@ -157,8 +152,6 @@ class StepsProvider extends ChangeNotifier {
     final steps = sensorValue - baseline;
     final todaySteps = steps > 0 ? steps : todayRecord.stepCount;
 
-    // Skip work entirely when the count has not changed — the hardware
-    // sensor fires very frequently with the same cumulative value.
     if (todaySteps == todayRecord.stepCount &&
         sensorValue == previousSensorValue) {
       return;
@@ -202,8 +195,6 @@ class StepsProvider extends ChangeNotifier {
     try {
       final todayKey = _stepsService.getTodayRecord()?.date ?? '';
       if (todayKey.isEmpty) return;
-      // Throttle cloud writes: at most once per minute and only when the
-      // step count actually changed since the last upload.
       final now = DateTime.now();
       if (todaySteps == _lastSyncedSteps) return;
       if (now.difference(_lastCloudSync) < const Duration(minutes: 1)) return;

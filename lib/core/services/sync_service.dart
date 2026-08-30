@@ -92,8 +92,6 @@ class SyncService {
   String? get currentUserId => _currentUserId;
   bool get cloudEnabled => _cloudEnabled;
 
-  /// Cloud sync is only active for accounts that opt in (Google sign-in).
-  /// Email/password accounts remain purely local.
   bool get _canSync => _cloudEnabled && _currentUserId != null && _isOnline;
 
   Future<void> initialize() async {
@@ -122,8 +120,6 @@ class SyncService {
       syncPendingData();
     }
   }
-
-  // ── Queue Management ──────────────────────────────────────────────
 
   List<SyncQueueItem> _syncQueue = [];
 
@@ -156,7 +152,6 @@ class SyncService {
     required SyncOperation operation,
     Map<String, dynamic>? data,
   }) {
-    // Never queue changes for accounts without cloud sync.
     if (!_cloudEnabled) return;
 
     final item = SyncQueueItem(
@@ -175,16 +170,12 @@ class SyncService {
     }
   }
 
-  // ── Firestore References ──────────────────────────────────────────
-
   CollectionReference _userCollection(String collection) {
     return FirebaseFirestore.instance
         .collection('users')
         .doc(_currentUserId)
         .collection(collection);
   }
-
-  // ── Push Local → Cloud ────────────────────────────────────────────
 
   Future<void> syncPendingData() async {
     if (_isSyncing || !_canSync) return;
@@ -237,8 +228,6 @@ class SyncService {
     }
   }
 
-  // ── Pull Cloud → Local ────────────────────────────────────────────
-
   Future<void> pullFromCloud() async {
     if (!_canSync) return;
 
@@ -263,7 +252,6 @@ class SyncService {
     }
   }
 
-  /// Restores daily step history (Google users, e.g. new device/reinstall).
   Future<void> _pullSteps() async {
     final snapshot = await _userCollection('steps').get();
     for (final doc in snapshot.docs) {
@@ -275,7 +263,6 @@ class SyncService {
     }
   }
 
-  /// Restores the profile document (username, bio, photo, statistics).
   Future<void> _pullUserProfile() async {
     if (_currentUserId == null) return;
     final doc = await FirebaseFirestore.instance
@@ -448,8 +435,6 @@ class SyncService {
     await _db.saveFocusSessions(merged);
   }
 
-  // ── Conflict Resolution (Last-Write-Wins) ─────────────────────────
-
   TaskModel _resolveConflictTask(TaskModel local, TaskModel cloud) {
     if (!local.isSynced && cloud.isSynced) return local;
     if (local.isSynced && !cloud.isSynced) return cloud;
@@ -476,15 +461,11 @@ class SyncService {
     return local.updatedAt.isAfter(cloud.updatedAt) ? local : cloud;
   }
 
-  // ── Full Sync (Push + Pull) ───────────────────────────────────────
-
   Future<void> fullSync() async {
     if (!_canSync) return;
     await syncPendingData();
     await pullFromCloud();
   }
-
-  // ── Direct Firestore Operations (for immediate sync) ──────────────
 
   Future<void> saveTaskToFirestore(TaskModel task) async {
     if (!_canSync) {
@@ -693,8 +674,6 @@ class SyncService {
           .set(userData, SetOptions(merge: true));
     } catch (_) {}
   }
-
-  // ── Helpers ────────────────────────────────────────────────────────
 
   void _loadLastSyncTime() {
     final timeStr = _prefs?.getString(_lastSyncKey);

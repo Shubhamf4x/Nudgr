@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -116,7 +116,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final picked = await _picker.pickImage(source: source, maxWidth: 800, maxHeight: 800, imageQuality: 85);
     if (picked == null || !mounted) return;
 
-    // Crop step: the user selects the exact square/circular area to keep.
     final cropped = await _cropImage(picked.path);
     if (cropped == null) return;
     if (!mounted) return;
@@ -184,7 +183,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
       return cropped?.path;
     } catch (_) {
-      // If the cropper fails to open, fall back to the uncropped image.
       return sourcePath;
     }
   }
@@ -244,7 +242,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: CircleAvatar(
             radius: 52,
             backgroundColor: Colors.grey.shade800,
-            // Decode the picked image at display resolution to save memory.
             backgroundImage: hasImage
                 ? ResizeImage(
                     FileImage(File(_localImagePath!)),

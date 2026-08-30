@@ -1,46 +1,9 @@
 rules_version = '2';
 
-// ============================================================================
-// Nudgr — Firestore Security Rules (hardened)
-//
-// Identity model:
-//   Firebase Authentication is the ONLY authoritative identity.
-//   Client-supplied fields (userId / uid / ownerId / id) are never trusted
-//   on their own — they must always match request.auth.uid.
-//
-// Cloud sync policy:
-//   Private user data (notes, tasks, categories, focus history, steps,
-//   conversations) syncs to the cloud ONLY for Google-sign-in accounts.
-//   Email/password accounts are local-only: even a modified client cannot
-//   read or write their private subcollections (sign_in_provider check).
-//
-// Data model (matches lib/ models + services):
-//   users/{uid}                          -> profile document (UserModel)
-//   users/{uid}/tasks/{taskId}           -> TaskModel
-//   users/{uid}/notes/{noteId}           -> NoteModel
-//   users/{uid}/categories/{categoryId}  -> CategoryModel
-//   users/{uid}/focus_sessions/{id}      -> FocusSessionModel
-//   users/{uid}/steps/{date}             -> { date: "YYYY-MM-DD", stepCount }
-//   users/{uid}/conversations/{id}       -> ConversationModel
-//   usernames/{username}                 -> { email, uid, createdAt } mapping
-//                                           (public read: required by the
-//                                           pre-auth username -> email login
-//                                           resolution; strictly owned writes)
-//
-// Notes:
-//  - The client writes full model JSON with set(merge: true), so
-//    request.resource.data is the resulting merged document.
-//  - createdAt is immutable after creation.
-//  - All timestamps in this app are ISO-8601 strings (not FieldValue
-//    serverTimestamp), validated as strings with sane size limits.
-// ============================================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
     function isSignedIn() {
       return request.auth != null && request.auth.uid != null;
     }
@@ -49,15 +12,11 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    // Cloud data sync is a Google-account feature. Email/password accounts
-    // are local-only, so their private subcollections stay closed even if a
-    // modified client attempts to sync.
     function isSyncOwner(uid) {
       return isOwner(uid)
         && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
 
-    // Ownership field on a write must still point at the caller.
     function ownershipFieldValid() {
       return request.resource.data.get('userId', request.auth.uid) == request.auth.uid;
     }
@@ -71,15 +30,9 @@ service cloud.firestore {
     }
 
     function validTags(v) {
-      // Firestore rules cannot run predicates per list element,
-      // so only the count is enforced here (each tag is a string in the
-      // app's models; the 1 MiB per-document limit caps total size).
       return v is list && v.size() <= 50;
     }
 
-    // ------------------------------------------------------------------
-    // USER PROFILE  users/{uid}
-    // ------------------------------------------------------------------
     match /users/{uid} {
       allow get, list: if isOwner(uid);
 
@@ -99,11 +52,9 @@ service cloud.firestore {
         && isIsoTimestamp(request.resource.data.get('createdAt', ''));
 
       allow update: if isOwner(uid)
-        // Ownership/system fields cannot be changed or reassigned.
         && request.resource.data.get('id', uid) == uid
         && (!('createdAt' in request.resource.data)
             || request.resource.data.createdAt == resource.data.get('createdAt', request.resource.data.createdAt))
-        // Field validation for the merged result.
         && (!('displayName' in request.resource.data)
             || (request.resource.data.displayName is string
                 && request.resource.data.displayName.size() > 0
@@ -119,15 +70,9 @@ service cloud.firestore {
         && request.resource.data.get('preferences', {}) is map
         && request.resource.data.get('statistics', {}) is map;
 
-      // Account deletion is a privileged operation -> Cloud Function.
       allow delete: if false;
 
-      // ----------------------------------------------------------------
-      // USER SUBCOLLECTIONS (all private to the owner UID; Google sign-in
-      // required because cloud sync is a Google-account feature)
-      // ----------------------------------------------------------------
 
-      // ---- Tasks ----
       match /tasks/{taskId} {
         allow get, list: if isSyncOwner(uid);
 
@@ -166,7 +111,6 @@ service cloud.firestore {
         allow delete: if isSyncOwner(uid);
       }
 
-      // ---- Notes ----
       match /notes/{noteId} {
         allow get, list: if isSyncOwner(uid);
 
@@ -200,7 +144,6 @@ service cloud.firestore {
         allow delete: if isSyncOwner(uid);
       }
 
-      // ---- Categories ----
       match /categories/{categoryId} {
         allow get, list: if isSyncOwner(uid);
 
@@ -232,7 +175,6 @@ service cloud.firestore {
         allow delete: if isSyncOwner(uid);
       }
 
-      // ---- Focus history ----
       match /focus_sessions/{sessionId} {
         allow get, list: if isSyncOwner(uid);
 
@@ -261,7 +203,6 @@ service cloud.firestore {
         allow delete: if isSyncOwner(uid);
       }
 
-      // ---- Steps history (doc id = "YYYY-MM-DD") ----
       match /steps/{date} {
         allow get, list: if isSyncOwner(uid);
 
@@ -275,7 +216,6 @@ service cloud.firestore {
         allow delete: if isSyncOwner(uid);
       }
 
-      // ---- Conversations (chat metadata synced per user) ----
       match /conversations/{conversationId} {
         allow get, list: if isSyncOwner(uid);
 
@@ -286,22 +226,11 @@ service cloud.firestore {
         allow delete: if isSyncOwner(uid);
       }
 
-      // No other subcollections.
       match /{otherDoc=**} {
         allow read, write: if false;
       }
     }
 
-    // ------------------------------------------------------------------
-    // USERNAME -> ACCOUNT MAPPING  usernames/{username}
-    //
-    // Public read is REQUIRED: the login flow resolves a username to an
-    // email BEFORE the user is authenticated. Writes are strictly bound
-    // to the authenticated UID so no user can create, steal or alter
-    // another user's mapping. Uniqueness is additionally enforced by the
-    // client's check-before-write; if stronger guarantees are needed,
-    // move mapping creation into a Cloud Function.
-    // ------------------------------------------------------------------
     match /usernames/{username} {
       allow get, list: if true;
 
@@ -318,15 +247,9 @@ service cloud.firestore {
         && resource.data.uid == request.auth.uid
         && request.resource.data.get('uid', request.auth.uid) == request.auth.uid;
 
-      // Owner may release their own username.
       allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
     }
 
-    // ------------------------------------------------------------------
-    // DEFAULT DENY — everything else is inaccessible to clients.
-    // Privileged/admin operations must go through Cloud Functions
-    // (Admin SDK bypasses these rules).
-    // ------------------------------------------------------------------
     match /{document=**} {
       allow read, write: if false;
     }

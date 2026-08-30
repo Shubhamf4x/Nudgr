@@ -14,8 +14,6 @@ class UserModel extends Equatable {
   final Map<String, dynamic> preferences;
   final Map<String, dynamic> statistics;
 
-  /// True when the account is signed in with Google (cloud sync enabled).
-  /// Email/password accounts stay local-only.
   final bool isGoogleAccount;
 
   const UserModel({

@@ -46,8 +46,6 @@ beforeEach(async () => {
 });
 
 function authedDb(uid, provider = 'google.com') {
-  // Cloud-sync subcollections require Google sign-in; pass a custom
-  // sign_in_provider claim to simulate email/password accounts.
   return uid
     ? testEnv
         .authenticatedContext(uid, { firebase: { sign_in_provider: provider } })
@@ -182,8 +180,6 @@ describe('notes users/{uid}/notes/{noteId}', () => {
   });
 
   test('cannot create a note inside another user subtree with own userId stamped', async () => {
-    // The path UID is what matters: writing into B's subtree is denied even
-    // if the payload claims userId = A.
     await assertFails(
       authedDb(UID_A).doc('users/uid-b-222222/notes/note-x').set(noteData(UID_A))
     );

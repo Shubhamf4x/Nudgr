@@ -8,7 +8,6 @@ class CategoryChip extends StatelessWidget {
   final VoidCallback? onTap;
   final int colorIndex;
 
-  /// When true the chip renders as plain neutral text with no accent color.
   final bool monochrome;
 
   const CategoryChip({

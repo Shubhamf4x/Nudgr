@@ -15,8 +15,6 @@ class WorldClockScreen extends StatefulWidget {
 
 class _WorldClockScreenState extends State<WorldClockScreen> {
   Timer? _timer;
-  // Ticking clock lives in a ValueNotifier so each second only rebuilds the
-  // time texts, not the whole screen (header + list + cards).
   final ValueNotifier<DateTime> _nowNotifier = ValueNotifier<DateTime>(DateTime.now());
   bool _is24Hour = false;
   List<WorldClockCity> _cities = [];
@@ -171,8 +169,6 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
 
   bool _isDaytime(DateTime time) => time.hour >= 6 && time.hour < 18;
 
-  /// DST-correct city time using the IANA timezone identifier.
-  /// Falls back to the stored fixed offset when the id is unknown.
   DateTime _getCityTime(WorldClockCity city, DateTime now) {
     try {
       final location = tz.getLocation(city.timezone);
@@ -185,7 +181,6 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     }
   }
 
-  /// Actual UTC offset for the city right now (accounts for DST).
   double _getCurrentOffset(WorldClockCity city, DateTime now) {
     try {
       final location = tz.getLocation(city.timezone);
@@ -209,7 +204,6 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
 
   void _searchCities(String q) {
     if (q.trim().isEmpty) {
-      // Empty query -> show popular suggestions instead of an empty state.
       setState(() {
         _isSearching = true;
         _searchResults = List<WorldClockCity>.from(_defaultCities);
@@ -221,7 +215,6 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
       _isSearching = true;
       final matches =
           _allCities.where((c) => c.name.toLowerCase().contains(lower)).toList();
-      // Also match on timezone ids (e.g. "Asia", "Europe/Athens").
       if (matches.length < 5) {
         final tzMatches = _allCities.where((c) =>
             c.timezone.toLowerCase().contains(lower) &&
@@ -322,7 +315,6 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       itemCount: _cities.length + 1,
       onReorderItem: (oldIndex, newIndex) {
-        // Index 0 is the "Your Time" card — not reorderable.
         if (oldIndex == 0 || newIndex == 0) return;
         final actualOld = oldIndex - 1;
         final actualNew = newIndex - 1;
