@@ -173,9 +173,6 @@ class NotificationService {
     await _saveNotifications();
   }
 
-  /// Schedules with exact alarms when the OS permits, falling back to
-  /// inexact alarms (Android 14+ denies exact alarms by default on some
-  /// devices and the exact call throws).
   Future<void> _zonedScheduleWithFallback(
     int id,
     String title,

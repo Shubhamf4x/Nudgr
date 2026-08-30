@@ -105,8 +105,6 @@ class TasksProvider extends ChangeNotifier {
   Future<void> addTask(TaskModel task) async {
     await _db.saveTask(task);
 
-    // Refresh the UI immediately, before any notification work — if
-    // notification scheduling fails, the task list must still update.
     await loadData();
 
     if (task.dueTime != null && task.dueTime!.isAfter(DateTime.now())) {
@@ -164,8 +162,6 @@ class TasksProvider extends ChangeNotifier {
     );
     await _db.saveTask(updated);
 
-    // Reload and notify BEFORE notification work so the checkbox updates
-    // instantly; notification failures must never leave the UI stale.
     await loadData();
 
     try {
