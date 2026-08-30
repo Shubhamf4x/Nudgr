@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Full-data backup rules for Android < 12.
+     Preserves Nudgr's local data (tasks, notes, focus history, steps,
+     settings, auth session) so progress survives reinstalling the app.
+     The Firestore offline cache is excluded — it is rebuilt automatically. -->
+<full-backup-content>
+    <include domain="sharedpref" path="."/>
+    <include domain="file" path="."/>
+    <include domain="database" path="."/>
+    <exclude domain="file" path="datastore"/>
+    <exclude domain="file" path="cache"/>
+    <exclude domain="file" path="no_backup"/>
+</full-backup-content>

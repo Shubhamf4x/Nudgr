@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "363358004031",
+    "project_id": "nudgr-d0911",
+    "storage_bucket": "nudgr-d0911.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:363358004031:android:2ba0ecae3635eff30a298a",
+        "android_client_info": {
+          "package_name": "com.nudgr.nudgr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBOqKWBvY1jgPhtl8UsWGEovWbemdT14Q0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

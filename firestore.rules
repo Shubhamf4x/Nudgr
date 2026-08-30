@@ -1,0 +1,334 @@
+rules_version = '2';
+
+// ============================================================================
+// Nudgr — Firestore Security Rules (hardened)
+//
+// Identity model:
+//   Firebase Authentication is the ONLY authoritative identity.
+//   Client-supplied fields (userId / uid / ownerId / id) are never trusted
+//   on their own — they must always match request.auth.uid.
+//
+// Cloud sync policy:
+//   Private user data (notes, tasks, categories, focus history, steps,
+//   conversations) syncs to the cloud ONLY for Google-sign-in accounts.
+//   Email/password accounts are local-only: even a modified client cannot
+//   read or write their private subcollections (sign_in_provider check).
+//
+// Data model (matches lib/ models + services):
+//   users/{uid}                          -> profile document (UserModel)
+//   users/{uid}/tasks/{taskId}           -> TaskModel
+//   users/{uid}/notes/{noteId}           -> NoteModel
+//   users/{uid}/categories/{categoryId}  -> CategoryModel
+//   users/{uid}/focus_sessions/{id}      -> FocusSessionModel
+//   users/{uid}/steps/{date}             -> { date: "YYYY-MM-DD", stepCount }
+//   users/{uid}/conversations/{id}       -> ConversationModel
+//   usernames/{username}                 -> { email, uid, createdAt } mapping
+//                                           (public read: required by the
+//                                           pre-auth username -> email login
+//                                           resolution; strictly owned writes)
+//
+// Notes:
+//  - The client writes full model JSON with set(merge: true), so
+//    request.resource.data is the resulting merged document.
+//  - createdAt is immutable after creation.
+//  - All timestamps in this app are ISO-8601 strings (not FieldValue
+//    serverTimestamp), validated as strings with sane size limits.
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Cloud data sync is a Google-account feature. Email/password accounts
+    // are local-only, so their private subcollections stay closed even if a
+    // modified client attempts to sync.
+    function isSyncOwner(uid) {
+      return isOwner(uid)
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    // Ownership field on a write must still point at the caller.
+    function ownershipFieldValid() {
+      return request.resource.data.get('userId', request.auth.uid) == request.auth.uid;
+    }
+
+    function isIsoTimestamp(v) {
+      return v is string && v.size() > 0 && v.size() <= 40;
+    }
+
+    function nullableString(v, maxLen) {
+      return (v == null) || (v is string && v.size() <= maxLen);
+    }
+
+    function validTags(v) {
+      // Firestore rules cannot run predicates per list element,
+      // so only the count is enforced here (each tag is a string in the
+      // app's models; the 1 MiB per-document limit caps total size).
+      return v is list && v.size() <= 50;
+    }
+
+    // ------------------------------------------------------------------
+    // USER PROFILE  users/{uid}
+    // ------------------------------------------------------------------
+    match /users/{uid} {
+      allow get, list: if isOwner(uid);
+
+      allow create: if isOwner(uid)
+        && request.resource.data.get('id', uid) == uid
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 100
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 320
+        && request.resource.data.username is string
+        && request.resource.data.username.size() <= 64
+        && nullableString(request.resource.data.get('bio', null), 500)
+        && nullableString(request.resource.data.get('photoUrl', null), 2048)
+        && request.resource.data.get('preferences', {}) is map
+        && request.resource.data.get('statistics', {}) is map
+        && isIsoTimestamp(request.resource.data.get('createdAt', ''));
+
+      allow update: if isOwner(uid)
+        // Ownership/system fields cannot be changed or reassigned.
+        && request.resource.data.get('id', uid) == uid
+        && (!('createdAt' in request.resource.data)
+            || request.resource.data.createdAt == resource.data.get('createdAt', request.resource.data.createdAt))
+        // Field validation for the merged result.
+        && (!('displayName' in request.resource.data)
+            || (request.resource.data.displayName is string
+                && request.resource.data.displayName.size() > 0
+                && request.resource.data.displayName.size() <= 100))
+        && nullableString(request.resource.data.get('bio', null), 500)
+        && nullableString(request.resource.data.get('photoUrl', null), 2048)
+        && (!('email' in request.resource.data)
+            || (request.resource.data.email is string
+                && request.resource.data.email.size() <= 320))
+        && (!('username' in request.resource.data)
+            || (request.resource.data.username is string
+                && request.resource.data.username.size() <= 64))
+        && request.resource.data.get('preferences', {}) is map
+        && request.resource.data.get('statistics', {}) is map;
+
+      // Account deletion is a privileged operation -> Cloud Function.
+      allow delete: if false;
+
+      // ----------------------------------------------------------------
+      // USER SUBCOLLECTIONS (all private to the owner UID; Google sign-in
+      // required because cloud sync is a Google-account feature)
+      // ----------------------------------------------------------------
+
+      // ---- Tasks ----
+      match /tasks/{taskId} {
+        allow get, list: if isSyncOwner(uid);
+
+        allow create: if isSyncOwner(uid)
+          && ownershipFieldValid()
+          && request.resource.data.get('id', taskId) == taskId
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 500
+          && nullableString(request.resource.data.get('description', null), 5000)
+          && request.resource.data.get('priority', 'medium') in ['low', 'medium', 'high']
+          && request.resource.data.get('isCompleted', false) is bool
+          && request.resource.data.get('isRecurring', false) is bool
+          && request.resource.data.get('isSynced', true) is bool
+          && nullableString(request.resource.data.get('recurrencePattern', null), 32)
+          && nullableString(request.resource.data.get('categoryId', null), 64)
+          && nullableString(request.resource.data.get('categoryName', null), 100)
+          && validTags(request.resource.data.get('tags', []))
+          && request.resource.data.get('subtasks', []) is list
+          && request.resource.data.get('subtasks', []).size() <= 100
+          && isIsoTimestamp(request.resource.data.get('createdAt', ''));
+
+        allow update: if isSyncOwner(uid)
+          && ownershipFieldValid()
+          && (!('id' in request.resource.data) || request.resource.data.id == taskId)
+          && (!('createdAt' in request.resource.data)
+              || request.resource.data.createdAt == resource.data.get('createdAt', request.resource.data.createdAt))
+          && (!('title' in request.resource.data)
+              || (request.resource.data.title is string
+                  && request.resource.data.title.size() > 0
+                  && request.resource.data.title.size() <= 500))
+          && nullableString(request.resource.data.get('description', null), 5000)
+          && (!('priority' in request.resource.data)
+              || request.resource.data.priority in ['low', 'medium', 'high']);
+
+        allow delete: if isSyncOwner(uid);
+      }
+
+      // ---- Notes ----
+      match /notes/{noteId} {
+        allow get, list: if isSyncOwner(uid);
+
+        allow create: if isSyncOwner(uid)
+          && ownershipFieldValid()
+          && request.resource.data.get('id', noteId) == noteId
+          && request.resource.data.title is string
+          && request.resource.data.title.size() <= 200
+          && request.resource.data.content is string
+          && request.resource.data.content.size() <= 100000
+          && request.resource.data.get('isPinned', false) is bool
+          && request.resource.data.get('isArchived', false) is bool
+          && request.resource.data.get('isSynced', true) is bool
+          && nullableString(request.resource.data.get('categoryId', null), 64)
+          && nullableString(request.resource.data.get('categoryName', null), 100)
+          && validTags(request.resource.data.get('tags', []))
+          && isIsoTimestamp(request.resource.data.get('createdAt', ''));
+
+        allow update: if isSyncOwner(uid)
+          && ownershipFieldValid()
+          && (!('id' in request.resource.data) || request.resource.data.id == noteId)
+          && (!('createdAt' in request.resource.data)
+              || request.resource.data.createdAt == resource.data.get('createdAt', request.resource.data.createdAt))
+          && (!('title' in request.resource.data)
+              || (request.resource.data.title is string
+                  && request.resource.data.title.size() <= 200))
+          && (!('content' in request.resource.data)
+              || (request.resource.data.content is string
+                  && request.resource.data.content.size() <= 100000));
+
+        allow delete: if isSyncOwner(uid);
+      }
+
+      // ---- Categories ----
+      match /categories/{categoryId} {
+        allow get, list: if isSyncOwner(uid);
+
+        allow create: if isSyncOwner(uid)
+          && ownershipFieldValid()
+          && request.resource.data.get('id', categoryId) == categoryId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 100
+          && request.resource.data.get('colorIndex', 0) is int
+          && request.resource.data.get('colorIndex', 0) >= 0
+          && request.resource.data.get('colorIndex', 0) <= 100
+          && request.resource.data.get('sortOrder', 0) is int
+          && nullableString(request.resource.data.get('icon', null), 64)
+          && request.resource.data.get('type', 'task') is string
+          && request.resource.data.get('type', 'task').size() <= 32
+          && isIsoTimestamp(request.resource.data.get('createdAt', ''));
+
+        allow update: if isSyncOwner(uid)
+          && ownershipFieldValid()
+          && (!('id' in request.resource.data) || request.resource.data.id == categoryId)
+          && (!('createdAt' in request.resource.data)
+              || request.resource.data.createdAt == resource.data.get('createdAt', request.resource.data.createdAt))
+          && (!('name' in request.resource.data)
+              || (request.resource.data.name is string
+                  && request.resource.data.name.size() > 0
+                  && request.resource.data.name.size() <= 100));
+
+        allow delete: if isSyncOwner(uid);
+      }
+
+      // ---- Focus history ----
+      match /focus_sessions/{sessionId} {
+        allow get, list: if isSyncOwner(uid);
+
+        allow create: if isSyncOwner(uid)
+          && ownershipFieldValid()
+          && request.resource.data.get('id', sessionId) == sessionId
+          && request.resource.data.get('durationMinutes', 0) is int
+          && request.resource.data.get('durationMinutes', 0) >= 0
+          && request.resource.data.get('durationMinutes', 0) <= 1440
+          && request.resource.data.get('actualDurationMinutes', 0) is int
+          && request.resource.data.get('actualDurationMinutes', 0) >= 0
+          && request.resource.data.get('actualDurationMinutes', 0) <= 1440
+          && request.resource.data.get('sessionNumber', 1) is int
+          && request.resource.data.get('isCompleted', false) is bool
+          && nullableString(request.resource.data.get('sessionType', 'focus'), 32)
+          && nullableString(request.resource.data.get('taskId', null), 64)
+          && nullableString(request.resource.data.get('taskTitle', null), 200)
+          && isIsoTimestamp(request.resource.data.get('startTime', ''));
+
+        allow update: if isSyncOwner(uid)
+          && ownershipFieldValid()
+          && (!('id' in request.resource.data) || request.resource.data.id == sessionId)
+          && (!('createdAt' in request.resource.data)
+              || request.resource.data.createdAt == resource.data.get('createdAt', request.resource.data.createdAt));
+
+        allow delete: if isSyncOwner(uid);
+      }
+
+      // ---- Steps history (doc id = "YYYY-MM-DD") ----
+      match /steps/{date} {
+        allow get, list: if isSyncOwner(uid);
+
+        allow create, update: if isSyncOwner(uid)
+          && request.resource.data.get('date', date) == date
+          && date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && request.resource.data.get('stepCount', 0) is int
+          && request.resource.data.get('stepCount', 0) >= 0
+          && request.resource.data.get('stepCount', 0) <= 1000000;
+
+        allow delete: if isSyncOwner(uid);
+      }
+
+      // ---- Conversations (chat metadata synced per user) ----
+      match /conversations/{conversationId} {
+        allow get, list: if isSyncOwner(uid);
+
+        allow create, update: if isSyncOwner(uid)
+          && ownershipFieldValid()
+          && request.resource.data.get('id', conversationId) == conversationId;
+
+        allow delete: if isSyncOwner(uid);
+      }
+
+      // No other subcollections.
+      match /{otherDoc=**} {
+        allow read, write: if false;
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // USERNAME -> ACCOUNT MAPPING  usernames/{username}
+    //
+    // Public read is REQUIRED: the login flow resolves a username to an
+    // email BEFORE the user is authenticated. Writes are strictly bound
+    // to the authenticated UID so no user can create, steal or alter
+    // another user's mapping. Uniqueness is additionally enforced by the
+    // client's check-before-write; if stronger guarantees are needed,
+    // move mapping creation into a Cloud Function.
+    // ------------------------------------------------------------------
+    match /usernames/{username} {
+      allow get, list: if true;
+
+      allow create: if isSignedIn()
+        && username.matches('^[a-zA-Z0-9._-]{1,64}$')
+        && request.resource.data.get('uid', '') == request.auth.uid
+        && request.resource.data.email is string
+        && request.resource.data.email.size() > 3
+        && request.resource.data.email.size() <= 320
+        && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && isIsoTimestamp(request.resource.data.get('createdAt', ''));
+
+      allow update: if isSignedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.get('uid', request.auth.uid) == request.auth.uid;
+
+      // Owner may release their own username.
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // ------------------------------------------------------------------
+    // DEFAULT DENY — everything else is inaccessible to clients.
+    // Privileged/admin operations must go through Cloud Functions
+    // (Admin SDK bypasses these rules).
+    // ------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

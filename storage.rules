@@ -1,0 +1,44 @@
+rules_version = '2';
+
+// ============================================================================
+// Nudgr — Firebase Storage Security Rules
+//
+// Current status: the Nudgr Flutter app does NOT upload to Firebase Storage
+// (profile photos are stored on-device). Storage access is therefore denied
+// for all clients by default.
+//
+// If profile-picture upload to Storage is enabled later, delete the
+// "deny all" block at the bottom and enable the user-scoped block below.
+// ============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ------------------------------------------------------------------
+    // OPTIONAL future structure: users/{uid}/profile/{fileName}
+    // Owner-only access, images only, max 5 MiB.
+    // ------------------------------------------------------------------
+    match /users/{uid}/profile/{fileName} {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+
+      function isReasonableUpload() {
+        return request.resource.size > 0
+          && request.resource.size < 5 * 1024 * 1024
+          && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      }
+
+      allow read: if isOwner();
+      allow write: if isOwner() && isReasonableUpload();
+      allow delete: if isOwner();
+    }
+
+    // ------------------------------------------------------------------
+    // DEFAULT DENY — everything else is inaccessible to clients.
+    // ------------------------------------------------------------------
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

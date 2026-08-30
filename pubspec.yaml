@@ -1,0 +1,53 @@
+name: nudgr
+description: "Nudgr - All-in-one productivity and communication application"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.2
+  shared_preferences: ^2.3.4
+  uuid: ^4.5.1
+  intl: ^0.20.0
+  equatable: ^2.0.7
+  connectivity_plus: ^6.1.2
+  crypto: ^3.0.6
+  table_calendar: ^3.2.0
+  image_picker: ^1.1.2
+  permission_handler: ^11.4.0
+  google_sign_in: ^6.2.2
+  firebase_core: ^3.12.1
+  firebase_auth: ^5.5.1
+  cloud_firestore: ^5.6.5
+  firebase_app_check: ^0.3.2
+  flutter_blue_plus: ^1.35.2
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.1
+  flutter_timezone: ^5.1.0
+  image_cropper: ^12.2.1
+  package_info_plus: ^8.1.2
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: GoogleSans
+      fonts:
+        - asset: assets/fonts/GoogleSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/GoogleSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/GoogleSans-Bold.ttf
+          weight: 700
+  assets:
+    - assets/fonts/
