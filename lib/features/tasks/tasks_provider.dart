@@ -105,38 +105,53 @@ class TasksProvider extends ChangeNotifier {
   Future<void> addTask(TaskModel task) async {
     await _db.saveTask(task);
 
+    // Refresh the UI immediately, before any notification work — if
+    // notification scheduling fails, the task list must still update.
+    await loadData();
+
     if (task.dueTime != null && task.dueTime!.isAfter(DateTime.now())) {
-      await NotificationService.getInstance().scheduleTaskNotification(
-        task.id,
-        task.title,
-        task.dueTime!,
-      );
+      try {
+        await NotificationService.getInstance().scheduleTaskNotification(
+          task.id,
+          task.title,
+          task.dueTime!,
+        );
+      } catch (_) {}
     }
 
-    await loadData();
     _sync.saveTaskToFirestore(task);
   }
 
   Future<void> updateTask(TaskModel task) async {
-    await NotificationService.getInstance().cancelTaskNotification(task.id);
     await _db.saveTask(task);
 
-    if (task.dueTime != null && task.dueTime!.isAfter(DateTime.now()) && !task.isCompleted) {
-      await NotificationService.getInstance().scheduleTaskNotification(
-        task.id,
-        task.title,
-        task.dueTime!,
-      );
-    }
-
     await loadData();
+
+    try {
+      await NotificationService.getInstance().cancelTaskNotification(task.id);
+      if (task.dueTime != null &&
+          task.dueTime!.isAfter(DateTime.now()) &&
+          !task.isCompleted) {
+        await NotificationService.getInstance().scheduleTaskNotification(
+          task.id,
+          task.title,
+          task.dueTime!,
+        );
+      }
+    } catch (_) {}
+
     _sync.saveTaskToFirestore(task);
   }
 
   Future<void> deleteTask(String taskId) async {
-    await NotificationService.getInstance().cancelTaskNotification(taskId);
     await _db.deleteTask(taskId);
+
     await loadData();
+
+    try {
+      await NotificationService.getInstance().cancelTaskNotification(taskId);
+    } catch (_) {}
+
     _sync.deleteTaskFromFirestore(taskId);
   }
 
@@ -149,17 +164,24 @@ class TasksProvider extends ChangeNotifier {
     );
     await _db.saveTask(updated);
 
-    if (updated.isCompleted) {
-      await NotificationService.getInstance().cancelTaskNotification(updated.id);
-    } else if (updated.dueTime != null && updated.dueTime!.isAfter(DateTime.now())) {
-      await NotificationService.getInstance().scheduleTaskNotification(
-        updated.id,
-        updated.title,
-        updated.dueTime!,
-      );
-    }
-
+    // Reload and notify BEFORE notification work so the checkbox updates
+    // instantly; notification failures must never leave the UI stale.
     await loadData();
+
+    try {
+      if (updated.isCompleted) {
+        await NotificationService.getInstance()
+            .cancelTaskNotification(updated.id);
+      } else if (updated.dueTime != null &&
+          updated.dueTime!.isAfter(DateTime.now())) {
+        await NotificationService.getInstance().scheduleTaskNotification(
+          updated.id,
+          updated.title,
+          updated.dueTime!,
+        );
+      }
+    } catch (_) {}
+
     _sync.saveTaskToFirestore(updated);
   }
 

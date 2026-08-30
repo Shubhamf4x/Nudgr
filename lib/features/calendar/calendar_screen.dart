@@ -402,12 +402,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             : Colors.black87,
               ),
             ),
-            if (hasEvents)
-              Positioned(
-                bottom: 4,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(
+            if (hasEvents) ...[
+              const SizedBox(height: 3),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(
                     min(
                         provider.state.tasksByDate[normalizedDay]?.length ?? 0, 3),
                     (i) => Container(
@@ -422,8 +421,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     ),
                   ),
-                ),
               ),
+            ],
           ],
         ),
       ),

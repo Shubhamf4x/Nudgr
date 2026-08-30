@@ -173,12 +173,49 @@ class NotificationService {
     await _saveNotifications();
   }
 
+  /// Schedules with exact alarms when the OS permits, falling back to
+  /// inexact alarms (Android 14+ denies exact alarms by default on some
+  /// devices and the exact call throws).
+  Future<void> _zonedScheduleWithFallback(
+    int id,
+    String title,
+    String body,
+    tz.TZDateTime when,
+    NotificationDetails details,
+  ) async {
+    try {
+      await _localNotifications.zonedSchedule(
+        id,
+        title,
+        body,
+        when,
+        details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (_) {
+      try {
+        await _localNotifications.zonedSchedule(
+          id,
+          title,
+          body,
+          when,
+          details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } catch (_) {}
+    }
+  }
+
   Future<void> scheduleTaskNotification(String taskId, String taskTitle, DateTime dueTime) async {
     if (dueTime.isBefore(DateTime.now())) return;
 
     final notificationId = taskId.hashCode.abs() % 2147483647;
 
-    await _localNotifications.zonedSchedule(
+    await _zonedScheduleWithFallback(
       notificationId,
       'Task Due Now',
       taskTitle,
@@ -201,8 +238,6 @@ class NotificationService {
           presentSound: true,
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
     );
 
     await addNotification(
@@ -214,8 +249,10 @@ class NotificationService {
   }
 
   Future<void> cancelTaskNotification(String taskId) async {
-    final notificationId = taskId.hashCode.abs() % 2147483647;
-    await _localNotifications.cancel(notificationId);
+    try {
+      final notificationId = taskId.hashCode.abs() % 2147483647;
+      await _localNotifications.cancel(notificationId);
+    } catch (_) {}
   }
 
   Future<void> scheduleTaskReminder(String taskId, String taskTitle, DateTime reminderTime) async {
@@ -223,7 +260,7 @@ class NotificationService {
 
     final notificationId = (taskId.hashCode.abs() % 2147483647) + 1;
 
-    await _localNotifications.zonedSchedule(
+    await _zonedScheduleWithFallback(
       notificationId,
       'Task Reminder',
       taskTitle,
@@ -245,8 +282,6 @@ class NotificationService {
           presentSound: true,
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
     );
 
     await addNotification(
