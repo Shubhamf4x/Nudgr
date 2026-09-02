@@ -5,7 +5,7 @@ enum PeerConnectionState {
   advertising,
 }
 
-class BitChatPeer {
+class ChatPeer {
   final String peerId;
   final String? nickname;
   final DateTime lastSeen;
@@ -14,7 +14,7 @@ class BitChatPeer {
   final bool isRelay;
   final int hopCount;
 
-  const BitChatPeer({
+  const ChatPeer({
     required this.peerId,
     this.nickname,
     required this.lastSeen,
@@ -30,7 +30,7 @@ class BitChatPeer {
   String get displayId => peerId.length > 8 ? peerId.substring(0, 8) : peerId;
   String get displayName => nickname ?? displayId;
 
-  BitChatPeer copyWith({
+  ChatPeer copyWith({
     String? peerId,
     String? nickname,
     DateTime? lastSeen,
@@ -39,7 +39,7 @@ class BitChatPeer {
     bool? isRelay,
     int? hopCount,
   }) {
-    return BitChatPeer(
+    return ChatPeer(
       peerId: peerId ?? this.peerId,
       nickname: nickname ?? this.nickname,
       lastSeen: lastSeen ?? this.lastSeen,
@@ -60,7 +60,7 @@ class BitChatPeer {
     'hopCount': hopCount,
   };
 
-  factory BitChatPeer.fromJson(Map<String, dynamic> json) => BitChatPeer(
+  factory ChatPeer.fromJson(Map<String, dynamic> json) => ChatPeer(
     peerId: json['peerId'],
     nickname: json['nickname'],
     lastSeen: DateTime.parse(json['lastSeen']),

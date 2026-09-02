@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/color_constants.dart';
-import '../models/bit_chat_peer.dart';
+import '../models/chat_peer.dart';
 
 class PeerTile extends StatelessWidget {
-  final BitChatPeer peer;
+  final ChatPeer peer;
   final VoidCallback onTap;
   final VoidCallback onPrivateMessage;
 

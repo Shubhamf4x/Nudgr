@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../shared/models/step_model.dart';
 import '../../core/services/steps_service.dart';
 import '../../core/services/sync_service.dart';
@@ -77,8 +78,21 @@ class StepsProvider extends ChangeNotifier {
     final dailyGoal = _stepsService.getDailyGoal();
     final history = _stepsService.getStepHistory();
     final todayRecord = _stepsService.getTodayRecord();
-    final todaySteps = todayRecord?.stepCount ?? 0;
+    var todaySteps = todayRecord?.stepCount ?? 0;
     final goalShown = _stepsService.hasGoalNotificationBeenSentToday();
+
+    final foregroundSteps = _stepsService.getForegroundSteps();
+    if (foregroundSteps != null && foregroundSteps > todaySteps) {
+      final fgBaseline = _stepsService.getForegroundBaseline();
+      await _stepsService.updateTodaySteps(
+        stepCount: foregroundSteps,
+        sensorBaseline: fgBaseline,
+        lastSensorValue: fgBaseline + foregroundSteps,
+      );
+      todaySteps = foregroundSteps;
+      history.clear();
+      history.addAll(_stepsService.getStepHistory());
+    }
 
     _state = _state.copyWith(
       hasSensor: hasSensor,
@@ -92,7 +106,7 @@ class StepsProvider extends ChangeNotifier {
     );
     notifyListeners();
 
-    if (hasSensor && hasPermission) {
+    if (hasSensor && hasPermission && !_stepsService.foregroundTrackingStopped) {
       _startListening();
     }
   }
@@ -115,6 +129,9 @@ class StepsProvider extends ChangeNotifier {
       final nowGranted = await _stepsService.isActivityPermissionGranted();
       if (nowGranted) _onPermissionResult(true);
     }
+    try {
+      await Permission.notification.request();
+    } catch (_) {}
     notifyListeners();
     return _state.hasPermission;
   }
@@ -123,6 +140,46 @@ class StepsProvider extends ChangeNotifier {
     _stepsService.startListening(_onStepUpdate);
     _state = _state.copyWith(isTracking: true);
     notifyListeners();
+    _syncForegroundService();
+  }
+
+  Future<void> _syncForegroundService() async {
+    final today = _stepsService.getTodayRecord();
+    final baseline = today?.sensorBaseline ?? _stepsService.getForegroundBaseline();
+    await _stepsService.startForegroundTracking(
+      baseline: baseline,
+      goal: _state.dailyGoal,
+    );
+    await _stepsService.setForegroundTrackingStopped(false);
+  }
+
+  Future<void> pauseTracking() async {
+    await _stepsService.stopForegroundTracking();
+    await _stepsService.setForegroundTrackingStopped(true);
+    _state = _state.copyWith(isTracking: false);
+    notifyListeners();
+  }
+
+  Future<void> resumeTracking() async {
+    if (!_state.hasSensor || !_state.hasPermission) return;
+    await _syncForegroundService();
+    _stepsService.startListening(_onStepUpdate);
+    _state = _state.copyWith(isTracking: true);
+    notifyListeners();
+  }
+
+  Future<void> updateDailyGoal(int goal) async {
+    await _stepsService.setDailyGoal(goal);
+    final progress = goal > 0 ? (_state.todaySteps / goal).clamp(0.0, 1.0) : 0.0;
+    _state = _state.copyWith(dailyGoal: goal, progress: progress);
+    notifyListeners();
+    if (_state.isTracking) {
+      final today = _stepsService.getTodayRecord();
+      await _stepsService.startForegroundTracking(
+        baseline: today?.sensorBaseline ?? 0,
+        goal: goal,
+      );
+    }
   }
 
   void _onStepUpdate(int sensorValue) {
@@ -202,13 +259,6 @@ class StepsProvider extends ChangeNotifier {
       _lastSyncedSteps = todaySteps;
       _sync.saveStepDayToFirestore(todayKey, todaySteps);
     } catch (_) {}
-  }
-
-  Future<void> updateDailyGoal(int goal) async {
-    await _stepsService.setDailyGoal(goal);
-    final progress = goal > 0 ? (_state.todaySteps / goal).clamp(0.0, 1.0) : 0.0;
-    _state = _state.copyWith(dailyGoal: goal, progress: progress);
-    notifyListeners();
   }
 
   Future<void> toggleNotifications(bool enabled) async {

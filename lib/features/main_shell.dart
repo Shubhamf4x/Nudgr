@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../core/services/notification_service.dart';
 import 'home/home_screen.dart';
 import 'tasks/tasks_screen.dart';
-import 'chat/screens/bitchat_main_screen.dart';
+import 'chat/screens/mesh_chat_screen.dart';
 import 'profile/profile_screen.dart';
 import '../shared/widgets/floating_pill_nav_bar.dart';
 
@@ -26,7 +26,7 @@ class _MainShellState extends State<MainShell> {
       const HomeScreen(key: PageStorageKey('home')),
       const TasksScreen(key: PageStorageKey('tasks')),
       const SizedBox.shrink(),
-      const BitChatMainScreen(key: PageStorageKey('chat')),
+      const MeshChatScreen(key: PageStorageKey('chat')),
       const ProfileScreen(key: PageStorageKey('profile')),
     ];
 

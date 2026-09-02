@@ -281,7 +281,40 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
                   color: provider.state.isTracking ? Colors.green : Colors.orange,
                 ),
               ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: () {
+                  if (provider.state.isTracking) {
+                    provider.pauseTracking();
+                  } else {
+                    provider.resumeTracking();
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: ColorConstants.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    provider.state.isTracking ? 'Pause' : 'Resume',
+                    style: AppTextStyles.googleSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: ColorConstants.primary,
+                    ),
+                  ),
+                ),
+              ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Shows a persistent notification with your progress',
+            style: AppTextStyles.googleSans(
+              fontSize: 10,
+              color: Colors.grey.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),

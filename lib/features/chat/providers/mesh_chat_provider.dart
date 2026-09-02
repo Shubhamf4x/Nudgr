@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../models/bit_chat_message.dart';
-import '../models/bit_chat_peer.dart';
-import '../models/bit_chat_channel.dart';
-import '../services/bit_chat_service.dart';
+import '../models/chat_message.dart';
+import '../models/chat_peer.dart';
+import '../models/chat_channel.dart';
+import '../services/mesh_chat_service.dart';
 
-class BitChatState {
-  final List<BitChatPeer> peers;
-  final List<BitChatChannel> channels;
-  final Map<String, List<BitChatMessage>> channelMessages;
-  final Map<String, List<BitChatMessage>> privateMessages;
+class MeshChatState {
+  final List<ChatPeer> peers;
+  final List<ChatChannel> channels;
+  final Map<String, List<ChatMessage>> channelMessages;
+  final Map<String, List<ChatMessage>> privateMessages;
   final MeshStatus meshStatus;
   final bool isInitializing;
   final String? error;
@@ -17,7 +17,9 @@ class BitChatState {
   final String? activePrivateChatPeerId;
   final bool permissionsGranted;
 
-  const BitChatState({
+  static const Object _unset = Object();
+
+  const MeshChatState({
     this.peers = const [],
     this.channels = const [],
     this.channelMessages = const {},
@@ -30,19 +32,19 @@ class BitChatState {
     this.permissionsGranted = false,
   });
 
-  BitChatState copyWith({
-    List<BitChatPeer>? peers,
-    List<BitChatChannel>? channels,
-    Map<String, List<BitChatMessage>>? channelMessages,
-    Map<String, List<BitChatMessage>>? privateMessages,
+  MeshChatState copyWith({
+    List<ChatPeer>? peers,
+    List<ChatChannel>? channels,
+    Map<String, List<ChatMessage>>? channelMessages,
+    Map<String, List<ChatMessage>>? privateMessages,
     MeshStatus? meshStatus,
     bool? isInitializing,
     String? error,
     String? selectedChannel,
-    String? activePrivateChatPeerId,
+    Object? activePrivateChatPeerId = _unset,
     bool? permissionsGranted,
   }) {
-    return BitChatState(
+    return MeshChatState(
       peers: peers ?? this.peers,
       channels: channels ?? this.channels,
       channelMessages: channelMessages ?? this.channelMessages,
@@ -51,21 +53,23 @@ class BitChatState {
       isInitializing: isInitializing ?? this.isInitializing,
       error: error,
       selectedChannel: selectedChannel ?? this.selectedChannel,
-      activePrivateChatPeerId: activePrivateChatPeerId,
+      activePrivateChatPeerId: identical(activePrivateChatPeerId, _unset)
+          ? this.activePrivateChatPeerId
+          : activePrivateChatPeerId as String?,
       permissionsGranted: permissionsGranted ?? this.permissionsGranted,
     );
   }
 }
 
-class BitChatProvider extends ChangeNotifier {
-  final BitChatService _service = BitChatService();
-  BitChatState _state = const BitChatState();
+class MeshChatProvider extends ChangeNotifier {
+  final MeshChatService _service = MeshChatService();
+  MeshChatState _state = const MeshChatState();
   StreamSubscription? _messageSub;
   StreamSubscription? _peersSub;
   StreamSubscription? _statusSub;
 
-  BitChatState get state => _state;
-  BitChatService get service => _service;
+  MeshChatState get state => _state;
+  MeshChatService get service => _service;
 
   @override
   void dispose() {
@@ -130,14 +134,6 @@ class BitChatProvider extends ChangeNotifier {
     }
   }
 
-  void selectChannel(String channelName) {
-    _state = _state.copyWith(
-      selectedChannel: channelName,
-      activePrivateChatPeerId: null,
-    );
-    notifyListeners();
-  }
-
   void openPrivateChat(String peerId) {
     _state = _state.copyWith(activePrivateChatPeerId: peerId);
     notifyListeners();
@@ -145,6 +141,14 @@ class BitChatProvider extends ChangeNotifier {
 
   void closePrivateChat() {
     _state = _state.copyWith(activePrivateChatPeerId: null);
+    notifyListeners();
+  }
+
+  void selectChannel(String channelName) {
+    _state = _state.copyWith(
+      selectedChannel: channelName,
+      activePrivateChatPeerId: null,
+    );
     notifyListeners();
   }
 
@@ -172,19 +176,19 @@ class BitChatProvider extends ChangeNotifier {
 
   Future<void> emergencyWipe() async {
     await _service.emergencyWipe();
-    _state = const BitChatState();
+    _state = const MeshChatState();
     notifyListeners();
     await initialize();
   }
 
-  List<BitChatMessage> get currentMessages {
+  List<ChatMessage> get currentMessages {
     if (_state.activePrivateChatPeerId != null) {
       return _service.getPrivateMessages(_state.activePrivateChatPeerId!);
     }
     return _service.getChannelMessages(_state.selectedChannel);
   }
 
-  BitChatPeer? getPeer(String peerId) {
+  ChatPeer? getPeer(String peerId) {
     final matches = _state.peers.where((p) => p.peerId == peerId);
     return matches.isNotEmpty ? matches.first : null;
   }

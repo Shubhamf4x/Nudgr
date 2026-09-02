@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../services/bit_chat_service.dart';
+import '../services/mesh_chat_service.dart';
 
 class MeshStatusIndicator extends StatelessWidget {
   final MeshStatus status;

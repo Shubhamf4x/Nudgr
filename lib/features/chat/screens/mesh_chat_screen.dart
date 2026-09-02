@@ -2,22 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/color_constants.dart';
-import '../models/bit_chat_peer.dart';
-import '../providers/bitchat_provider.dart';
-import '../services/bit_chat_service.dart';
+import '../models/chat_peer.dart';
+import '../providers/mesh_chat_provider.dart';
+import '../services/mesh_chat_service.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/peer_tile.dart';
 import '../widgets/mesh_status_indicator.dart';
 
-class BitChatMainScreen extends StatefulWidget {
-  const BitChatMainScreen({super.key});
+class MeshChatScreen extends StatefulWidget {
+  const MeshChatScreen({super.key});
 
   @override
-  State<BitChatMainScreen> createState() => _BitChatMainScreenState();
+  State<MeshChatScreen> createState() => _MeshChatScreenState();
 }
 
-class _BitChatMainScreenState extends State<BitChatMainScreen>
+class _MeshChatScreenState extends State<MeshChatScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ScrollController _scrollController = ScrollController();
@@ -27,7 +27,7 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<BitChatProvider>().initialize();
+      context.read<MeshChatProvider>().initialize();
     });
   }
 
@@ -43,10 +43,10 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Selector<BitChatProvider, ({bool isInitializing, bool permissionsGranted, dynamic meshStatus})>(
+    return Selector<MeshChatProvider, ({bool isInitializing, bool permissionsGranted, dynamic meshStatus})>(
       selector: (_, p) => (isInitializing: p.state.isInitializing, permissionsGranted: p.state.permissionsGranted, meshStatus: p.state.meshStatus),
       builder: (context, data, _) {
-        final provider = context.read<BitChatProvider>();
+        final provider = context.read<MeshChatProvider>();
 
         if (data.isInitializing) {
           return _buildLoadingScreen(theme);
@@ -70,7 +70,7 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
             CircularProgressIndicator(color: ColorConstants.primary),
             const SizedBox(height: 16),
             Text(
-              'Initializing BitChat...',
+              'Initializing Chat...',
               style: AppTextStyles.googleSans(
                 fontSize: 16,
                 color: theme.textTheme.bodyMedium?.color,
@@ -82,12 +82,12 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
     );
   }
 
-  Widget _buildPermissionScreen(BitChatProvider provider, ThemeData theme) {
+  Widget _buildPermissionScreen(MeshChatProvider provider, ThemeData theme) {
     final isOffline = provider.state.meshStatus == MeshStatus.offline;
     final buttonText = isOffline ? 'Turn On Bluetooth' : 'Allow Bluetooth';
     final descriptionText = isOffline
-        ? 'Bluetooth is turned off. Please enable Bluetooth to discover nearby BitChat devices and communicate through the local mesh.'
-        : 'Nudgr needs Bluetooth access to discover nearby BitChat devices and communicate through the local mesh.';
+        ? 'Bluetooth is turned off. Please enable Bluetooth to discover nearby Chat devices and communicate through the local mesh.'
+        : 'Nudgr needs Bluetooth access to discover nearby Chat devices and communicate through the local mesh.';
 
     return Scaffold(
       body: SafeArea(
@@ -157,7 +157,7 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
     );
   }
 
-  Widget _buildMainContent(BitChatProvider provider, bool isDark) {
+  Widget _buildMainContent(MeshChatProvider provider, bool isDark) {
     final peerCount = provider.state.peers.length;
     final isActive = provider.state.meshStatus == MeshStatus.active ||
         provider.state.meshStatus == MeshStatus.scanning;
@@ -187,10 +187,10 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
     );
   }
 
-  BitChatState get _state => context.read<BitChatProvider>().state;
+  MeshChatState get _state => context.read<MeshChatProvider>().state;
 
-  Widget _buildHeader(BitChatProvider provider, int peerCount, bool isDark, bool isActive) {
-    return Selector<BitChatProvider, ({dynamic meshStatus, int peerCount})>(
+  Widget _buildHeader(MeshChatProvider provider, int peerCount, bool isDark, bool isActive) {
+    return Selector<MeshChatProvider, ({dynamic meshStatus, int peerCount})>(
       selector: (_, p) => (meshStatus: p.state.meshStatus, peerCount: p.state.peers.length),
       builder: (context, data, _) {
         return Padding(
@@ -225,7 +225,7 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
     );
   }
 
-  Widget _buildTabBar(BitChatProvider provider, bool isDark) {
+  Widget _buildTabBar(MeshChatProvider provider, bool isDark) {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       decoration: BoxDecoration(
@@ -261,12 +261,12 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
     );
   }
 
-  Widget _buildChatTab(BitChatProvider provider, bool isDark) {
+  Widget _buildChatTab(MeshChatProvider provider, bool isDark) {
     if (provider.state.activePrivateChatPeerId != null) {
       return _buildPrivateChatTab(provider, isDark);
     }
 
-    return Selector<BitChatProvider, List<dynamic>>(
+    return Selector<MeshChatProvider, List<dynamic>>(
       selector: (_, p) => p.currentMessages,
       builder: (context, channelMessages, _) {
         return Column(
@@ -297,7 +297,7 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
     );
   }
 
-  Widget _buildPrivateChatTab(BitChatProvider provider, bool isDark) {
+  Widget _buildPrivateChatTab(MeshChatProvider provider, bool isDark) {
     final peerId = provider.state.activePrivateChatPeerId!;
     final peer = provider.getPeer(peerId);
     final messages = provider.service.getPrivateMessages(peerId);
@@ -385,7 +385,7 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
     );
   }
 
-  Widget _buildChannelChips(BitChatProvider provider, bool isDark) {
+  Widget _buildChannelChips(MeshChatProvider provider, bool isDark) {
     final channels = provider.state.channels.where((c) => c.isJoined).toList();
     final theme = Theme.of(context);
     return SizedBox(
@@ -433,8 +433,8 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
     );
   }
 
-  Widget _buildPeersTab(BitChatProvider provider, bool isDark) {
-    return Selector<BitChatProvider, List<dynamic>>(
+  Widget _buildPeersTab(MeshChatProvider provider, bool isDark) {
+    return Selector<MeshChatProvider, List<dynamic>>(
       selector: (_, p) => p.state.peers,
       builder: (context, peers, _) {
         if (peers.isEmpty) {
@@ -520,7 +520,7 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Bring another BitChat-enabled\ndevice nearby to start chatting.',
+            'Bring another Chat-enabled\ndevice nearby to start chatting.',
             textAlign: TextAlign.center,
             style: AppTextStyles.googleSans(
               fontSize: 14,
@@ -529,7 +529,7 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
           ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
-            onPressed: () => context.read<BitChatProvider>().startMesh(),
+            onPressed: () => context.read<MeshChatProvider>().startMesh(),
             icon: const Icon(Icons.refresh_rounded, size: 18),
             label: Text(
               'Scan Again',
@@ -549,7 +549,7 @@ class _BitChatMainScreenState extends State<BitChatMainScreen>
     );
   }
 
-  void _showPeerDetails(BitChatPeer peer, BitChatProvider provider) {
+  void _showPeerDetails(ChatPeer peer, MeshChatProvider provider) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).cardTheme.color,

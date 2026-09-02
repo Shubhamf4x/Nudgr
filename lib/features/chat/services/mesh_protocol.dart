@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-class BitChatProtocol {
+class MeshProtocol {
   static const int PACKET_TYPE_MESSAGE = 0x01;
   static const int PACKET_TYPE_ACK = 0x02;
   static const int PACKET_TYPE_DISCOVERY = 0x03;

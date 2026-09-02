@@ -61,6 +61,40 @@ class StepsService {
     _channel.invokeMethod('stopListening').catchError((_) {});
   }
 
+  Future<void> startForegroundTracking({
+    required int baseline,
+    required int goal,
+  }) async {
+    try {
+      await _channel.invokeMethod('startForegroundTracking', {
+        'baseline': baseline,
+        'goal': goal,
+      });
+    } catch (_) {}
+  }
+
+  Future<void> stopForegroundTracking() async {
+    try {
+      await _channel.invokeMethod('stopForegroundTracking');
+    } catch (_) {}
+  }
+
+  int? getForegroundSteps() {
+    if (_prefs == null) return null;
+    if (_prefs!.getBool('step_fg_stopped') ?? false) return null;
+    final date = _prefs!.getString('step_fg_date');
+    if (date != _todayKey()) return null;
+    return _prefs!.getInt('step_fg_steps') ?? 0;
+  }
+
+  int getForegroundBaseline() => _prefs?.getInt('step_fg_baseline') ?? 0;
+
+  bool get foregroundTrackingStopped => _prefs?.getBool('step_fg_stopped') ?? false;
+
+  Future<void> setForegroundTrackingStopped(bool stopped) async {
+    await _prefs?.setBool('step_fg_stopped', stopped);
+  }
+
   void setPermissionResultHandler(void Function(bool granted)? handler) {
     _onPermissionResult = handler;
     _installHandler();

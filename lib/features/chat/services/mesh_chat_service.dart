@@ -3,39 +3,39 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/bit_chat_identity.dart';
-import '../models/bit_chat_message.dart';
-import '../models/bit_chat_peer.dart';
-import '../models/bit_chat_channel.dart';
+import '../models/chat_identity.dart';
+import '../models/chat_message.dart';
+import '../models/chat_peer.dart';
+import '../models/chat_channel.dart';
 import 'ble_mesh_service.dart';
-import 'bit_chat_protocol.dart';
+import 'mesh_protocol.dart';
 
-class BitChatService {
-  BitChatIdentity? _identity;
+class MeshChatService {
+  ChatIdentity? _identity;
   final BleMeshService _meshService = BleMeshService();
-  final Map<String, List<BitChatMessage>> _channelMessages = {};
-  final Map<String, List<BitChatMessage>> _privateMessages = {};
-  final List<BitChatChannel> _channels = [];
+  final Map<String, List<ChatMessage>> _channelMessages = {};
+  final Map<String, List<ChatMessage>> _privateMessages = {};
+  final List<ChatChannel> _channels = [];
   final Map<String, Uint8List> _sharedSecrets = {};
 
-  final StreamController<BitChatMessage> _messageController = StreamController<BitChatMessage>.broadcast();
-  final StreamController<List<BitChatPeer>> _peersController = StreamController<List<BitChatPeer>>.broadcast();
+  final StreamController<ChatMessage> _messageController = StreamController<ChatMessage>.broadcast();
+  final StreamController<List<ChatPeer>> _peersController = StreamController<List<ChatPeer>>.broadcast();
   final StreamController<MeshStatus> _statusController = StreamController<MeshStatus>.broadcast();
 
   MeshStatus _meshStatus = MeshStatus.inactive;
   Timer? _peersUpdateTimer;
 
-  BitChatIdentity? get identity => _identity;
+  ChatIdentity? get identity => _identity;
   BleMeshService get meshService => _meshService;
-  Stream<BitChatMessage> get messageStream => _messageController.stream;
-  Stream<List<BitChatPeer>> get peersStream => _peersController.stream;
+  Stream<ChatMessage> get messageStream => _messageController.stream;
+  Stream<List<ChatPeer>> get peersStream => _peersController.stream;
   Stream<MeshStatus> get statusStream => _statusController.stream;
   MeshStatus get meshStatus => _meshStatus;
-  List<BitChatChannel> get channels => List.unmodifiable(_channels);
-  Map<String, List<BitChatMessage>> get channelMessages => Map.unmodifiable(_channelMessages);
-  Map<String, List<BitChatMessage>> get privateMessages => Map.unmodifiable(_privateMessages);
+  List<ChatChannel> get channels => List.unmodifiable(_channels);
+  Map<String, List<ChatMessage>> get channelMessages => Map.unmodifiable(_channelMessages);
+  Map<String, List<ChatMessage>> get privateMessages => Map.unmodifiable(_privateMessages);
 
-  List<BitChatPeer> get nearbyPeers => _meshService.peers.values.toList();
+  List<ChatPeer> get nearbyPeers => _meshService.peers.values.toList();
 
   Future<void> initialize() async {
     await _loadIdentity();
@@ -49,39 +49,39 @@ class BitChatService {
 
   Future<void> _loadIdentity() async {
     final prefs = await SharedPreferences.getInstance();
-    final identityJson = prefs.getString('bitchat_identity');
+    final identityJson = prefs.getString('nudgr_chat_identity');
     if (identityJson != null) {
-      _identity = BitChatIdentity.fromJson(jsonDecode(identityJson));
+      _identity = ChatIdentity.fromJson(jsonDecode(identityJson));
     } else {
-      _identity = BitChatIdentity.generate();
-      await prefs.setString('bitchat_identity', jsonEncode(_identity!.toJson()));
+      _identity = ChatIdentity.generate();
+      await prefs.setString('nudgr_chat_identity', jsonEncode(_identity!.toJson()));
     }
   }
 
   Future<void> _loadChannels() async {
     final prefs = await SharedPreferences.getInstance();
-    final channelsJson = prefs.getString('bitchat_channels');
+    final channelsJson = prefs.getString('nudgr_chat_channels');
     if (channelsJson != null) {
       final list = jsonDecode(channelsJson) as List;
-      _channels.addAll(list.map((c) => BitChatChannel.fromJson(c)));
+      _channels.addAll(list.map((c) => ChatChannel.fromJson(c)));
     }
 
     if (_channels.isEmpty) {
-      _channels.add(BitChatChannel(
+      _channels.add(ChatChannel(
         name: 'nearby',
         displayName: 'Nearby',
         createdAt: DateTime.now(),
         isJoined: true,
         description: 'Public channel for nearby peers',
       ));
-      _channels.add(BitChatChannel(
+      _channels.add(ChatChannel(
         name: 'local',
         displayName: 'Local',
         createdAt: DateTime.now(),
         isJoined: true,
         description: 'Local mesh channel',
       ));
-      _channels.add(BitChatChannel(
+      _channels.add(ChatChannel(
         name: 'mesh',
         displayName: 'Mesh',
         createdAt: DateTime.now(),
@@ -95,24 +95,24 @@ class BitChatService {
   Future<void> _saveChannels() async {
     final prefs = await SharedPreferences.getInstance();
     final json = _channels.map((c) => c.toJson()).toList();
-    await prefs.setString('bitchat_channels', jsonEncode(json));
+    await prefs.setString('nudgr_chat_channels', jsonEncode(json));
   }
 
   Future<void> _loadMessages() async {
     final prefs = await SharedPreferences.getInstance();
-    final channelMsgsJson = prefs.getString('bitchat_channel_messages');
+    final channelMsgsJson = prefs.getString('nudgr_chat_channel_messages');
     if (channelMsgsJson != null) {
       final map = jsonDecode(channelMsgsJson) as Map<String, dynamic>;
       for (final entry in map.entries) {
-        final msgs = (entry.value as List).map((m) => BitChatMessage.fromJson(m)).toList();
+        final msgs = (entry.value as List).map((m) => ChatMessage.fromJson(m)).toList();
         _channelMessages[entry.key] = msgs;
       }
     }
-    final privateMsgsJson = prefs.getString('bitchat_private_messages');
+    final privateMsgsJson = prefs.getString('nudgr_chat_private_messages');
     if (privateMsgsJson != null) {
       final map = jsonDecode(privateMsgsJson) as Map<String, dynamic>;
       for (final entry in map.entries) {
-        final msgs = (entry.value as List).map((m) => BitChatMessage.fromJson(m)).toList();
+        final msgs = (entry.value as List).map((m) => ChatMessage.fromJson(m)).toList();
         _privateMessages[entry.key] = msgs;
       }
     }
@@ -124,13 +124,13 @@ class BitChatService {
     for (final entry in _channelMessages.entries) {
       channelMap[entry.key] = entry.value.map((m) => m.toJson()).toList();
     }
-    await prefs.setString('bitchat_channel_messages', jsonEncode(channelMap));
+    await prefs.setString('nudgr_chat_channel_messages', jsonEncode(channelMap));
 
     final privateMap = <String, dynamic>{};
     for (final entry in _privateMessages.entries) {
       privateMap[entry.key] = entry.value.map((m) => m.toJson()).toList();
     }
-    await prefs.setString('bitchat_private_messages', jsonEncode(privateMap));
+    await prefs.setString('nudgr_chat_private_messages', jsonEncode(privateMap));
   }
 
   void _setupListeners() {
@@ -184,40 +184,42 @@ class BitChatService {
   }
 
   void _handleIncomingData(Uint8List data) {
-    final parsed = BitChatProtocol.parsePacket(data);
+    final parsed = MeshProtocol.parsePacket(data);
     if (!parsed['valid']) return;
 
     final type = parsed['type'] as int;
     final senderId = parsed['senderId'] as String;
+    if (senderId == _identity?.peerId) return;
+
     final recipientId = parsed['recipientId'] as String?;
     final payload = parsed['payload'] as Uint8List;
 
     switch (type) {
-      case BitChatProtocol.PACKET_TYPE_DISCOVERY:
+      case MeshProtocol.PACKET_TYPE_DISCOVERY:
         _handleDiscovery(senderId, payload);
         break;
-      case BitChatProtocol.PACKET_TYPE_MESSAGE:
-      case BitChatProtocol.PACKET_TYPE_CHANNEL:
+      case MeshProtocol.PACKET_TYPE_MESSAGE:
+      case MeshProtocol.PACKET_TYPE_CHANNEL:
         _handleMessage(senderId, recipientId, payload);
         break;
-      case BitChatProtocol.PACKET_TYPE_PRIVATE:
+      case MeshProtocol.PACKET_TYPE_PRIVATE:
         _handlePrivateMessage(senderId, payload);
         break;
-      case BitChatProtocol.PACKET_TYPE_RELAY:
+      case MeshProtocol.PACKET_TYPE_RELAY:
         _meshService.relayPacket(data);
         break;
     }
   }
 
   void _handleDiscovery(String senderId, Uint8List payload) {
-    final info = BitChatProtocol.parseDiscoveryPayload(payload);
+    final info = MeshProtocol.parseDiscoveryPayload(payload);
     final peerId = info['peerId'];
     if (peerId != null && peerId.isNotEmpty) {
       _meshService.processIncomingData(
-        BitChatProtocol.createPacket(
-          type: BitChatProtocol.PACKET_TYPE_DISCOVERY_RESPONSE,
+        MeshProtocol.createPacket(
+          type: MeshProtocol.PACKET_TYPE_DISCOVERY_RESPONSE,
           senderId: _identity!.peerId,
-          payload: BitChatProtocol.createDiscoveryPayload(_identity!.peerId, _identity!.nickname),
+          payload: MeshProtocol.createDiscoveryPayload(_identity!.peerId, _identity!.nickname),
         ),
         senderId,
       );
@@ -225,17 +227,17 @@ class BitChatService {
   }
 
   void _handleMessage(String senderId, String? recipientId, Uint8List payload) {
-    final content = BitChatProtocol.parseMessagePayload(payload);
+    final content = MeshProtocol.parseMessagePayload(payload);
     if (content.isEmpty) return;
 
     final channelName = recipientId ?? 'nearby';
-    final message = BitChatMessage(
-      id: BitChatProtocol.generateMessageId(),
+    final message = ChatMessage(
+      id: MeshProtocol.generateMessageId(),
       senderPeerId: senderId,
       senderNickname: _meshService.peers[senderId]?.nickname,
       content: content,
       timestamp: DateTime.now(),
-      type: BitChatMessageType.publicChannel,
+      type: ChatMessageType.publicChannel,
       channelName: channelName,
     );
 
@@ -248,17 +250,17 @@ class BitChatService {
   }
 
   void _handlePrivateMessage(String senderId, Uint8List payload) {
-    final content = BitChatProtocol.parseMessagePayload(payload);
+    final content = MeshProtocol.parseMessagePayload(payload);
     if (content.isEmpty) return;
 
-    final message = BitChatMessage(
-      id: BitChatProtocol.generateMessageId(),
+    final message = ChatMessage(
+      id: MeshProtocol.generateMessageId(),
       senderPeerId: senderId,
       senderNickname: _meshService.peers[senderId]?.nickname,
       recipientPeerId: _identity!.peerId,
       content: content,
       timestamp: DateTime.now(),
-      type: BitChatMessageType.privateMessage,
+      type: ChatMessageType.privateMessage,
     );
 
     if (!_privateMessages.containsKey(senderId)) {
@@ -296,14 +298,14 @@ class BitChatService {
   }
 
   Future<void> sendMessage(String content, {String channelName = 'nearby'}) async {
-    final payload = BitChatProtocol.createMessagePayload(content);
-    final message = BitChatMessage(
-      id: BitChatProtocol.generateMessageId(),
+    final payload = MeshProtocol.createMessagePayload(content);
+    final message = ChatMessage(
+      id: MeshProtocol.generateMessageId(),
       senderPeerId: _identity!.peerId,
       senderNickname: _identity!.nickname,
       content: content,
       timestamp: DateTime.now(),
-      type: BitChatMessageType.publicChannel,
+      type: ChatMessageType.publicChannel,
       channelName: channelName,
       deliveryState: MessageDeliveryState.sending,
     );
@@ -320,15 +322,15 @@ class BitChatService {
   }
 
   Future<void> sendPrivateMessage(String content, String recipientPeerId) async {
-    final payload = BitChatProtocol.createMessagePayload(content);
-    final message = BitChatMessage(
-      id: BitChatProtocol.generateMessageId(),
+    final payload = MeshProtocol.createMessagePayload(content);
+    final message = ChatMessage(
+      id: MeshProtocol.generateMessageId(),
       senderPeerId: _identity!.peerId,
       senderNickname: _identity!.nickname,
       recipientPeerId: recipientPeerId,
       content: content,
       timestamp: DateTime.now(),
-      type: BitChatMessageType.privateMessage,
+      type: ChatMessageType.privateMessage,
       deliveryState: MessageDeliveryState.sending,
     );
 
@@ -363,7 +365,7 @@ class BitChatService {
   Future<void> joinChannel(String channelName) async {
     final existing = _channels.where((c) => c.name == channelName).toList();
     if (existing.isEmpty) {
-      _channels.add(BitChatChannel(
+      _channels.add(ChatChannel(
         name: channelName,
         displayName: channelName,
         createdAt: DateTime.now(),
@@ -384,11 +386,11 @@ class BitChatService {
     }
   }
 
-  List<BitChatMessage> getChannelMessages(String channelName) {
+  List<ChatMessage> getChannelMessages(String channelName) {
     return _channelMessages[channelName] ?? [];
   }
 
-  List<BitChatMessage> getPrivateMessages(String peerId) {
+  List<ChatMessage> getPrivateMessages(String peerId) {
     return _privateMessages[peerId] ?? [];
   }
 
@@ -398,12 +400,12 @@ class BitChatService {
     _channels.clear();
     _sharedSecrets.clear();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('bitchat_identity');
-    await prefs.remove('bitchat_channels');
-    await prefs.remove('bitchat_channel_messages');
-    await prefs.remove('bitchat_private_messages');
-    _identity = BitChatIdentity.generate();
-    await prefs.setString('bitchat_identity', jsonEncode(_identity!.toJson()));
+    await prefs.remove('nudgr_chat_identity');
+    await prefs.remove('nudgr_chat_channels');
+    await prefs.remove('nudgr_chat_channel_messages');
+    await prefs.remove('nudgr_chat_private_messages');
+    _identity = ChatIdentity.generate();
+    await prefs.setString('nudgr_chat_identity', jsonEncode(_identity!.toJson()));
   }
 
   void dispose() {

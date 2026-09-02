@@ -1,4 +1,4 @@
-class BitChatChannel {
+class ChatChannel {
   final String name;
   final String displayName;
   final DateTime createdAt;
@@ -6,7 +6,7 @@ class BitChatChannel {
   final bool isJoined;
   final String? description;
 
-  const BitChatChannel({
+  const ChatChannel({
     required this.name,
     required this.displayName,
     required this.createdAt,
@@ -15,7 +15,7 @@ class BitChatChannel {
     this.description,
   });
 
-  BitChatChannel copyWith({
+  ChatChannel copyWith({
     String? name,
     String? displayName,
     DateTime? createdAt,
@@ -23,7 +23,7 @@ class BitChatChannel {
     bool? isJoined,
     String? description,
   }) {
-    return BitChatChannel(
+    return ChatChannel(
       name: name ?? this.name,
       displayName: displayName ?? this.displayName,
       createdAt: createdAt ?? this.createdAt,
@@ -42,7 +42,7 @@ class BitChatChannel {
     'description': description,
   };
 
-  factory BitChatChannel.fromJson(Map<String, dynamic> json) => BitChatChannel(
+  factory ChatChannel.fromJson(Map<String, dynamic> json) => ChatChannel(
     name: json['name'],
     displayName: json['displayName'],
     createdAt: DateTime.parse(json['createdAt']),

@@ -18,7 +18,7 @@ import 'features/notes/notes_provider.dart';
 import 'features/calendar/calendar_provider.dart';
 import 'features/focus/focus_provider.dart';
 import 'features/steps/steps_provider.dart';
-import 'features/chat/providers/bitchat_provider.dart';
+import 'features/chat/providers/mesh_chat_provider.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/onboarding_screen.dart';
 import 'features/main_shell.dart';
@@ -87,7 +87,7 @@ class NudgrApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CalendarProvider()),
         ChangeNotifierProvider(create: (_) => FocusProvider()),
         ChangeNotifierProvider(create: (_) => StepsProvider()..initialize()),
-        ChangeNotifierProvider(create: (_) => BitChatProvider()),
+        ChangeNotifierProvider(create: (_) => MeshChatProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {

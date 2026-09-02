@@ -2,15 +2,15 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../models/bit_chat_identity.dart';
-import '../models/bit_chat_peer.dart';
-import 'bit_chat_protocol.dart';
+import '../models/chat_identity.dart';
+import '../models/chat_peer.dart';
+import 'mesh_protocol.dart';
 
 class BleMeshService {
-  BitChatIdentity? _identity;
-  final Map<String, BitChatPeer> _peers = {};
+  ChatIdentity? _identity;
+  final Map<String, ChatPeer> _peers = {};
   final Set<String> _processedMessageIds = {};
-  final StreamController<BitChatPeer> _peerController = StreamController<BitChatPeer>.broadcast();
+  final StreamController<ChatPeer> _peerController = StreamController<ChatPeer>.broadcast();
   final StreamController<Uint8List> _dataController = StreamController<Uint8List>.broadcast();
   final StreamController<bool> _scanStateController = StreamController<bool>.broadcast();
   final StreamController<bool> _bluetoothStateController = StreamController<bool>.broadcast();
@@ -21,17 +21,17 @@ class BleMeshService {
   Timer? _heartbeatTimer;
   StreamSubscription? _adapterStateSubscription;
 
-  Stream<BitChatPeer> get peerStream => _peerController.stream;
+  Stream<ChatPeer> get peerStream => _peerController.stream;
   Stream<Uint8List> get dataStream => _dataController.stream;
   Stream<bool> get scanStateStream => _scanStateController.stream;
   Stream<bool> get bluetoothStateStream => _bluetoothStateController.stream;
   bool get isScanning => _isScanning;
-  Map<String, BitChatPeer> get peers => Map.unmodifiable(_peers);
+  Map<String, ChatPeer> get peers => Map.unmodifiable(_peers);
 
   bool _isBluetoothOn = false;
   bool get isBluetoothOn => _isBluetoothOn;
 
-  Future<void> initialize(BitChatIdentity identity) async {
+  Future<void> initialize(ChatIdentity identity) async {
     _identity = identity;
 
     _isBluetoothOn =
@@ -106,8 +106,8 @@ class BleMeshService {
   }
 
   Future<void> sendData(Uint8List data, {String? targetPeerId}) async {
-    final packet = BitChatProtocol.createPacket(
-      type: BitChatProtocol.PACKET_TYPE_MESSAGE,
+    final packet = MeshProtocol.createPacket(
+      type: MeshProtocol.PACKET_TYPE_MESSAGE,
       senderId: _identity!.peerId,
       recipientId: targetPeerId,
       payload: data,
@@ -117,7 +117,7 @@ class BleMeshService {
   }
 
   bool processIncomingData(Uint8List rawData, String senderPeerId) {
-    final parsed = BitChatProtocol.parsePacket(rawData);
+    final parsed = MeshProtocol.parsePacket(rawData);
     if (!parsed['valid']) return false;
 
     final messageId = parsed['messageId'] as String;
@@ -142,7 +142,7 @@ class BleMeshService {
   }
 
   Future<void> relayPacket(Uint8List packet) async {
-    final parsed = BitChatProtocol.parsePacket(packet);
+    final parsed = MeshProtocol.parsePacket(packet);
     if (!parsed['valid']) return;
 
     final ttl = parsed['ttl'] as int;
@@ -150,8 +150,8 @@ class BleMeshService {
 
     if (hopCount >= ttl) return;
 
-    final relayPacket = BitChatProtocol.createPacket(
-      type: BitChatProtocol.PACKET_TYPE_RELAY,
+    final relayPacket = MeshProtocol.createPacket(
+      type: MeshProtocol.PACKET_TYPE_RELAY,
       senderId: _identity!.peerId,
       recipientId: parsed['recipientId'],
       payload: parsed['payload'],
@@ -165,7 +165,7 @@ class BleMeshService {
 
   void _updatePeer(String peerId, {String? nickname}) {
     final existing = _peers[peerId];
-    final peer = BitChatPeer(
+    final peer = ChatPeer(
       peerId: peerId,
       nickname: nickname ?? existing?.nickname,
       lastSeen: DateTime.now(),

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../models/bit_chat_message.dart';
+import '../models/chat_message.dart';
 
 class MessageActionsSheet extends StatelessWidget {
-  final BitChatMessage message;
+  final ChatMessage message;
 
   const MessageActionsSheet({super.key, required this.message});
 

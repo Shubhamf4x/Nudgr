@@ -3,20 +3,20 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 
-class BitChatIdentity {
+class ChatIdentity {
   final Uint8List privateKey;
   final Uint8List publicKey;
   final String peerId;
   String? nickname;
 
-  BitChatIdentity({
+  ChatIdentity({
     required this.privateKey,
     required this.publicKey,
     required this.peerId,
     this.nickname,
   });
 
-  factory BitChatIdentity.generate() {
+  factory ChatIdentity.generate() {
     final random = Random.secure();
     final privateKey = Uint8List(32);
     for (var i = 0; i < 32; i++) {
@@ -24,7 +24,7 @@ class BitChatIdentity {
     }
     final publicKey = _derivePublicKey(privateKey);
     final peerId = _derivePeerId(publicKey);
-    return BitChatIdentity(
+    return ChatIdentity(
       privateKey: privateKey,
       publicKey: publicKey,
       peerId: peerId,
@@ -66,7 +66,7 @@ class BitChatIdentity {
     'nickname': nickname,
   };
 
-  factory BitChatIdentity.fromJson(Map<String, dynamic> json) => BitChatIdentity(
+  factory ChatIdentity.fromJson(Map<String, dynamic> json) => ChatIdentity(
     privateKey: base64Decode(json['privateKey']),
     publicKey: base64Decode(json['publicKey']),
     peerId: json['peerId'],

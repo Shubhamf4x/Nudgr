@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -492,7 +493,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.help_outline_rounded,
         title: 'About Nudgr',
         color: const Color(0xFF2196F3),
-        onTap: () {},
+        onTap: () => _showAboutNudgr(),
       ),
     ];
 
@@ -553,6 +554,149 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   bool _isCheckingUpdates = false;
+
+  Future<void> _showAboutNudgr() async {
+    String versionText = '';
+    try {
+      final info = await PackageInfo.fromPlatform();
+      versionText = '  v${info.version}';
+    } catch (_) {}
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardTheme.color,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: ColorConstants.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  'N',
+                  style: AppTextStyles.googleSans(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: ColorConstants.primary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Nudgr',
+                  style: AppTextStyles.googleSans(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  'Focus. Organize. Grow.$versionText',
+                  style: AppTextStyles.googleSans(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Nudgr is an all-in-one productivity and communication app that keeps your data on your device first.',
+                style: AppTextStyles.googleSans(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _aboutPoint(Icons.check_circle_outline_rounded, 'Tasks with priorities, due dates, subtasks and reminders'),
+              _aboutPoint(Icons.sticky_note_2_outlined, 'Notes with rich text formatting and pinning'),
+              _aboutPoint(Icons.timer_outlined, 'Focus timer with session history'),
+              _aboutPoint(Icons.directions_walk_rounded, 'Automatic step tracking with daily goals'),
+              _aboutPoint(Icons.calendar_month_outlined, 'Calendar view of your scheduled tasks'),
+              _aboutPoint(Icons.public_outlined, 'World clock with real time zones'),
+              _aboutPoint(Icons.bluetooth_rounded, 'Offline chat with nearby devices over Bluetooth'),
+              _aboutPoint(Icons.cloud_done_outlined, 'Optional cloud sync with your Google account'),
+              const SizedBox(height: 16),
+              Text(
+                'No ads. No trackers. Your notes, tasks and history stay private.',
+                style: AppTextStyles.googleSans(
+                  fontSize: 12.5,
+                  color: Colors.grey,
+                ).copyWith(fontStyle: FontStyle.italic),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'made by woods',
+                style: AppTextStyles.googleSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: ColorConstants.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _checkForUpdates();
+            },
+            child: Text(
+              'Check for updates',
+              style: AppTextStyles.googleSans(color: ColorConstants.primary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Close',
+              style: AppTextStyles.googleSans(color: Colors.grey),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _aboutPoint(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: ColorConstants.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTextStyles.googleSans(
+                fontSize: 13,
+                height: 1.4,
+                color: Theme.of(context).textTheme.bodySmall?.color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _checkForUpdates() async {
     if (_isCheckingUpdates) return;

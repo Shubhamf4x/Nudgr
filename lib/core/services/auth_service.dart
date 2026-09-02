@@ -318,26 +318,46 @@ class AuthService {
       throw Exception('Google sign in was cancelled');
     }
 
-    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-    final credential = fb.GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
+    GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
     fb.User? fbUser;
-    try {
-      final userCredential = await _firebaseAuth.signInWithCredential(credential)
-          .timeout(const Duration(seconds: 15));
-      fbUser = userCredential.user;
-    } on TimeoutException {
-      throw Exception('Network timeout. Please check your connection and try again.');
-    } catch (e) {
-      if (e.toString().contains('timeout') || e.toString().contains('Timeout')) {
-        throw Exception('Network timeout. Please check your connection and try again.');
+    Object? lastError;
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final credential = fb.GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        final userCredential = await _firebaseAuth.signInWithCredential(credential)
+            .timeout(const Duration(seconds: 30));
+        fbUser = userCredential.user;
+        break;
+      } on TimeoutException catch (e) {
+        lastError = e;
+      } catch (e) {
+        lastError = e;
+        final text = e.toString().toLowerCase();
+        final isRetryable = text.contains('timeout') ||
+            text.contains('network') ||
+            text.contains('network_error') ||
+            text.contains('integerated' /* upstream typo of the plugin */);
+        if (!isRetryable) rethrow;
+      }
+      if (attempt < 3) {
+        await Future.delayed(Duration(milliseconds: 800 * attempt));
+        try {
+          googleAuth = await googleUser.authentication;
+        } catch (_) {}
+      }
+    }
+    if (fbUser == null) {
+      if (lastError != null &&
+          (lastError.toString().contains('timeout') ||
+              lastError.toString().toLowerCase().contains('network'))) {
+        throw Exception('Network issue while signing in. Check your connection and try again.');
       }
       throw Exception('Google sign in failed. Please try again.');
     }
-    if (fbUser == null) throw Exception('Firebase sign in failed');
 
     final email = fbUser.email ?? googleUser.email;
     final displayName = fbUser.displayName ?? googleUser.displayName ?? email.split('@').first;

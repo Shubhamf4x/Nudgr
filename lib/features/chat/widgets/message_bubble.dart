@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/color_constants.dart';
-import '../models/bit_chat_message.dart';
+import '../models/chat_message.dart';
 import '../widgets/message_actions_sheet.dart';
 
 class MessageBubble extends StatelessWidget {
-  final BitChatMessage message;
+  final ChatMessage message;
   final bool isMine;
   final String? peerNickname;
 

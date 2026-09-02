@@ -1,6 +1,7 @@
 package com.nudgr.nudgr
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -21,6 +22,10 @@ class MainActivity : FlutterActivity(), SensorEventListener {
     private var methodChannel: MethodChannel? = null
     private var isListening = false
 
+    companion object {
+        var stepChannel: MethodChannel? = null
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -28,6 +33,7 @@ class MainActivity : FlutterActivity(), SensorEventListener {
         stepSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
 
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, STEP_CHANNEL)
+        stepChannel = methodChannel
         methodChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "isSensorAvailable" -> {
@@ -58,6 +64,19 @@ class MainActivity : FlutterActivity(), SensorEventListener {
                 }
                 "stopListening" -> {
                     stopStepListener()
+                    result.success(null)
+                }
+                "startForegroundTracking" -> {
+                    val baseline = call.argument<Int>("baseline") ?: 0
+                    val goal = call.argument<Int>("goal") ?: 10000
+                    val intent = Intent(this, StepTrackingService::class.java)
+                        .putExtra(StepTrackingService.EXTRA_BASELINE, baseline)
+                        .putExtra(StepTrackingService.EXTRA_GOAL, goal)
+                    ContextCompat.startForegroundService(this, intent)
+                    result.success(null)
+                }
+                "stopForegroundTracking" -> {
+                    stopService(Intent(this, StepTrackingService::class.java))
                     result.success(null)
                 }
                 "sendNotification" -> {

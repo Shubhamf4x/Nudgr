@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-enum BitChatMessageType {
+enum ChatMessageType {
   publicChannel,
   privateMessage,
   peerDiscovery,
@@ -18,14 +18,14 @@ enum MessageDeliveryState {
   queued,
 }
 
-class BitChatMessage {
+class ChatMessage {
   final String id;
   final String senderPeerId;
   final String? senderNickname;
   final String? recipientPeerId;
   final String content;
   final DateTime timestamp;
-  final BitChatMessageType type;
+  final ChatMessageType type;
   final String? channelName;
   final int ttl;
   final int hopCount;
@@ -33,14 +33,14 @@ class BitChatMessage {
   final MessageDeliveryState deliveryState;
   final bool isEncrypted;
 
-  const BitChatMessage({
+  const ChatMessage({
     required this.id,
     required this.senderPeerId,
     this.senderNickname,
     this.recipientPeerId,
     required this.content,
     required this.timestamp,
-    this.type = BitChatMessageType.publicChannel,
+    this.type = ChatMessageType.publicChannel,
     this.channelName,
     this.ttl = 5,
     this.hopCount = 0,
@@ -52,14 +52,14 @@ class BitChatMessage {
   bool get isMine => false;
   bool get isFromPeer => !isMine;
 
-  BitChatMessage copyWith({
+  ChatMessage copyWith({
     String? id,
     String? senderPeerId,
     String? senderNickname,
     String? recipientPeerId,
     String? content,
     DateTime? timestamp,
-    BitChatMessageType? type,
+    ChatMessageType? type,
     String? channelName,
     int? ttl,
     int? hopCount,
@@ -67,7 +67,7 @@ class BitChatMessage {
     MessageDeliveryState? deliveryState,
     bool? isEncrypted,
   }) {
-    return BitChatMessage(
+    return ChatMessage(
       id: id ?? this.id,
       senderPeerId: senderPeerId ?? this.senderPeerId,
       senderNickname: senderNickname ?? this.senderNickname,
@@ -119,14 +119,14 @@ class BitChatMessage {
     'isEncrypted': isEncrypted,
   };
 
-  factory BitChatMessage.fromJson(Map<String, dynamic> json) => BitChatMessage(
+  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
     id: json['id'],
     senderPeerId: json['senderPeerId'],
     senderNickname: json['senderNickname'],
     recipientPeerId: json['recipientPeerId'],
     content: json['content'],
     timestamp: DateTime.parse(json['timestamp']),
-    type: BitChatMessageType.values[json['type'] ?? 0],
+    type: ChatMessageType.values[json['type'] ?? 0],
     channelName: json['channelName'],
     ttl: json['ttl'] ?? 5,
     hopCount: json['hopCount'] ?? 0,
