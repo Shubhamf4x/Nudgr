@@ -27,16 +27,8 @@ class AuthService {
     return _instance!;
   }
 
-  void resetForTesting() {
-    _instance = AuthService._();
-  }
-
-  bool _initialized = false;
-
   Future<void> initialize() async {
-    if (_initialized && _currentUser != null) return;
     _prefs = await SharedPreferences.getInstance();
-    _initialized = true;
 
     final savedVersion = _prefs!.getString(_authVersionKey);
     if (savedVersion != _currentAuthVersion) {
@@ -50,6 +42,14 @@ class AuthService {
     _loadCurrentUser();
 
     if (_currentUser == null && !_explicitLogout) {
+      await restoreLastActiveLocalSession();
+    }
+  }
+
+  Future<void> completeRestore() async {
+    if (_explicitLogout) return;
+
+    if (_currentUser == null) {
       try {
         await restoreSessionFromFirebase();
       } catch (_) {
@@ -57,13 +57,26 @@ class AuthService {
       }
     }
 
-    if (_currentUser == null && !_explicitLogout) {
-      try {
-        await restoreLastActiveLocalSession();
-      } catch (_) {
-        _currentUser = null;
-      }
+    if (_currentUser == null) return;
+
+    if (!_currentUser!.isGoogleAccount) return;
+
+    try {
+      final fbUser = _firebaseAuth.currentUser;
+      if (fbUser == null || fbUser.uid != _currentUser!.id) return;
+    } catch (_) {
+      return;
     }
+
+    try {
+      final doc = await _usersRef.doc(_currentUser!.id).get();
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        if (data.isNotEmpty) {
+          mergeCloudProfile(data);
+        }
+      }
+    } catch (_) {}
   }
 
   UserModel? get currentUser => _currentUser;

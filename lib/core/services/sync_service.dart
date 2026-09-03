@@ -243,6 +243,15 @@ class SyncService {
     return 'Cloud sync error. Check your Firebase configuration.';
   }
 
+  Map<String, dynamic> _withOwnership(String documentId, Map<String, dynamic> data) {
+    final stamped = Map<String, dynamic>.from(data);
+    stamped['id'] = documentId;
+    if (_currentUserId != null && _currentUserId!.isNotEmpty) {
+      stamped['userId'] = _currentUserId;
+    }
+    return stamped;
+  }
+
   Future<void> _processQueueItem(SyncQueueItem item) async {
     final ref = _userCollection(item.collection).doc(item.documentId);
 
@@ -250,7 +259,7 @@ class SyncService {
       case SyncOperation.create:
       case SyncOperation.update:
         if (item.data != null) {
-          await ref.set(item.data!, SetOptions(merge: true));
+          await ref.set(_withOwnership(item.documentId, item.data!), SetOptions(merge: true));
         }
         break;
       case SyncOperation.delete:
@@ -520,7 +529,7 @@ class SyncService {
 
     try {
       await _userCollection('tasks').doc(task.id).set(
-            task.toJson(),
+            _withOwnership(task.id, task.toJson()),
             SetOptions(merge: true),
           );
       _lastSyncTime = DateTime.now();
@@ -569,7 +578,7 @@ class SyncService {
 
     try {
       await _userCollection('notes').doc(note.id).set(
-            note.toJson(),
+            _withOwnership(note.id, note.toJson()),
             SetOptions(merge: true),
           );
       _lastSyncTime = DateTime.now();
@@ -618,7 +627,7 @@ class SyncService {
 
     try {
       await _userCollection('categories').doc(category.id).set(
-            category.toJson(),
+            _withOwnership(category.id, category.toJson()),
             SetOptions(merge: true),
           );
     } catch (e) {
@@ -665,7 +674,7 @@ class SyncService {
 
     try {
       await _userCollection('focus_sessions').doc(session.id).set(
-            session.toJson(),
+            _withOwnership(session.id, session.toJson()),
             SetOptions(merge: true),
           );
     } catch (e) {
@@ -691,7 +700,7 @@ class SyncService {
 
     try {
       await _userCollection('steps').doc(date).set(
-            {'date': date, 'stepCount': stepCount},
+            _withOwnership(date, {'date': date, 'stepCount': stepCount}),
             SetOptions(merge: true),
           );
     } catch (e) {

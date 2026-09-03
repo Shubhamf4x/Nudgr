@@ -37,6 +37,26 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void completeRestore() {
+    _authService.completeRestore().then((_) {
+      final refreshed = _authService.currentUser;
+      if (refreshed == null) {
+        if (_user == null && _state == AuthState.unauthenticated) {
+          notifyListeners();
+        }
+        return;
+      }
+      if (_user == null || refreshed.updatedAt.isAfter(_user!.updatedAt)) {
+        _user = refreshed;
+        if (_state == AuthState.unauthenticated) {
+          _state = AuthState.authenticated;
+          _activateSession();
+        }
+        notifyListeners();
+      }
+    });
+  }
+
   Future<void> _activateSession() async {
     final owner = _db.getDataOwnerUid();
     if (owner != null && owner != _user!.id) {
