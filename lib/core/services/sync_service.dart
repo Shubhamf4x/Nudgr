@@ -69,10 +69,11 @@ class SyncService {
   bool _cloudEnabled = false;
   SyncStatus _status = SyncStatus.idle;
   DateTime? _lastSyncTime;
+  String? _lastSyncError;
   int _pendingCount = 0;
   bool _isSyncing = false;
   bool _isOnline = true;
-  final int _maxRetries = 3;
+  final int _maxRetries = 6;
 
   static const String _syncQueueKey = 'sync_queue';
   static const String _lastSyncKey = 'last_sync_time';
@@ -86,6 +87,7 @@ class SyncService {
 
   SyncStatus get status => _status;
   DateTime? get lastSyncTime => _lastSyncTime;
+  String? get lastSyncError => _lastSyncError;
   int get pendingCount => _pendingCount;
   bool get isOnline => _isOnline;
   bool get isSyncing => _isSyncing;
@@ -119,6 +121,10 @@ class SyncService {
     if (userId != null && _canSync) {
       syncPendingData();
     }
+  }
+
+  Future<void> pushPendingBeforeRestore() async {
+    await syncPendingData();
   }
 
   List<SyncQueueItem> _syncQueue = [];
@@ -191,7 +197,9 @@ class SyncService {
         try {
           await _processQueueItem(item);
           _syncQueue.removeWhere((q) => q.id == item.id);
+          _lastSyncError = null;
         } catch (e) {
+          _lastSyncError = _describeError(e);
           item.retryCount++;
           if (item.retryCount >= _maxRetries) {
             _syncQueue.removeWhere((q) => q.id == item.id);
@@ -202,14 +210,37 @@ class SyncService {
       }
 
       await _saveSyncQueue();
-      _lastSyncTime = DateTime.now();
-      await _prefs!.setString(_lastSyncKey, _lastSyncTime!.toIso8601String());
-      _status = _syncQueue.isEmpty ? SyncStatus.idle : SyncStatus.error;
+      if (_syncQueue.isEmpty) {
+        _lastSyncTime = DateTime.now();
+        await _prefs!.setString(_lastSyncKey, _lastSyncTime!.toIso8601String());
+        _status = SyncStatus.idle;
+        if (failedItems.isEmpty) _lastSyncError = null;
+      } else {
+        _status = SyncStatus.error;
+      }
     } catch (e) {
+      _lastSyncError = _describeError(e);
       _status = SyncStatus.error;
     } finally {
       _isSyncing = false;
     }
+  }
+
+  String _describeError(Object error) {
+    final text = error.toString().toLowerCase();
+    if (text.contains('permission-denied') ||
+        text.contains('permission_denied')) {
+      return 'Cloud storage rejected the write. Publish the Firestore security rules in the Firebase console.';
+    }
+    if (text.contains('failed-precondition') || text.contains('not-found')) {
+      return 'Cloud Firestore is not created yet. Create it in the Firebase console to enable cloud sync.';
+    }
+    if (text.contains('unavailable') ||
+        text.contains('deadline') ||
+        text.contains('network')) {
+      return 'Cloud storage is unreachable. Retrying when the connection improves.';
+    }
+    return 'Cloud sync error. Check your Firebase configuration.';
   }
 
   Future<void> _processQueueItem(SyncQueueItem item) async {
@@ -233,19 +264,28 @@ class SyncService {
 
     _status = SyncStatus.syncing;
     _isSyncing = true;
+    var anyFailure = false;
 
     try {
-      await _pullTasks();
-      await _pullNotes();
-      await _pullCategories();
-      await _pullFocusSessions();
-      await _pullSteps();
-      await _pullUserProfile();
+      for (final pull in [_pullTasks, _pullNotes, _pullCategories, _pullFocusSessions, _pullSteps, _pullUserProfile]) {
+        try {
+          await pull();
+        } catch (e) {
+          anyFailure = true;
+          _lastSyncError = _describeError(e);
+        }
+      }
 
-      _lastSyncTime = DateTime.now();
-      await _prefs!.setString(_lastSyncKey, _lastSyncTime!.toIso8601String());
-      _status = SyncStatus.idle;
+      if (!anyFailure) {
+        _lastSyncTime = DateTime.now();
+        await _prefs!.setString(_lastSyncKey, _lastSyncTime!.toIso8601String());
+        _lastSyncError = null;
+        _status = SyncStatus.idle;
+      } else {
+        _status = SyncStatus.error;
+      }
     } catch (e) {
+      _lastSyncError = _describeError(e);
       _status = SyncStatus.error;
     } finally {
       _isSyncing = false;

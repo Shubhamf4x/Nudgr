@@ -321,7 +321,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildSyncStatus(BuildContext context) {
-    return Selector<SyncProvider, ({bool isOnline, bool isSyncing, bool cloudEnabled, String statusLabel, String lastSyncLabel, int pendingCount})>(
+    return Selector<SyncProvider, ({bool isOnline, bool isSyncing, bool cloudEnabled, String statusLabel, String lastSyncLabel, int pendingCount, String? lastSyncError})>(
       selector: (_, sync) => (
         isOnline: sync.isOnline,
         isSyncing: sync.isSyncing,
@@ -329,6 +329,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         statusLabel: sync.statusLabel,
         lastSyncLabel: sync.lastSyncLabel,
         pendingCount: sync.pendingCount,
+        lastSyncError: sync.lastSyncError,
       ),
       builder: (context, data, _) {
         final sync = context.read<SyncProvider>();
@@ -448,6 +449,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: const Color(0xFFFF9800),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (data.lastSyncError != null) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        size: 14,
+                        color: const Color(0xFFFF9800),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          data.lastSyncError!,
+                          style: AppTextStyles.googleSans(
+                            fontSize: 12,
+                            height: 1.4,
+                            color: const Color(0xFFFF9800),
+                          ),
                         ),
                       ),
                     ],

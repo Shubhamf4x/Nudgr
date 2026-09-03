@@ -10,6 +10,7 @@ class SyncProvider extends ChangeNotifier {
 
   SyncStatus get status => _syncService.status;
   DateTime? get lastSyncTime => _syncService.lastSyncTime;
+  String? get lastSyncError => _syncService.lastSyncError;
   int get pendingCount => _syncService.pendingCount;
   bool get isOnline => _syncService.isOnline;
   bool get isSyncing => _syncService.isSyncing;
@@ -43,7 +44,7 @@ class SyncProvider extends ChangeNotifier {
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       final snapshot =
-          '${_syncService.status}|$_syncService.isOnline|${_syncService.pendingCount}|${_syncService.lastSyncTime?.millisecondsSinceEpoch ?? 0}';
+          '${_syncService.status}|$_syncService.isOnline|${_syncService.pendingCount}|${_syncService.lastSyncTime?.millisecondsSinceEpoch ?? 0}|${_syncService.lastSyncError ?? ''}';
       if (snapshot == _lastSnapshot) return;
       _lastSnapshot = snapshot;
       notifyListeners();
