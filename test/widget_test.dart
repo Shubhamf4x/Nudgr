@@ -86,6 +86,7 @@ void main() {
         }),
       });
 
+      AuthService.getInstance().resetForTesting();
       final auth = AuthService.getInstance();
       await auth.initialize();
 
@@ -101,6 +102,7 @@ void main() {
             '{"id":"uid-2","email":"b@example.com","displayName":"User B","lastSeen":null,"createdAt":null,"updatedAt":null,"preferences":null,"statistics":null}',
       });
 
+      AuthService.getInstance().resetForTesting();
       final auth = AuthService.getInstance();
       await auth.initialize();
 
@@ -114,6 +116,7 @@ void main() {
         'auth_version': '2.0',
       });
 
+      AuthService.getInstance().resetForTesting();
       final auth = AuthService.getInstance();
       await auth.initialize();
 
@@ -136,6 +139,7 @@ void main() {
         ]),
       });
 
+      AuthService.getInstance().resetForTesting();
       final auth = AuthService.getInstance();
       await auth.initialize();
 
@@ -166,6 +170,7 @@ void main() {
         ]),
       });
 
+      AuthService.getInstance().resetForTesting();
       final auth = AuthService.getInstance();
       await auth.initialize();
 

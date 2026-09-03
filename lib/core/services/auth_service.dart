@@ -27,8 +27,16 @@ class AuthService {
     return _instance!;
   }
 
+  void resetForTesting() {
+    _instance = AuthService._();
+  }
+
+  bool _initialized = false;
+
   Future<void> initialize() async {
+    if (_initialized && _currentUser != null) return;
     _prefs = await SharedPreferences.getInstance();
+    _initialized = true;
 
     final savedVersion = _prefs!.getString(_authVersionKey);
     if (savedVersion != _currentAuthVersion) {
