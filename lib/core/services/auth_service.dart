@@ -51,7 +51,7 @@ class AuthService {
 
     if (_currentUser == null) {
       try {
-        await restoreSessionFromFirebase();
+        await restoreSessionFromFirebase().timeout(const Duration(seconds: 6));
       } catch (_) {
         _currentUser = null;
       }

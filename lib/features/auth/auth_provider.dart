@@ -29,14 +29,26 @@ class AuthProvider extends ChangeNotifier {
     _state = AuthState.loading;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    _onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+    } catch (_) {}
 
-    await _authService.initialize();
+    try {
+      await _authService.initialize();
+    } catch (e) {
+      debugPrint('Auth init failed: $e');
+    }
+
     _user = _authService.currentUser;
 
     if (_user != null) {
-      await _activateSession();
+      try {
+        await _activateSession();
+      } catch (e) {
+        debugPrint('Session activation failed: $e');
+      }
+      _state = AuthState.authenticated;
     } else {
       _state = AuthState.unauthenticated;
     }

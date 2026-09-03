@@ -24,7 +24,7 @@ import 'features/auth/login_screen.dart';
 import 'features/auth/onboarding_screen.dart';
 import 'features/main_shell.dart';
 
-Future<void> main() async {
+void main() {
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
   };
@@ -34,41 +34,71 @@ Future<void> main() async {
   };
 
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-
-  unawaited(
-    FirebaseAppCheck.instance
-        .activate(
-          androidProvider:
-              kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-        )
-        .catchError((_) {}),
-  );
-
-  await DatabaseService.getInstance().initialize();
-  await AuthService.getInstance().initialize();
-  await StepsService.getInstance().initialize();
-  await NotificationService.getInstance().initialize();
-  await SyncService.getInstance().initialize();
-
-  final authProvider = AuthProvider();
-  await authProvider.initialize();
-
-  authProvider.completeRestore();
-
-  runApp(NudgrApp(authProvider: authProvider));
+  runApp(const NudgrApp());
 }
 
-class NudgrApp extends StatelessWidget {
-  final AuthProvider authProvider;
+class NudgrApp extends StatefulWidget {
+  const NudgrApp({super.key});
 
-  const NudgrApp({
-    super.key,
-    required this.authProvider,
-  });
+  @override
+  State<NudgrApp> createState() => _NudgrAppState();
+}
+
+class _NudgrAppState extends State<NudgrApp> {
+  AuthProvider? _authProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_bootstrap());
+  }
+
+  Future<void> _bootstrap() async {
+    AuthProvider? provider;
+    try {
+      await Firebase.initializeApp();
+
+      try {
+        await FirebaseAppCheck.instance.activate(
+          androidProvider: kDebugMode
+              ? AndroidProvider.debug
+              : AndroidProvider.playIntegrity,
+        );
+      } catch (_) {}
+
+      await DatabaseService.getInstance().initialize();
+      await AuthService.getInstance().initialize();
+      await StepsService.getInstance().initialize();
+      await NotificationService.getInstance().initialize();
+      await SyncService.getInstance().initialize();
+
+      provider = AuthProvider();
+      await provider.initialize();
+    } catch (e) {
+      debugPrint('Startup bootstrap failed: $e');
+      provider = null;
+    }
+
+    if (!mounted) return;
+    setState(() => _authProvider = provider);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = _authProvider;
+
+    if (authProvider == null) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          brightness: Brightness.dark,
+          scaffoldBackgroundColor: const Color(0xFF10101C),
+          colorScheme: const ColorScheme.dark(primary: Color(0xFF6C63FF)),
+        ),
+        home: const _BrandedSplash(),
+      );
+    }
+
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
@@ -127,6 +157,75 @@ class AuthGate extends StatelessWidget {
             return const LoginScreen();
         }
       },
+    );
+  }
+}
+
+class _BrandedSplash extends StatelessWidget {
+  const _BrandedSplash();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF6C63FF), Color(0xFF8B85FF)],
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Text(
+                  'N',
+                  style: TextStyle(
+                    fontSize: 44,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF6C63FF),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Nudgr',
+              style: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 32),
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
