@@ -67,7 +67,14 @@ class StepsProvider extends ChangeNotifier {
     super.dispose();
   }
 
+  bool _initialized = false;
+
   Future<void> initialize() async {
+    if (_initialized) {
+      await _refreshFromStorage();
+      return;
+    }
+    _initialized = true;
     _state = _state.copyWith(isLoading: true);
     notifyListeners();
 
@@ -109,6 +116,35 @@ class StepsProvider extends ChangeNotifier {
     if (hasSensor && hasPermission && !_stepsService.foregroundTrackingStopped) {
       _startListening();
     }
+  }
+
+  Future<void> _refreshFromStorage() async {
+    final dailyGoal = _stepsService.getDailyGoal();
+    final history = _stepsService.getStepHistory();
+    final todayRecord = _stepsService.getTodayRecord();
+    var todaySteps = todayRecord?.stepCount ?? 0;
+
+    final foregroundSteps = _stepsService.getForegroundSteps();
+    if (foregroundSteps != null && foregroundSteps > todaySteps) {
+      final fgBaseline = _stepsService.getForegroundBaseline();
+      await _stepsService.updateTodaySteps(
+        stepCount: foregroundSteps,
+        sensorBaseline: fgBaseline,
+        lastSensorValue: fgBaseline + foregroundSteps,
+      );
+      todaySteps = foregroundSteps;
+      history.clear();
+      history.addAll(_stepsService.getStepHistory());
+    }
+
+    _state = _state.copyWith(
+      dailyGoal: dailyGoal,
+      history: history,
+      todaySteps: todaySteps,
+      progress: dailyGoal > 0 ? (todaySteps / dailyGoal).clamp(0.0, 1.0) : 0.0,
+      isLoading: false,
+    );
+    notifyListeners();
   }
 
   void _onPermissionResult(bool granted) {

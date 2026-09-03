@@ -266,9 +266,12 @@ class _MeshChatScreenState extends State<MeshChatScreen>
       return _buildPrivateChatTab(provider, isDark);
     }
 
-    return Selector<MeshChatProvider, List<dynamic>>(
-      selector: (_, p) => p.currentMessages,
-      builder: (context, channelMessages, _) {
+    return Selector<MeshChatProvider, int>(
+      selector: (_, p) =>
+          p.currentMessages.length * 31 + p.state.selectedChannel.hashCode,
+      shouldRebuild: (previous, next) => previous != next,
+      builder: (context, messageCount, _) {
+        final channelMessages = provider.currentMessages;
         return Column(
           children: [
             _buildChannelChips(provider, isDark),
@@ -300,9 +303,13 @@ class _MeshChatScreenState extends State<MeshChatScreen>
   Widget _buildPrivateChatTab(MeshChatProvider provider, bool isDark) {
     final peerId = provider.state.activePrivateChatPeerId!;
     final peer = provider.getPeer(peerId);
-    final messages = provider.service.getPrivateMessages(peerId);
 
-    return Column(
+    return Selector<MeshChatProvider, int>(
+      selector: (_, p) => p.getPrivateMessages(peerId).length,
+      shouldRebuild: (previous, next) => previous != next,
+      builder: (context, messageCount, _) {
+        final messages = provider.getPrivateMessages(peerId);
+        return Column(
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -382,6 +389,8 @@ class _MeshChatScreenState extends State<MeshChatScreen>
           onSend: (text) => provider.sendPrivateMessage(text, peerId),
         ),
       ],
+        );
+      },
     );
   }
 

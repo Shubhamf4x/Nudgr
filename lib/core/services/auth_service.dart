@@ -193,7 +193,7 @@ class AuthService {
         best = u;
       }
     }
-    if (best == null) best = users.last;
+    best ??= users.last;
 
     final restored = UserModel.fromJson(best);
     _currentUser = restored;

@@ -81,12 +81,18 @@ class MeshChatProvider extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
+    if (_state.isInitializing && _messageSub != null) return;
+
     _state = _state.copyWith(isInitializing: true);
     notifyListeners();
 
     await _service.initialize();
 
     final granted = await _service.meshService.requestPermissions();
+
+    await _messageSub?.cancel();
+    await _peersSub?.cancel();
+    await _statusSub?.cancel();
 
     _messageSub = _service.messageStream.listen((message) {
       _refreshState();
@@ -183,9 +189,18 @@ class MeshChatProvider extends ChangeNotifier {
 
   List<ChatMessage> get currentMessages {
     if (_state.activePrivateChatPeerId != null) {
-      return _service.getPrivateMessages(_state.activePrivateChatPeerId!);
+      return getPrivateMessages(_state.activePrivateChatPeerId!);
     }
-    return _service.getChannelMessages(_state.selectedChannel);
+    return getChannelMessages(_state.selectedChannel);
+  }
+
+  List<ChatMessage> getChannelMessages(String channelName) {
+    return List<ChatMessage>.unmodifiable(
+        _service.getChannelMessages(channelName));
+  }
+
+  List<ChatMessage> getPrivateMessages(String peerId) {
+    return List<ChatMessage>.unmodifiable(_service.getPrivateMessages(peerId));
   }
 
   ChatPeer? getPeer(String peerId) {

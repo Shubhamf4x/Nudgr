@@ -62,11 +62,15 @@ class CalendarProvider extends ChangeNotifier {
 
   CalendarState get state => _state;
 
+  bool _loadedOnce = false;
+
   Future<void> initialize() async {
+    if (_loadedOnce) return;
     await loadData();
   }
 
   Future<void> loadData() async {
+    _loadedOnce = true;
     _state = _state.copyWith(isLoading: true);
     notifyListeners();
 

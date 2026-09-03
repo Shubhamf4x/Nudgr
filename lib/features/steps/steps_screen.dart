@@ -51,6 +51,13 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
       body: SafeArea(
         child: Consumer<StepsProvider>(
           builder: (context, provider, _) {
+            if (provider.state.isTracking) {
+              if (!_pulseController.isAnimating) {
+                _pulseController.repeat(reverse: true);
+              }
+            } else if (_pulseController.isAnimating) {
+              _pulseController.stop();
+            }
             if (provider.state.isLoading) {
               return const Center(child: CircularProgressIndicator());
             }
