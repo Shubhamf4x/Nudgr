@@ -108,7 +108,8 @@ void main() {
       expect(auth.currentUser!.displayName, 'User B');
     });
 
-    test('missing session leaves the user unauthenticated', () async {
+    test('no session and no local accounts leaves the user unauthenticated',
+        () async {
       SharedPreferences.setMockInitialValues({
         'auth_version': '2.0',
       });
@@ -117,6 +118,59 @@ void main() {
       await auth.initialize();
 
       expect(auth.isAuthenticated, isFalse);
+    });
+
+    test('explicit logout keeps the user logged out across restarts', () async {
+      SharedPreferences.setMockInitialValues({
+        'auth_version': '2.0',
+        'session_ended': true,
+        'registered_users': jsonEncode([
+          {
+            'id': 'uid-old',
+            'email': 'old@example.com',
+            'displayName': 'Old User',
+            'lastSeen': '2026-08-30T10:00:00.000',
+            'createdAt': '2026-08-30T09:00:00.000',
+            'updatedAt': '2026-08-30T10:00:00.000',
+          }
+        ]),
+      });
+
+      final auth = AuthService.getInstance();
+      await auth.initialize();
+
+      expect(auth.isAuthenticated, isFalse);
+    });
+
+    test('last active local account is restored when storage session is gone',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'auth_version': '2.0',
+        'registered_users': jsonEncode([
+          {
+            'id': 'uid-a',
+            'email': 'a@example.com',
+            'displayName': 'User A',
+            'lastSeen': '2026-08-29T10:00:00.000',
+            'createdAt': '2026-08-29T09:00:00.000',
+            'updatedAt': '2026-08-29T10:00:00.000',
+          },
+          {
+            'id': 'uid-b',
+            'email': 'b@example.com',
+            'displayName': 'User B',
+            'lastSeen': '2026-08-30T18:00:00.000',
+            'createdAt': '2026-08-30T09:00:00.000',
+            'updatedAt': '2026-08-30T18:00:00.000',
+          }
+        ]),
+      });
+
+      final auth = AuthService.getInstance();
+      await auth.initialize();
+
+      expect(auth.isAuthenticated, isTrue);
+      expect(auth.currentUser!.id, 'uid-b');
     });
   });
 }

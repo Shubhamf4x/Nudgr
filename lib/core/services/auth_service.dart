@@ -17,6 +17,8 @@ class AuthService {
 
   static const String _authVersionKey = 'auth_version';
   static const String _currentAuthVersion = '2.0';
+  static const String _explicitLogoutKey = 'session_ended';
+  bool _explicitLogout = false;
 
   AuthService._();
 
@@ -35,11 +37,21 @@ class AuthService {
       await _prefs!.setString(_authVersionKey, _currentAuthVersion);
     }
 
+    _explicitLogout = _prefs!.getBool(_explicitLogoutKey) ?? false;
+
     _loadCurrentUser();
 
-    if (_currentUser == null) {
+    if (_currentUser == null && !_explicitLogout) {
       try {
         await restoreSessionFromFirebase();
+      } catch (_) {
+        _currentUser = null;
+      }
+    }
+
+    if (_currentUser == null && !_explicitLogout) {
+      try {
+        await restoreLastActiveLocalSession();
       } catch (_) {
         _currentUser = null;
       }
@@ -67,10 +79,25 @@ class AuthService {
   }
 
   Future<UserModel?> restoreSessionFromFirebase() async {
-    final fbUser = _firebaseAuth.currentUser;
+    fb.User? fbUser = _firebaseAuth.currentUser;
+
     if (fbUser == null) {
-      _currentUser = null;
-      await _prefs!.remove('current_user');
+      try {
+        fbUser = await _firebaseAuth
+            .authStateChanges()
+            .firstWhere(
+              (user) => user != null,
+              orElse: () => null,
+            )
+            .timeout(const Duration(seconds: 4));
+      } on TimeoutException {
+        fbUser = null;
+      } catch (_) {
+        fbUser = null;
+      }
+    }
+
+    if (fbUser == null) {
       return null;
     }
 
@@ -98,7 +125,7 @@ class AuthService {
     };
 
     final users = _getRegisteredUsers();
-    final index = users.indexWhere((u) => u['id'] == fbUser.uid);
+    final index = users.indexWhere((u) => u['id'] == fbUser?.uid);
     if (index >= 0) {
       final stored = Map<String, dynamic>.from(users[index]);
       stored.forEach((k, v) {
@@ -112,6 +139,8 @@ class AuthService {
 
     final restored = UserModel.fromJson(userData);
     _currentUser = restored;
+    _prefs!.setBool(_explicitLogoutKey, false);
+    _explicitLogout = false;
     await _prefs!.setString('current_user', jsonEncode(restored.toJson()));
 
     if (index >= 0) {
@@ -121,6 +150,35 @@ class AuthService {
     }
     await _saveRegisteredUsers(users);
 
+    return restored;
+  }
+
+  Future<UserModel?> restoreLastActiveLocalSession() async {
+    final users = _getRegisteredUsers();
+    if (users.isEmpty) return null;
+
+    DateTime? latest(DateTime? a, DateTime? b) =>
+        (a == null || (b != null && b.isAfter(a))) ? b : a;
+
+    Map<String, dynamic>? best;
+    DateTime? bestTime;
+    for (final u in users) {
+      final lastSeen = DateTime.tryParse(u['lastSeen'] as String? ?? '');
+      final updated = DateTime.tryParse(u['updatedAt'] as String? ?? '');
+      final createdAt = DateTime.tryParse(u['createdAt'] as String? ?? '');
+      final t = latest(latest(lastSeen, updated), createdAt);
+      if (t != null && (bestTime == null || t.isAfter(bestTime))) {
+        bestTime = t;
+        best = u;
+      }
+    }
+    if (best == null) best = users.last;
+
+    final restored = UserModel.fromJson(best);
+    _currentUser = restored;
+    _prefs!.setBool(_explicitLogoutKey, false);
+    _explicitLogout = false;
+    await _prefs!.setString('current_user', jsonEncode(restored.toJson()));
     return restored;
   }
 
@@ -219,6 +277,8 @@ class AuthService {
 
     final userModel = UserModel.fromJson(userData);
     _currentUser = userModel;
+    _prefs!.setBool(_explicitLogoutKey, false);
+    _explicitLogout = false;
     _prefs!.setString('current_user', jsonEncode(userModel.toJson()));
     return userModel;
   }
@@ -304,6 +364,8 @@ class AuthService {
 
     final userModel = UserModel.fromJson(userData);
     _currentUser = userModel;
+    _prefs!.setBool(_explicitLogoutKey, false);
+    _explicitLogout = false;
     _prefs!.setString('current_user', jsonEncode(userModel.toJson()));
 
     _syncUsernameMapping(finalUsername, normalizedEmail, fbUser.uid);
@@ -415,6 +477,8 @@ class AuthService {
 
     final userModel = UserModel.fromJson(userData);
     _currentUser = userModel;
+    _prefs!.setBool(_explicitLogoutKey, false);
+    _explicitLogout = false;
     _prefs!.setString('current_user', jsonEncode(userModel.toJson()));
     return userModel;
   }
@@ -466,6 +530,8 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    _explicitLogout = true;
+    await _prefs!.setBool(_explicitLogoutKey, true);
     try {
       await _googleSignIn.signOut();
       await _firebaseAuth.signOut();
