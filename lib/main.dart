@@ -1,9 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'shared/providers/theme_provider.dart';
 import 'shared/providers/sync_provider.dart';
 import 'core/services/database_service.dart';
@@ -35,12 +36,14 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  try {
-    await FirebaseAppCheck.instance.activate(
-      androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-    );
-  } catch (_) {
-  }
+  unawaited(
+    FirebaseAppCheck.instance
+        .activate(
+          androidProvider:
+              kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+        )
+        .catchError((_) {}),
+  );
 
   await DatabaseService.getInstance().initialize();
   await AuthService.getInstance().initialize();
@@ -51,28 +54,16 @@ Future<void> main() async {
   final authProvider = AuthProvider();
   await authProvider.initialize();
 
-  final prefs = await SharedPreferences.getInstance();
-  final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
-
-  final Widget startupScreen;
-  if (authProvider.isAuthenticated) {
-    startupScreen = onboardingComplete ? const MainShell() : const OnboardingScreen();
-  } else {
-    startupScreen = const LoginScreen();
-  }
-
   authProvider.completeRestore();
 
-  runApp(NudgrApp(startupScreen: startupScreen, authProvider: authProvider));
+  runApp(NudgrApp(authProvider: authProvider));
 }
 
 class NudgrApp extends StatelessWidget {
-  final Widget startupScreen;
   final AuthProvider authProvider;
 
   const NudgrApp({
     super.key,
-    required this.startupScreen,
     required this.authProvider,
   });
 
@@ -88,7 +79,9 @@ class NudgrApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NotesProvider()),
         ChangeNotifierProvider(create: (_) => CalendarProvider()),
         ChangeNotifierProvider(create: (_) => FocusProvider()),
-        ChangeNotifierProvider(create: (_) => StepsProvider()..initialize()),
+        ChangeNotifierProvider(
+          create: (_) => StepsProvider()..initialize(),
+        ),
         ChangeNotifierProvider(create: (_) => MeshChatProvider()),
       ],
       child: Consumer<ThemeProvider>(
@@ -97,7 +90,7 @@ class NudgrApp extends StatelessWidget {
             title: 'Nudgr',
             debugShowCheckedModeBanner: false,
             theme: themeProvider.theme,
-            home: startupScreen,
+            home: const AuthGate(),
             routes: {
               '/login': (_) => const LoginScreen(),
               '/home': (_) => const MainShell(),
@@ -105,6 +98,35 @@ class NudgrApp extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        switch (auth.state) {
+          case AuthState.initial:
+          case AuthState.loading:
+            return Scaffold(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              body: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+            );
+          case AuthState.authenticated:
+            return auth.onboardingComplete
+                ? const MainShell()
+                : const OnboardingScreen();
+          case AuthState.unauthenticated:
+          case AuthState.error:
+            return const LoginScreen();
+        }
+      },
     );
   }
 }

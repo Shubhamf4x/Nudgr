@@ -80,8 +80,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           context,
           MaterialPageRoute(builder: (_) => const OnboardingScreen()),
         );
-      } else {
-        Navigator.pushReplacementNamed(context, '/home');
       }
     } else if (authProvider.error != null && authProvider.error!.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

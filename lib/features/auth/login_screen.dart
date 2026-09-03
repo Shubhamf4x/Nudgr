@@ -7,7 +7,6 @@ import 'auth_provider.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'onboarding_screen.dart';
-import '../main_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -50,11 +49,6 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           MaterialPageRoute(builder: (_) => const OnboardingScreen()),
         );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainShell()),
-        );
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -80,11 +74,6 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainShell()),
         );
       }
     } else if (authProvider.error != null && authProvider.error!.isNotEmpty) {

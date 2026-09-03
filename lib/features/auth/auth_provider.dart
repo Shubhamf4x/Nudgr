@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../shared/models/user_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/sync_service.dart';
@@ -14,17 +15,22 @@ class AuthProvider extends ChangeNotifier {
   AuthState _state = AuthState.initial;
   UserModel? _user;
   String? _error;
+  bool _onboardingComplete = true;
 
   AuthState get state => _state;
   UserModel? get user => _user;
   String? get error => _error;
   bool get isAuthenticated => _state == AuthState.authenticated;
+  bool get onboardingComplete => _onboardingComplete;
 
   bool get cloudSyncEnabled => _user?.isGoogleAccount ?? false;
 
   Future<void> initialize() async {
     _state = AuthState.loading;
     notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    _onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
 
     await _authService.initialize();
     _user = _authService.currentUser;
