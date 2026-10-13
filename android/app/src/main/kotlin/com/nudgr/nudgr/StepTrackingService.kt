@@ -38,7 +38,7 @@ class StepTrackingService : Service(), SensorEventListener {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
-            prefs().edit().putInt(PREF_STOPPED, 1).apply()
+            prefs().edit().putBoolean(PREF_STOPPED, true).apply()
             stopSelf()
             return START_NOT_STICKY
         }
@@ -170,6 +170,5 @@ class StepTrackingService : Service(), SensorEventListener {
         const val PREF_STOPPED = "flutter.step_fg_stopped"
 
         var isRunning = false
-        var isPaused = false
     }
 }

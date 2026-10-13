@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:package_info_plus/package_info_plus.dart';
+
 import '../constants/app_constants.dart';
 
 class UpdateService {
@@ -33,15 +35,22 @@ class UpdateService {
     }
 
     final Map<String, dynamic> release;
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15);
     try {
-      final client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 15);
       final request = await client.getUrl(uri);
-      request.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
+      request.headers.set(
+        HttpHeaders.acceptHeader,
+        'application/vnd.github+json',
+      );
       request.headers.set(HttpHeaders.userAgentHeader, 'Nudgr-App');
-      final response = await request.close().timeout(const Duration(seconds: 20));
-      final body = await response.transform(utf8.decoder).join();
-      client.close();
+      final response = await request.close().timeout(
+        const Duration(seconds: 20),
+      );
+      final body = await response
+          .transform(utf8.decoder)
+          .join()
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode != 200) {
         return UpdateCheckError(
@@ -52,7 +61,9 @@ class UpdateService {
       }
       final decoded = jsonDecode(body);
       if (decoded is! Map<String, dynamic>) {
-        return const UpdateCheckError('Unexpected response from update server.');
+        return const UpdateCheckError(
+          'Unexpected response from update server.',
+        );
       }
       release = decoded;
     } on TimeoutException {
@@ -61,6 +72,8 @@ class UpdateService {
       return const UpdateCheckError('No internet connection.');
     } catch (_) {
       return const UpdateCheckError('Could not check for updates.');
+    } finally {
+      client.close(force: true);
     }
 
     final latestTag = (release['tag_name'] as String?)?.trim() ?? '';

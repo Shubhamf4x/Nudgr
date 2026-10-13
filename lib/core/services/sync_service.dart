@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../shared/models/task_model.dart';
 import '../../shared/models/note_model.dart';
 import '../../shared/models/category_model.dart';
@@ -101,8 +103,9 @@ class SyncService {
     _loadLastSyncTime();
     await _loadSyncQueue();
 
-    _connectivitySubscription =
-        _connectivity.onConnectivityChanged.listen((results) {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      results,
+    ) {
       final wasOnline = _isOnline;
       _isOnline = results.any((r) => r != ConnectivityResult.none);
 
@@ -119,7 +122,7 @@ class SyncService {
     _currentUserId = userId;
     _cloudEnabled = cloudEnabled;
     if (userId != null && _canSync) {
-      syncPendingData();
+      unawaited(syncPendingData());
     }
   }
 
@@ -243,7 +246,10 @@ class SyncService {
     return 'Cloud sync error. Check your Firebase configuration.';
   }
 
-  Map<String, dynamic> _withOwnership(String documentId, Map<String, dynamic> data) {
+  Map<String, dynamic> _withOwnership(
+    String documentId,
+    Map<String, dynamic> data,
+  ) {
     final stamped = Map<String, dynamic>.from(data);
     stamped['id'] = documentId;
     if (_currentUserId != null && _currentUserId!.isNotEmpty) {
@@ -259,7 +265,10 @@ class SyncService {
       case SyncOperation.create:
       case SyncOperation.update:
         if (item.data != null) {
-          await ref.set(_withOwnership(item.documentId, item.data!), SetOptions(merge: true));
+          await ref.set(
+            _withOwnership(item.documentId, item.data!),
+            SetOptions(merge: true),
+          );
         }
         break;
       case SyncOperation.delete:
@@ -269,14 +278,23 @@ class SyncService {
   }
 
   Future<void> pullFromCloud() async {
-    if (!_canSync) return;
+    if (_isSyncing || !_canSync) return;
 
+    final userId = _currentUserId;
     _status = SyncStatus.syncing;
     _isSyncing = true;
     var anyFailure = false;
 
     try {
-      for (final pull in [_pullTasks, _pullNotes, _pullCategories, _pullFocusSessions, _pullSteps, _pullUserProfile]) {
+      for (final pull in [
+        _pullTasks,
+        _pullNotes,
+        _pullCategories,
+        _pullFocusSessions,
+        _pullSteps,
+        _pullUserProfile,
+      ]) {
+        if (_currentUserId != userId) break;
         try {
           await pull();
         } catch (e) {
@@ -285,6 +303,9 @@ class SyncService {
         }
       }
 
+      if (_currentUserId != userId) {
+        return;
+      }
       if (!anyFailure) {
         _lastSyncTime = DateTime.now();
         await _prefs!.setString(_lastSyncKey, _lastSyncTime!.toIso8601String());
@@ -497,21 +518,25 @@ class SyncService {
   }
 
   CategoryModel _resolveConflictCategory(
-      CategoryModel local, CategoryModel cloud) {
+    CategoryModel local,
+    CategoryModel cloud,
+  ) {
     if (!local.isSynced && cloud.isSynced) return local;
     if (local.isSynced && !cloud.isSynced) return cloud;
     return local.updatedAt.isAfter(cloud.updatedAt) ? local : cloud;
   }
 
   FocusSessionModel _resolveConflictFocusSession(
-      FocusSessionModel local, FocusSessionModel cloud) {
+    FocusSessionModel local,
+    FocusSessionModel cloud,
+  ) {
     if (!local.isSynced && cloud.isSynced) return local;
     if (local.isSynced && !cloud.isSynced) return cloud;
     return local.updatedAt.isAfter(cloud.updatedAt) ? local : cloud;
   }
 
   Future<void> fullSync() async {
-    if (!_canSync) return;
+    if (!_canSync || _isSyncing) return;
     await syncPendingData();
     await pullFromCloud();
   }
@@ -528,10 +553,9 @@ class SyncService {
     }
 
     try {
-      await _userCollection('tasks').doc(task.id).set(
-            _withOwnership(task.id, task.toJson()),
-            SetOptions(merge: true),
-          );
+      await _userCollection('tasks')
+          .doc(task.id)
+          .set(_withOwnership(task.id, task.toJson()), SetOptions(merge: true));
       _lastSyncTime = DateTime.now();
       await _prefs!.setString(_lastSyncKey, _lastSyncTime!.toIso8601String());
     } catch (e) {
@@ -577,10 +601,9 @@ class SyncService {
     }
 
     try {
-      await _userCollection('notes').doc(note.id).set(
-            _withOwnership(note.id, note.toJson()),
-            SetOptions(merge: true),
-          );
+      await _userCollection('notes')
+          .doc(note.id)
+          .set(_withOwnership(note.id, note.toJson()), SetOptions(merge: true));
       _lastSyncTime = DateTime.now();
       await _prefs!.setString(_lastSyncKey, _lastSyncTime!.toIso8601String());
     } catch (e) {
@@ -626,7 +649,9 @@ class SyncService {
     }
 
     try {
-      await _userCollection('categories').doc(category.id).set(
+      await _userCollection('categories')
+          .doc(category.id)
+          .set(
             _withOwnership(category.id, category.toJson()),
             SetOptions(merge: true),
           );
@@ -673,7 +698,9 @@ class SyncService {
     }
 
     try {
-      await _userCollection('focus_sessions').doc(session.id).set(
+      await _userCollection('focus_sessions')
+          .doc(session.id)
+          .set(
             _withOwnership(session.id, session.toJson()),
             SetOptions(merge: true),
           );
@@ -699,7 +726,9 @@ class SyncService {
     }
 
     try {
-      await _userCollection('steps').doc(date).set(
+      await _userCollection('steps')
+          .doc(date)
+          .set(
             _withOwnership(date, {'date': date, 'stepCount': stepCount}),
             SetOptions(merge: true),
           );

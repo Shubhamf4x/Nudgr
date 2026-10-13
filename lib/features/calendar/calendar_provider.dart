@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../shared/models/task_model.dart';
 import '../../core/services/database_service.dart';
 
@@ -7,44 +8,49 @@ class CalendarState {
   final DateTime focusedDate;
   final List<TaskModel> tasks;
   final bool isLoading;
+  final Map<DateTime, List<TaskModel>> tasksByDate;
 
-  const CalendarState({
+  CalendarState({
     required this.selectedDate,
     required this.focusedDate,
     this.tasks = const [],
     this.isLoading = true,
-  });
+    Map<DateTime, List<TaskModel>>? tasksByDate,
+  }) : tasksByDate = tasksByDate ?? _groupByDate(tasks);
+
+  static Map<DateTime, List<TaskModel>> _groupByDate(List<TaskModel> tasks) {
+    final map = <DateTime, List<TaskModel>>{};
+    for (final task in tasks) {
+      final due = task.dueDate;
+      if (due == null) continue;
+      final date = DateTime(due.year, due.month, due.day);
+      map.putIfAbsent(date, () => []).add(task);
+    }
+    return map;
+  }
 
   CalendarState copyWith({
     DateTime? selectedDate,
     DateTime? focusedDate,
     List<TaskModel>? tasks,
     bool? isLoading,
+    Map<DateTime, List<TaskModel>>? tasksByDate,
   }) => CalendarState(
     selectedDate: selectedDate ?? this.selectedDate,
     focusedDate: focusedDate ?? this.focusedDate,
     tasks: tasks ?? this.tasks,
     isLoading: isLoading ?? this.isLoading,
+    tasksByDate:
+        tasksByDate ?? (tasks == null ? this.tasksByDate : _groupByDate(tasks)),
   );
 
   List<TaskModel> get tasksForSelectedDate {
-    return tasks.where((t) {
-      if (t.dueDate == null) return false;
-      return t.dueDate!.year == selectedDate.year &&
-          t.dueDate!.month == selectedDate.month &&
-          t.dueDate!.day == selectedDate.day;
-    }).toList();
-  }
-
-  Map<DateTime, List<TaskModel>> get tasksByDate {
-    final map = <DateTime, List<TaskModel>>{};
-    for (final task in tasks) {
-      if (task.dueDate != null) {
-        final date = DateTime(task.dueDate!.year, task.dueDate!.month, task.dueDate!.day);
-        map.putIfAbsent(date, () => []).add(task);
-      }
-    }
-    return map;
+    return tasksByDate[DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+        )] ??
+        const [];
   }
 }
 
@@ -54,10 +60,7 @@ class CalendarProvider extends ChangeNotifier {
 
   CalendarProvider() {
     final now = DateTime.now();
-    _state = CalendarState(
-      selectedDate: now,
-      focusedDate: now,
-    );
+    _state = CalendarState(selectedDate: now, focusedDate: now);
   }
 
   CalendarState get state => _state;
@@ -76,10 +79,7 @@ class CalendarProvider extends ChangeNotifier {
 
     final tasks = _db.getTasks();
 
-    _state = _state.copyWith(
-      tasks: tasks,
-      isLoading: false,
-    );
+    _state = _state.copyWith(tasks: tasks, isLoading: false);
     notifyListeners();
   }
 

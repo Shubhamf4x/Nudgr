@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../shared/models/user_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/sync_service.dart';
@@ -57,35 +60,35 @@ class AuthProvider extends ChangeNotifier {
 
   void completeRestore() {
     _authService.completeRestore().then((_) {
+      if (_state != AuthState.unauthenticated) return;
       final refreshed = _authService.currentUser;
       if (refreshed == null) {
-        if (_user == null && _state == AuthState.unauthenticated) {
-          notifyListeners();
-        }
+        notifyListeners();
         return;
       }
       if (_user == null || refreshed.updatedAt.isAfter(_user!.updatedAt)) {
         _user = refreshed;
-        if (_state == AuthState.unauthenticated) {
-          _state = AuthState.authenticated;
-          _activateSession();
-        }
+        _state = AuthState.authenticated;
+        unawaited(_activateSession());
         notifyListeners();
       }
     });
   }
 
   Future<void> _activateSession() async {
+    final user = _user;
+    if (user == null) return;
+
     final owner = _db.getDataOwnerUid();
-    if (owner != null && owner != _user!.id) {
+    if (owner != null && owner != user.id) {
       await _db.clearAll();
       await StepsService.getInstance().clearStepHistory();
     }
-    await _db.setDataOwnerUid(_user!.id);
+    await _db.setDataOwnerUid(user.id);
 
-    _syncService.setUser(_user!.id, cloudEnabled: cloudSyncEnabled);
+    _syncService.setUser(user.id, cloudEnabled: cloudSyncEnabled);
     if (cloudSyncEnabled) {
-      _syncService.pullFromCloud();
+      unawaited(_syncService.pullFromCloud());
     }
   }
 
@@ -159,6 +162,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     await _authService.logout();
     _syncService.clearUserData();
+    await _db.clearDataOwner();
     _user = null;
     _state = AuthState.unauthenticated;
     notifyListeners();

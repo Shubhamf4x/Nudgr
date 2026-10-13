@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../shared/models/user_model.dart';
 import '../utils/validators.dart';
 
@@ -106,10 +108,7 @@ class AuthService {
       try {
         fbUser = await _firebaseAuth
             .authStateChanges()
-            .firstWhere(
-              (user) => user != null,
-              orElse: () => null,
-            )
+            .firstWhere((user) => user != null, orElse: () => null)
             .timeout(const Duration(seconds: 4));
       } on TimeoutException {
         fbUser = null;
@@ -155,7 +154,9 @@ class AuthService {
         }
       });
       userData['id'] = fbUser.uid;
-      userData['email'] = userData['email'] == '' ? (stored['email'] ?? email) : userData['email'];
+      userData['email'] = userData['email'] == ''
+          ? (stored['email'] ?? email)
+          : userData['email'];
     }
 
     final restored = UserModel.fromJson(userData);
@@ -212,7 +213,10 @@ class AuthService {
     return fbUser.providerData.any((info) => info.providerId == 'google.com');
   }
 
-  Future<UserModel> login({required String email, required String password}) async {
+  Future<UserModel> login({
+    required String email,
+    required String password,
+  }) async {
     final input = email.trim().toLowerCase();
 
     String resolvedEmail = input;
@@ -227,20 +231,24 @@ class AuthService {
     }
 
     try {
-      final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
-        email: resolvedEmail,
-        password: password,
-      ).timeout(const Duration(seconds: 15));
+      final userCredential = await _firebaseAuth
+          .signInWithEmailAndPassword(email: resolvedEmail, password: password)
+          .timeout(const Duration(seconds: 15));
       final fbUser = userCredential.user;
       if (fbUser == null) throw Exception('Firebase sign in failed');
       return _handleFirebaseLogin(fbUser, resolvedEmail);
     } on TimeoutException {
-      throw Exception('Network timeout. Please check your connection and try again.');
+      throw Exception(
+        'Network timeout. Please check your connection and try again.',
+      );
     } on fb.FirebaseAuthException catch (e) {
       throw Exception(_firebaseAuthErrorMessage(e));
     } catch (e) {
-      if (e.toString().contains('timeout') || e.toString().contains('Timeout')) {
-        throw Exception('Network timeout. Please check your connection and try again.');
+      if (e.toString().contains('timeout') ||
+          e.toString().contains('Timeout')) {
+        throw Exception(
+          'Network timeout. Please check your connection and try again.',
+        );
       }
       throw Exception('Login failed. Please try again.');
     }
@@ -306,7 +314,9 @@ class AuthService {
 
   Future<String> _resolveUsernameToEmail(String username) async {
     final normalizedUsername = InputValidators.sanitizeUsername(username);
-    final doc = await _usernamesRef.doc(normalizedUsername).get()
+    final doc = await _usernamesRef
+        .doc(normalizedUsername)
+        .get()
         .timeout(const Duration(seconds: 3));
     if (!doc.exists) {
       throw Exception('No account found with this username');
@@ -323,13 +333,13 @@ class AuthService {
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
     final finalUsername = InputValidators.sanitizeUsername(
-      (username != null && username.isNotEmpty)
-          ? username
-          : displayName,
+      (username != null && username.isNotEmpty) ? username : displayName,
     );
 
     try {
-      final usernameDoc = await _usernamesRef.doc(finalUsername).get()
+      final usernameDoc = await _usernamesRef
+          .doc(finalUsername)
+          .get()
           .timeout(const Duration(seconds: 3));
       if (usernameDoc.exists) {
         throw Exception('Username already taken');
@@ -340,18 +350,25 @@ class AuthService {
 
     fb.User? fbUser;
     try {
-      final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
-        email: normalizedEmail,
-        password: password,
-      ).timeout(const Duration(seconds: 15));
+      final userCredential = await _firebaseAuth
+          .createUserWithEmailAndPassword(
+            email: normalizedEmail,
+            password: password,
+          )
+          .timeout(const Duration(seconds: 15));
       fbUser = userCredential.user;
     } on TimeoutException {
-      throw Exception('Network timeout. Please check your connection and try again.');
+      throw Exception(
+        'Network timeout. Please check your connection and try again.',
+      );
     } on fb.FirebaseAuthException catch (e) {
       throw Exception(_firebaseAuthErrorMessage(e));
     } catch (e) {
-      if (e.toString().contains('timeout') || e.toString().contains('Timeout')) {
-        throw Exception('Network timeout. Please check your connection and try again.');
+      if (e.toString().contains('timeout') ||
+          e.toString().contains('Timeout')) {
+        throw Exception(
+          'Network timeout. Please check your connection and try again.',
+        );
       }
       throw Exception('Registration failed. Please try again.');
     }
@@ -411,7 +428,8 @@ class AuthService {
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
-        final userCredential = await _firebaseAuth.signInWithCredential(credential)
+        final userCredential = await _firebaseAuth
+            .signInWithCredential(credential)
             .timeout(const Duration(seconds: 30));
         fbUser = userCredential.user;
         break;
@@ -420,7 +438,8 @@ class AuthService {
       } catch (e) {
         lastError = e;
         final text = e.toString().toLowerCase();
-        final isRetryable = text.contains('timeout') ||
+        final isRetryable =
+            text.contains('timeout') ||
             text.contains('network') ||
             text.contains('network_error') ||
             text.contains('integerated' /* upstream typo of the plugin */);
@@ -437,13 +456,16 @@ class AuthService {
       if (lastError != null &&
           (lastError.toString().contains('timeout') ||
               lastError.toString().toLowerCase().contains('network'))) {
-        throw Exception('Network issue while signing in. Check your connection and try again.');
+        throw Exception(
+          'Network issue while signing in. Check your connection and try again.',
+        );
       }
       throw Exception('Google sign in failed. Please try again.');
     }
 
     final email = fbUser.email ?? googleUser.email;
-    final displayName = fbUser.displayName ?? googleUser.displayName ?? email.split('@').first;
+    final displayName =
+        fbUser.displayName ?? googleUser.displayName ?? email.split('@').first;
     final photoUrl = fbUser.photoURL ?? googleUser.photoUrl;
     final normalizedEmail = email.toLowerCase();
 
@@ -506,7 +528,9 @@ class AuthService {
 
   void _syncUserToFirestore(Map<String, dynamic> userData) {
     try {
-      _usersRef.doc(userData['id'] as String).set(userData, SetOptions(merge: true));
+      final id = userData['id'] as String?;
+      if (id == null || id.isEmpty) return;
+      _usersRef.doc(id).set(userData, SetOptions(merge: true));
     } catch (_) {}
   }
 
@@ -515,7 +539,7 @@ class AuthService {
 
     final cloudUpdated =
         DateTime.tryParse(cloudData['updatedAt'] as String? ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0);
+        DateTime.fromMillisecondsSinceEpoch(0);
     if (!cloudUpdated.isAfter(_currentUser!.updatedAt)) return;
 
     final merged = _currentUser!.copyWith(
@@ -524,7 +548,8 @@ class AuthService {
       username: (cloudData['username'] as String?) ?? _currentUser!.username,
       photoUrl: (cloudData['photoUrl'] as String?) ?? _currentUser!.photoUrl,
       bio: (cloudData['bio'] as String?) ?? _currentUser!.bio,
-      statistics: (cloudData['statistics'] as Map<String, dynamic>?) ??
+      statistics:
+          (cloudData['statistics'] as Map<String, dynamic>?) ??
           _currentUser!.statistics,
       updatedAt: cloudUpdated,
     );
@@ -535,18 +560,36 @@ class AuthService {
     final users = _getRegisteredUsers();
     final index = users.indexWhere((u) => u['id'] == merged.id);
     if (index >= 0) {
-      users[index] = Map<String, dynamic>.from(users[index])..addAll(merged.toJson());
+      users[index] = Map<String, dynamic>.from(users[index])
+        ..addAll(merged.toJson());
       _saveRegisteredUsers(users);
     }
   }
 
   void _syncUsernameMapping(String username, String email, String uid) {
     try {
+      if (username.isEmpty || uid.isEmpty) return;
       _usernamesRef.doc(username).set({
         'email': email,
         'uid': uid,
         'createdAt': DateTime.now().toIso8601String(),
       });
+    } catch (_) {}
+  }
+
+  void _releaseUsernameMapping(String username, String uid) {
+    try {
+      final ref = _usernamesRef.doc(username);
+      ref
+          .get()
+          .then((doc) {
+            if (!doc.exists) return;
+            final data = doc.data() as Map<String, dynamic>?;
+            if (data != null && data['uid'] == uid) {
+              ref.delete();
+            }
+          })
+          .catchError((_) {});
     } catch (_) {}
   }
 
@@ -569,10 +612,17 @@ class AuthService {
   }) async {
     if (_currentUser == null) throw Exception('Not authenticated');
 
+    final previousUsername = _currentUser!.username;
+    String? normalizedUsername;
     if (username != null && username.isNotEmpty) {
+      normalizedUsername = InputValidators.sanitizeUsername(username);
+      if (normalizedUsername.isEmpty) {
+        throw Exception('Username must contain letters or numbers');
+      }
       try {
-        final normalizedUsername = username.toLowerCase();
-        final existingDoc = await _usernamesRef.doc(normalizedUsername).get()
+        final existingDoc = await _usernamesRef
+            .doc(normalizedUsername)
+            .get()
             .timeout(const Duration(seconds: 3));
         if (existingDoc.exists) {
           final data = existingDoc.data() as Map<String, dynamic>;
@@ -587,7 +637,7 @@ class AuthService {
 
     final updated = _currentUser!.copyWith(
       displayName: displayName,
-      username: username,
+      username: normalizedUsername ?? username,
       bio: bio,
       photoUrl: photoUrl,
       updatedAt: DateTime.now(),
@@ -598,10 +648,22 @@ class AuthService {
 
     _syncUserToFirestore(updated.toJson());
 
+    if (normalizedUsername != null &&
+        normalizedUsername != previousUsername &&
+        updated.email.isNotEmpty) {
+      _syncUsernameMapping(normalizedUsername, updated.email, updated.id);
+      if (previousUsername != null &&
+          previousUsername.isNotEmpty &&
+          previousUsername != normalizedUsername) {
+        _releaseUsernameMapping(previousUsername, updated.id);
+      }
+    }
+
     final users = _getRegisteredUsers();
     final index = users.indexWhere((u) => u['id'] == updated.id);
     if (index >= 0) {
-      users[index] = Map<String, dynamic>.from(users[index])..addAll(updated.toJson());
+      users[index] = Map<String, dynamic>.from(users[index])
+        ..addAll(updated.toJson());
       await _saveRegisteredUsers(users);
     }
 
@@ -629,16 +691,17 @@ class AuthService {
     await _prefs!.setString('current_user', jsonEncode(updated.toJson()));
 
     try {
-      _usersRef.doc(updated.id).set(
-        {'statistics': currentStats, 'updatedAt': updated.updatedAt.toIso8601String()},
-        SetOptions(merge: true),
-      );
+      _usersRef.doc(updated.id).set({
+        'statistics': currentStats,
+        'updatedAt': updated.updatedAt.toIso8601String(),
+      }, SetOptions(merge: true));
     } catch (_) {}
 
     final users = _getRegisteredUsers();
     final index = users.indexWhere((u) => u['id'] == updated.id);
     if (index >= 0) {
-      users[index] = Map<String, dynamic>.from(users[index])..addAll(updated.toJson());
+      users[index] = Map<String, dynamic>.from(users[index])
+        ..addAll(updated.toJson());
       await _saveRegisteredUsers(users);
     }
 
@@ -652,7 +715,9 @@ class AuthService {
     if (_currentUser == null) throw Exception('Not authenticated');
 
     final fbUser = _firebaseAuth.currentUser;
-    if (fbUser == null || fbUser.email == null) throw Exception('Not authenticated with Firebase');
+    if (fbUser == null || fbUser.email == null) {
+      throw Exception('Not authenticated with Firebase');
+    }
 
     final credential = fb.EmailAuthProvider.credential(
       email: fbUser.email!,
@@ -665,16 +730,28 @@ class AuthService {
   Future<void> deleteAccount() async {
     if (_currentUser == null) throw Exception('Not authenticated');
 
+    final uid = _currentUser!.id;
+    final username = _currentUser!.username;
+
     final users = _getRegisteredUsers();
-    users.removeWhere((u) => u['id'] == _currentUser!.id);
+    users.removeWhere((u) => u['id'] == uid);
     await _saveRegisteredUsers(users);
 
+    if (username != null && username.isNotEmpty) {
+      _releaseUsernameMapping(username, uid);
+    }
+
     try {
-      _usersRef.doc(_currentUser!.id).delete();
+      await _usersRef.doc(uid).delete();
+    } catch (_) {}
+
+    try {
+      await _firebaseAuth.currentUser?.delete();
     } catch (_) {}
 
     _currentUser = null;
     await _prefs!.remove('current_user');
+    await _prefs!.setBool(_explicitLogoutKey, true);
   }
 
   Future<void> resetPassword({required String email}) async {

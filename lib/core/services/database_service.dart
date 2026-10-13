@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../shared/models/task_model.dart';
 import '../../shared/models/note_model.dart';
 import '../../shared/models/category_model.dart';
@@ -27,10 +29,38 @@ class DatabaseService {
     if (getCategories().isNotEmpty) return;
     final now = DateTime.now();
     final defaults = [
-      CategoryModel(id: 'work', name: 'Work', colorIndex: 0, userId: '', createdAt: now, updatedAt: now),
-      CategoryModel(id: 'study', name: 'Study', colorIndex: 1, userId: '', createdAt: now, updatedAt: now),
-      CategoryModel(id: 'personal', name: 'Personal', colorIndex: 2, userId: '', createdAt: now, updatedAt: now),
-      CategoryModel(id: 'fitness', name: 'Fitness', colorIndex: 4, userId: '', createdAt: now, updatedAt: now),
+      CategoryModel(
+        id: 'work',
+        name: 'Work',
+        colorIndex: 0,
+        userId: '',
+        createdAt: now,
+        updatedAt: now,
+      ),
+      CategoryModel(
+        id: 'study',
+        name: 'Study',
+        colorIndex: 1,
+        userId: '',
+        createdAt: now,
+        updatedAt: now,
+      ),
+      CategoryModel(
+        id: 'personal',
+        name: 'Personal',
+        colorIndex: 2,
+        userId: '',
+        createdAt: now,
+        updatedAt: now,
+      ),
+      CategoryModel(
+        id: 'fitness',
+        name: 'Fitness',
+        colorIndex: 4,
+        userId: '',
+        createdAt: now,
+        updatedAt: now,
+      ),
     ];
     await saveCategories(defaults);
   }
@@ -44,6 +74,26 @@ class DatabaseService {
   static const String _conversationsKey = 'conversations';
   static const String _messagesKey = 'messages';
 
+  List<T> _decodeList<T>(
+    String jsonString,
+    T Function(Map<String, dynamic>) fromJson,
+  ) {
+    try {
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! List) return [];
+      final result = <T>[];
+      for (final entry in decoded) {
+        if (entry is! Map) continue;
+        try {
+          result.add(fromJson(Map<String, dynamic>.from(entry)));
+        } catch (_) {}
+      }
+      return result;
+    } catch (_) {
+      return [];
+    }
+  }
+
   Future<void> saveTasks(List<TaskModel> tasks) async {
     final jsonList = tasks.map((t) => t.toJson()).toList();
     await _prefs!.setString(_tasksKey, jsonEncode(jsonList));
@@ -51,9 +101,8 @@ class DatabaseService {
 
   List<TaskModel> getTasks() {
     final jsonString = _prefs!.getString(_tasksKey);
-    if (jsonString == null) return [];
-    final jsonList = jsonDecode(jsonString) as List<dynamic>;
-    return jsonList.map((e) => TaskModel.fromJson(e as Map<String, dynamic>)).toList();
+    if (jsonString == null || jsonString.isEmpty) return [];
+    return _decodeList(jsonString, (m) => TaskModel.fromJson(m));
   }
 
   Future<void> saveTask(TaskModel task) async {
@@ -80,9 +129,8 @@ class DatabaseService {
 
   List<NoteModel> getNotes() {
     final jsonString = _prefs!.getString(_notesKey);
-    if (jsonString == null) return [];
-    final jsonList = jsonDecode(jsonString) as List<dynamic>;
-    return jsonList.map((e) => NoteModel.fromJson(e as Map<String, dynamic>)).toList();
+    if (jsonString == null || jsonString.isEmpty) return [];
+    return _decodeList(jsonString, (m) => NoteModel.fromJson(m));
   }
 
   Future<void> saveNote(NoteModel note) async {
@@ -109,9 +157,8 @@ class DatabaseService {
 
   List<CategoryModel> getCategories() {
     final jsonString = _prefs!.getString(_categoriesKey);
-    if (jsonString == null) return [];
-    final jsonList = jsonDecode(jsonString) as List<dynamic>;
-    return jsonList.map((e) => CategoryModel.fromJson(e as Map<String, dynamic>)).toList();
+    if (jsonString == null || jsonString.isEmpty) return [];
+    return _decodeList(jsonString, (m) => CategoryModel.fromJson(m));
   }
 
   Future<void> saveCategory(CategoryModel category) async {
@@ -138,9 +185,8 @@ class DatabaseService {
 
   List<FocusSessionModel> getFocusSessions() {
     final jsonString = _prefs!.getString(_focusSessionsKey);
-    if (jsonString == null) return [];
-    final jsonList = jsonDecode(jsonString) as List<dynamic>;
-    return jsonList.map((e) => FocusSessionModel.fromJson(e as Map<String, dynamic>)).toList();
+    if (jsonString == null || jsonString.isEmpty) return [];
+    return _decodeList(jsonString, (m) => FocusSessionModel.fromJson(m));
   }
 
   Future<void> saveFocusSession(FocusSessionModel session) async {
@@ -161,9 +207,8 @@ class DatabaseService {
 
   List<ConversationModel> getConversations() {
     final jsonString = _prefs!.getString(_conversationsKey);
-    if (jsonString == null) return [];
-    final jsonList = jsonDecode(jsonString) as List<dynamic>;
-    return jsonList.map((e) => ConversationModel.fromJson(e as Map<String, dynamic>)).toList();
+    if (jsonString == null || jsonString.isEmpty) return [];
+    return _decodeList(jsonString, (m) => ConversationModel.fromJson(m));
   }
 
   Future<void> saveConversation(ConversationModel conversation) async {
@@ -179,9 +224,8 @@ class DatabaseService {
 
   List<MessageModel> getMessages(String conversationId) {
     final jsonString = _prefs!.getString('${_messagesKey}_$conversationId');
-    if (jsonString == null) return [];
-    final jsonList = jsonDecode(jsonString) as List<dynamic>;
-    return jsonList.map((e) => MessageModel.fromJson(e as Map<String, dynamic>)).toList();
+    if (jsonString == null || jsonString.isEmpty) return [];
+    return _decodeList(jsonString, (m) => MessageModel.fromJson(m));
   }
 
   Future<void> saveMessage(MessageModel message) async {
@@ -193,7 +237,10 @@ class DatabaseService {
       messages.add(message);
     }
     final jsonList = messages.map((m) => m.toJson()).toList();
-    await _prefs!.setString('${_messagesKey}_${message.conversationId}', jsonEncode(jsonList));
+    await _prefs!.setString(
+      '${_messagesKey}_${message.conversationId}',
+      jsonEncode(jsonList),
+    );
   }
 
   Future<void> clearAll() async {
@@ -206,6 +253,10 @@ class DatabaseService {
     for (final key in keys) {
       await _prefs!.remove(key);
     }
+    await _prefs!.remove(_dataOwnerKey);
+  }
+
+  Future<void> clearDataOwner() async {
     await _prefs!.remove(_dataOwnerKey);
   }
 

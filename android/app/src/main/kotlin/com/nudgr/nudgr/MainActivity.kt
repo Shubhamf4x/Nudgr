@@ -72,8 +72,12 @@ class MainActivity : FlutterActivity(), SensorEventListener {
                     val intent = Intent(this, StepTrackingService::class.java)
                         .putExtra(StepTrackingService.EXTRA_BASELINE, baseline)
                         .putExtra(StepTrackingService.EXTRA_GOAL, goal)
-                    ContextCompat.startForegroundService(this, intent)
-                    result.success(null)
+                    try {
+                        ContextCompat.startForegroundService(this, intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
                 }
                 "stopForegroundTracking" -> {
                     stopService(Intent(this, StepTrackingService::class.java))

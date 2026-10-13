@@ -58,3 +58,9 @@ key.properties
 
 # Gradle build artifacts (android/build)
 android/build/
+
+# Local editor/tool config (may contain credentials)
+opencode.json
+opencode.jsonc
+.env
+.env.*

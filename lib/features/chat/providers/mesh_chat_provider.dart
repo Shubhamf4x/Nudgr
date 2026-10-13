@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../models/chat_message.dart';
 import '../models/chat_peer.dart';
 import '../models/chat_channel.dart';
@@ -67,6 +69,7 @@ class MeshChatProvider extends ChangeNotifier {
   StreamSubscription? _messageSub;
   StreamSubscription? _peersSub;
   StreamSubscription? _statusSub;
+  bool _initialized = false;
 
   MeshChatState get state => _state;
   MeshChatService get service => _service;
@@ -81,7 +84,19 @@ class MeshChatProvider extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
-    if (_state.isInitializing && _messageSub != null) return;
+    if (_initialized) {
+      _state = _state.copyWith(
+        peers: _service.nearbyPeers,
+        channels: _service.channels,
+      );
+      notifyListeners();
+      if (_service.meshStatus != MeshStatus.active &&
+          !_service.meshService.isScanning) {
+        await startMesh();
+      }
+      return;
+    }
+    _initialized = true;
 
     _state = _state.copyWith(isInitializing: true);
     notifyListeners();
@@ -163,7 +178,10 @@ class MeshChatProvider extends ChangeNotifier {
     _refreshState();
   }
 
-  Future<void> sendPrivateMessage(String content, String recipientPeerId) async {
+  Future<void> sendPrivateMessage(
+    String content,
+    String recipientPeerId,
+  ) async {
     await _service.sendPrivateMessage(content, recipientPeerId);
     _refreshState();
   }
@@ -196,7 +214,8 @@ class MeshChatProvider extends ChangeNotifier {
 
   List<ChatMessage> getChannelMessages(String channelName) {
     return List<ChatMessage>.unmodifiable(
-        _service.getChannelMessages(channelName));
+      _service.getChannelMessages(channelName),
+    );
   }
 
   List<ChatMessage> getPrivateMessages(String peerId) {
