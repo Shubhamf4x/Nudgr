@@ -192,6 +192,7 @@ class StepsProvider extends ChangeNotifier {
         today?.sensorBaseline ?? _stepsService.getForegroundBaseline();
     await _stepsService.startForegroundTracking(
       baseline: baseline,
+      steps: today?.stepCount ?? 0,
       goal: _state.dailyGoal,
     );
     await _stepsService.setForegroundTrackingStopped(false);
@@ -223,6 +224,7 @@ class StepsProvider extends ChangeNotifier {
       final today = _stepsService.getTodayRecord();
       await _stepsService.startForegroundTracking(
         baseline: today?.sensorBaseline ?? 0,
+        steps: today?.stepCount ?? 0,
         goal: goal,
       );
     }
@@ -245,13 +247,17 @@ class StepsProvider extends ChangeNotifier {
 
     int baseline = todayRecord.sensorBaseline;
     final previousSensorValue = todayRecord.lastSensorValue;
+    final bool needsRebaseline = baseline <= 0;
+    if (needsRebaseline) baseline = sensorValue;
 
-    if (sensorValue < previousSensorValue) {
+    if (!needsRebaseline && sensorValue < previousSensorValue) {
       _stepOffset = todayRecord.stepCount;
       baseline = sensorValue;
     }
 
-    final steps = _stepOffset + (sensorValue - baseline);
+    final steps = needsRebaseline
+        ? todayRecord.stepCount
+        : _stepOffset + (sensorValue - baseline);
     final todaySteps = steps > 0 ? steps : todayRecord.stepCount;
 
     if (todaySteps == todayRecord.stepCount &&

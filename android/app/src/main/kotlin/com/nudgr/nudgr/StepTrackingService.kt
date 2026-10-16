@@ -51,21 +51,19 @@ class StepTrackingService : Service(), SensorEventListener {
         val storedDate = prefs().getString(PREF_DATE, null)
         val storedBaseline = prefs().getInt(PREF_BASELINE, -1)
         val storedOffset = prefs().getInt(PREF_OFFSET, 0)
+        var initialSteps: Int
         if (storedDate == todayKey && storedBaseline > 0) {
             baseline = storedBaseline
             baselineValid = true
             offset = storedOffset.coerceAtLeast(0)
+            initialSteps = prefs().getInt(PREF_STEPS, 0).coerceAtLeast(0)
         } else {
-            val passed = intent?.getIntExtra(EXTRA_BASELINE, 0) ?: 0
-            baseline = passed
-            baselineValid = passed > 0
+            val passedBaseline = intent?.getIntExtra(EXTRA_BASELINE, 0) ?: 0
+            val passedSteps = intent?.getIntExtra(EXTRA_STEPS, 0) ?: 0
+            baseline = passedBaseline
+            baselineValid = passedBaseline > 0
             offset = 0
-        }
-
-        val initialSteps = if (baselineValid) {
-            prefs().getInt(PREF_STEPS, 0).coerceAtLeast(0)
-        } else {
-            0
+            initialSteps = if (baselineValid) passedSteps.coerceAtLeast(0) else 0
         }
         lastDailySteps = initialSteps
 
@@ -96,14 +94,18 @@ class StepTrackingService : Service(), SensorEventListener {
         val today = dayFormat.format(Date())
         if (today != todayKey) {
             todayKey = today
-            baseline = cumulative
+            val lastCum = prefs().getInt(PREF_LAST_CUM, 0)
+            baseline = if (lastCum in 1..cumulative) lastCum else cumulative
             baselineValid = true
             offset = 0
             lastDailySteps = -1
         }
 
         if (!baselineValid) {
-            baseline = cumulative
+            val lastCum = prefs().getInt(PREF_LAST_CUM, 0)
+            val sameDayAnchor =
+                prefs().getString(PREF_DATE, null) == todayKey && lastCum in 1..cumulative
+            baseline = if (sameDayAnchor) lastCum else cumulative
             baselineValid = true
         } else if (cumulative < baseline) {
             val priorSteps = if (todayKey == prefs().getString(PREF_DATE, null)) {
@@ -120,6 +122,7 @@ class StepTrackingService : Service(), SensorEventListener {
             .putInt(PREF_STEPS, steps)
             .putInt(PREF_BASELINE, baseline)
             .putInt(PREF_OFFSET, offset)
+            .putInt(PREF_LAST_CUM, cumulative)
             .putString(PREF_DATE, todayKey)
             .putLong(PREF_UPDATED, System.currentTimeMillis())
             .apply()
@@ -201,10 +204,12 @@ class StepTrackingService : Service(), SensorEventListener {
         const val ACTION_STOP = "com.nudgr.nudgr.STOP_STEP_TRACKING"
         const val EXTRA_BASELINE = "baseline"
         const val EXTRA_GOAL = "goal"
+        const val EXTRA_STEPS = "steps"
 
         const val PREF_STEPS = "flutter.step_fg_steps"
         const val PREF_BASELINE = "flutter.step_fg_baseline"
         const val PREF_OFFSET = "flutter.step_fg_offset"
+        const val PREF_LAST_CUM = "flutter.step_fg_last_cum"
         const val PREF_DATE = "flutter.step_fg_date"
         const val PREF_UPDATED = "flutter.step_fg_updated"
         const val PREF_STOPPED = "flutter.step_fg_stopped"

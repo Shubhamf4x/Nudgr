@@ -70,11 +70,13 @@ class StepsService {
   Future<void> startForegroundTracking({
     required int baseline,
     required int goal,
+    int steps = 0,
   }) async {
     try {
       await _channel.invokeMethod('startForegroundTracking', {
         'baseline': baseline,
         'goal': goal,
+        'steps': steps,
       });
     } catch (_) {}
   }

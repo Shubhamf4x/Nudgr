@@ -1,6 +1,10 @@
 package com.nudgr.nudgr
 
 import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.Sensor
@@ -69,9 +73,11 @@ class MainActivity : FlutterActivity(), SensorEventListener {
                 "startForegroundTracking" -> {
                     val baseline = call.argument<Int>("baseline") ?: 0
                     val goal = call.argument<Int>("goal") ?: 10000
+                    val steps = call.argument<Int>("steps") ?: 0
                     val intent = Intent(this, StepTrackingService::class.java)
                         .putExtra(StepTrackingService.EXTRA_BASELINE, baseline)
                         .putExtra(StepTrackingService.EXTRA_GOAL, goal)
+                        .putExtra(StepTrackingService.EXTRA_STEPS, steps)
                     try {
                         ContextCompat.startForegroundService(this, intent)
                         result.success(true)
@@ -129,6 +135,45 @@ class MainActivity : FlutterActivity(), SensorEventListener {
     }
 
     private fun sendNotification(title: String, body: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    "general_alerts",
+                    "Reminders",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply { description = "Goal achievements and reminders" }
+            )
+        }
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, "general_alerts")
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+        }
+        val launch = packageManager.getLaunchIntentForPackage(packageName)
+        val pending = if (launch != null) {
+            PendingIntent.getActivity(
+                this, 1, launch,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        } else {
+            null
+        }
+        builder.setContentTitle(title)
+            .setContentText(body)
+            .setStyle(Notification.BigTextStyle().bigText(body))
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setAutoCancel(true)
+        if (pending != null) {
+            builder.setContentIntent(pending)
+        }
+        manager.notify(4343, builder.build())
     }
 
     override fun onPause() {
