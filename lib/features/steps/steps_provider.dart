@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 import '../../shared/models/step_model.dart';
 import '../../core/services/steps_service.dart';
 import '../../core/services/sync_service.dart';
@@ -68,6 +70,7 @@ class StepsProvider extends ChangeNotifier {
   }
 
   bool _initialized = false;
+  int _stepOffset = 0;
 
   Future<void> initialize() async {
     if (_initialized) {
@@ -97,6 +100,7 @@ class StepsProvider extends ChangeNotifier {
         lastSensorValue: fgBaseline + foregroundSteps,
       );
       todaySteps = foregroundSteps;
+      _stepOffset = 0;
       history.clear();
       history.addAll(_stepsService.getStepHistory());
     }
@@ -113,7 +117,9 @@ class StepsProvider extends ChangeNotifier {
     );
     notifyListeners();
 
-    if (hasSensor && hasPermission && !_stepsService.foregroundTrackingStopped) {
+    if (hasSensor &&
+        hasPermission &&
+        !_stepsService.foregroundTrackingStopped) {
       _startListening();
     }
   }
@@ -133,6 +139,7 @@ class StepsProvider extends ChangeNotifier {
         lastSensorValue: fgBaseline + foregroundSteps,
       );
       todaySteps = foregroundSteps;
+      _stepOffset = 0;
       history.clear();
       history.addAll(_stepsService.getStepHistory());
     }
@@ -181,7 +188,8 @@ class StepsProvider extends ChangeNotifier {
 
   Future<void> _syncForegroundService() async {
     final today = _stepsService.getTodayRecord();
-    final baseline = today?.sensorBaseline ?? _stepsService.getForegroundBaseline();
+    final baseline =
+        today?.sensorBaseline ?? _stepsService.getForegroundBaseline();
     await _stepsService.startForegroundTracking(
       baseline: baseline,
       goal: _state.dailyGoal,
@@ -206,7 +214,9 @@ class StepsProvider extends ChangeNotifier {
 
   Future<void> updateDailyGoal(int goal) async {
     await _stepsService.setDailyGoal(goal);
-    final progress = goal > 0 ? (_state.todaySteps / goal).clamp(0.0, 1.0) : 0.0;
+    final progress = goal > 0
+        ? (_state.todaySteps / goal).clamp(0.0, 1.0)
+        : 0.0;
     _state = _state.copyWith(dailyGoal: goal, progress: progress);
     notifyListeners();
     if (_state.isTracking) {
@@ -220,29 +230,28 @@ class StepsProvider extends ChangeNotifier {
 
   void _onStepUpdate(int sensorValue) {
     final todayRecord = _stepsService.getTodayRecord();
-    int baseline = todayRecord?.sensorBaseline ?? 0;
-    int previousSensorValue = todayRecord?.lastSensorValue ?? 0;
 
     if (todayRecord == null) {
-      baseline = sensorValue;
+      _stepOffset = 0;
       _stepsService.updateTodaySteps(
         stepCount: 0,
-        sensorBaseline: baseline,
+        sensorBaseline: sensorValue,
         lastSensorValue: sensorValue,
       );
-      _state = _state.copyWith(
-        todaySteps: 0,
-        progress: 0.0,
-      );
+      _state = _state.copyWith(todaySteps: 0, progress: 0.0);
       notifyListeners();
       return;
     }
 
+    int baseline = todayRecord.sensorBaseline;
+    final previousSensorValue = todayRecord.lastSensorValue;
+
     if (sensorValue < previousSensorValue) {
+      _stepOffset = todayRecord.stepCount;
       baseline = sensorValue;
     }
 
-    final steps = sensorValue - baseline;
+    final steps = _stepOffset + (sensorValue - baseline);
     final todaySteps = steps > 0 ? steps : todayRecord.stepCount;
 
     if (todaySteps == todayRecord.stepCount &&
@@ -260,10 +269,7 @@ class StepsProvider extends ChangeNotifier {
         ? (todaySteps / _state.dailyGoal).clamp(0.0, 1.0)
         : 0.0;
 
-    _state = _state.copyWith(
-      todaySteps: todaySteps,
-      progress: progress,
-    );
+    _state = _state.copyWith(todaySteps: todaySteps, progress: progress);
     notifyListeners();
 
     _checkGoalNotification(todaySteps);
@@ -306,7 +312,8 @@ class StepsProvider extends ChangeNotifier {
   bool get notificationsEnabled => _stepsService.areNotificationsEnabled();
 
   StepDayModel? getRecordForDate(DateTime date) {
-    final key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final key =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     try {
       return _state.history.firstWhere((r) => r.date == key);
     } catch (_) {

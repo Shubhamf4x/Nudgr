@@ -24,6 +24,8 @@ class StepTrackingService : Service(), SensorEventListener {
     private var sensorManager: SensorManager? = null
     private var registered = false
     private var baseline = 0
+    private var baselineValid = false
+    private var offset = 0
     private var goal = 10000
     private var lastDailySteps = -1
     private var todayKey = ""
@@ -43,11 +45,31 @@ class StepTrackingService : Service(), SensorEventListener {
             return START_NOT_STICKY
         }
 
-        baseline = intent?.getIntExtra(EXTRA_BASELINE, 0) ?: 0
         goal = intent?.getIntExtra(EXTRA_GOAL, 10000) ?: 10000
         todayKey = dayFormat.format(Date())
 
-        val notification = buildNotification(0, goal)
+        val storedDate = prefs().getString(PREF_DATE, null)
+        val storedBaseline = prefs().getInt(PREF_BASELINE, -1)
+        val storedOffset = prefs().getInt(PREF_OFFSET, 0)
+        if (storedDate == todayKey && storedBaseline > 0) {
+            baseline = storedBaseline
+            baselineValid = true
+            offset = storedOffset.coerceAtLeast(0)
+        } else {
+            val passed = intent?.getIntExtra(EXTRA_BASELINE, 0) ?: 0
+            baseline = passed
+            baselineValid = passed > 0
+            offset = 0
+        }
+
+        val initialSteps = if (baselineValid) {
+            prefs().getInt(PREF_STEPS, 0).coerceAtLeast(0)
+        } else {
+            0
+        }
+        lastDailySteps = initialSteps
+
+        val notification = buildNotification(initialSteps, goal)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH)
         } else {
@@ -69,18 +91,35 @@ class StepTrackingService : Service(), SensorEventListener {
     override fun onSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type != Sensor.TYPE_STEP_COUNTER) return
         val cumulative = event.values.firstOrNull()?.toInt() ?: return
+        if (cumulative <= 0) return
 
         val today = dayFormat.format(Date())
         if (today != todayKey) {
             todayKey = today
             baseline = cumulative
+            baselineValid = true
+            offset = 0
+            lastDailySteps = -1
         }
-        if (cumulative < baseline) baseline = cumulative
 
-        val steps = (cumulative - baseline).coerceIn(0, 1000000)
+        if (!baselineValid) {
+            baseline = cumulative
+            baselineValid = true
+        } else if (cumulative < baseline) {
+            val priorSteps = if (todayKey == prefs().getString(PREF_DATE, null)) {
+                prefs().getInt(PREF_STEPS, 0)
+            } else {
+                0
+            }
+            offset = priorSteps.coerceAtLeast(0)
+            baseline = cumulative
+        }
+
+        val steps = (offset + (cumulative - baseline)).coerceIn(0, 1000000)
         prefs().edit()
             .putInt(PREF_STEPS, steps)
             .putInt(PREF_BASELINE, baseline)
+            .putInt(PREF_OFFSET, offset)
             .putString(PREF_DATE, todayKey)
             .putLong(PREF_UPDATED, System.currentTimeMillis())
             .apply()
@@ -165,6 +204,7 @@ class StepTrackingService : Service(), SensorEventListener {
 
         const val PREF_STEPS = "flutter.step_fg_steps"
         const val PREF_BASELINE = "flutter.step_fg_baseline"
+        const val PREF_OFFSET = "flutter.step_fg_offset"
         const val PREF_DATE = "flutter.step_fg_date"
         const val PREF_UPDATED = "flutter.step_fg_updated"
         const val PREF_STOPPED = "flutter.step_fg_stopped"

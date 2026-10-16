@@ -1,6 +1,8 @@
 import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../shared/models/step_model.dart';
 
 class StepsService {
@@ -35,7 +37,9 @@ class StepsService {
 
   Future<bool> requestActivityPermission() async {
     try {
-      final result = await _channel.invokeMethod<bool>('requestActivityPermission');
+      final result = await _channel.invokeMethod<bool>(
+        'requestActivityPermission',
+      );
       return result ?? false;
     } catch (_) {
       return false;
@@ -44,7 +48,9 @@ class StepsService {
 
   Future<bool> isActivityPermissionGranted() async {
     try {
-      final result = await _channel.invokeMethod<bool>('isActivityPermissionGranted');
+      final result = await _channel.invokeMethod<bool>(
+        'isActivityPermissionGranted',
+      );
       return result ?? false;
     } catch (_) {
       return false;
@@ -87,9 +93,14 @@ class StepsService {
     return _prefs!.getInt('step_fg_steps') ?? 0;
   }
 
-  int getForegroundBaseline() => _prefs?.getInt('step_fg_baseline') ?? 0;
+  int getForegroundBaseline() {
+    if (_prefs == null) return 0;
+    if (_prefs!.getString('step_fg_date') != _todayKey()) return 0;
+    return _prefs!.getInt('step_fg_baseline') ?? 0;
+  }
 
-  bool get foregroundTrackingStopped => _prefs?.getBool('step_fg_stopped') ?? false;
+  bool get foregroundTrackingStopped =>
+      _prefs?.getBool('step_fg_stopped') ?? false;
 
   Future<void> setForegroundTrackingStopped(bool stopped) async {
     await _prefs?.setBool('step_fg_stopped', stopped);
@@ -136,7 +147,9 @@ class StepsService {
     if (jsonString == null || jsonString.isEmpty) return [];
     try {
       final jsonList = jsonDecode(jsonString) as List<dynamic>;
-      return jsonList.map((e) => StepDayModel.fromJson(e as Map<String, dynamic>)).toList();
+      return jsonList
+          .map((e) => StepDayModel.fromJson(e as Map<String, dynamic>))
+          .toList();
     } catch (_) {
       return [];
     }
@@ -202,11 +215,13 @@ class StepsService {
         lastUpdated: DateTime.now(),
       );
     } else {
-      history.add(StepDayModel(
-        date: date,
-        stepCount: stepCount,
-        lastUpdated: DateTime.now(),
-      ));
+      history.add(
+        StepDayModel(
+          date: date,
+          stepCount: stepCount,
+          lastUpdated: DateTime.now(),
+        ),
+      );
     }
 
     await _saveStepHistory(history);
