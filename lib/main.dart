@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:provider/provider.dart';
+
 import 'shared/providers/theme_provider.dart';
 import 'shared/providers/sync_provider.dart';
 import 'core/services/database_service.dart';
@@ -32,21 +33,19 @@ void main() {
     debugPrint('Uncaught platform error: $error\n$stack');
     return true;
   };
-
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const NudgrApp());
 }
 
 class NudgrApp extends StatefulWidget {
   const NudgrApp({super.key});
-
   @override
   State<NudgrApp> createState() => _NudgrAppState();
 }
 
 class _NudgrAppState extends State<NudgrApp> {
   AuthProvider? _authProvider;
-
+  bool _bootstrapFailed = false;
   @override
   void initState() {
     super.initState();
@@ -55,9 +54,9 @@ class _NudgrAppState extends State<NudgrApp> {
 
   Future<void> _bootstrap() async {
     AuthProvider? provider;
+    var failed = false;
     try {
       await Firebase.initializeApp();
-
       try {
         await FirebaseAppCheck.instance.activate(
           androidProvider: kDebugMode
@@ -65,28 +64,28 @@ class _NudgrAppState extends State<NudgrApp> {
               : AndroidProvider.playIntegrity,
         );
       } catch (_) {}
-
       await DatabaseService.getInstance().initialize();
       await AuthService.getInstance().initialize();
       await StepsService.getInstance().initialize();
       await NotificationService.getInstance().initialize();
       await SyncService.getInstance().initialize();
-
       provider = AuthProvider();
       await provider.initialize();
     } catch (e) {
       debugPrint('Startup bootstrap failed: $e');
+      failed = true;
       provider = null;
     }
-
     if (!mounted) return;
-    setState(() => _authProvider = provider);
+    setState(() {
+      _authProvider = provider;
+      _bootstrapFailed = failed;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = _authProvider;
-
     if (authProvider == null) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -95,10 +94,15 @@ class _NudgrAppState extends State<NudgrApp> {
           scaffoldBackgroundColor: const Color(0xFF10101C),
           colorScheme: const ColorScheme.dark(primary: Color(0xFF6C63FF)),
         ),
-        home: const _BrandedSplash(),
+        home: _BrandedSplash(
+          canRetry: _bootstrapFailed,
+          onRetry: () {
+            setState(() => _bootstrapFailed = false);
+            unawaited(_bootstrap());
+          },
+        ),
       );
     }
-
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
@@ -109,9 +113,7 @@ class _NudgrAppState extends State<NudgrApp> {
         ChangeNotifierProvider(create: (_) => NotesProvider()),
         ChangeNotifierProvider(create: (_) => CalendarProvider()),
         ChangeNotifierProvider(create: (_) => FocusProvider()),
-        ChangeNotifierProvider(
-          create: (_) => StepsProvider()..initialize(),
-        ),
+        ChangeNotifierProvider(create: (_) => StepsProvider()..initialize()),
         ChangeNotifierProvider(create: (_) => MeshChatProvider()),
       ],
       child: Consumer<ThemeProvider>(
@@ -134,7 +136,6 @@ class _NudgrAppState extends State<NudgrApp> {
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
@@ -162,8 +163,9 @@ class AuthGate extends StatelessWidget {
 }
 
 class _BrandedSplash extends StatelessWidget {
-  const _BrandedSplash();
-
+  const _BrandedSplash({this.canRetry = false, this.onRetry});
+  final bool canRetry;
+  final VoidCallback? onRetry;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -215,14 +217,39 @@ class _BrandedSplash extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
-            const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+            if (canRetry)
+              Column(
+                children: [
+                  const Text(
+                    'Could not start up. Check your connection and try again.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: Colors.white70),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Retry'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.white24,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                ),
               ),
-            ),
           ],
         ),
       ),

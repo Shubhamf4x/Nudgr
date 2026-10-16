@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../constants/color_constants.dart';
 
 class Helpers {
   Helpers._();
-
   static String formatDate(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final dateOnly = DateTime(date.year, date.month, date.day);
     final diff = dateOnly.difference(today).inDays;
-
     if (dateOnly == today) return 'Today';
     if (diff == 1) return 'Tomorrow';
     if (diff == -1) return 'Yesterday';
@@ -78,10 +77,15 @@ class Helpers {
   }
 
   static Color getCategoryColor(int index) {
-    return ColorConstants.categoryColors[index % ColorConstants.categoryColors.length];
+    return ColorConstants.categoryColors[index %
+        ColorConstants.categoryColors.length];
   }
 
-  static void showSnackBar(BuildContext context, String message, {bool isError = false}) {
+  static void showSnackBar(
+    BuildContext context,
+    String message, {
+    bool isError = false,
+  }) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../core/constants/color_constants.dart';
 
 enum AppThemeType {
@@ -15,15 +16,20 @@ enum AppThemeType {
 class ThemeProvider extends ChangeNotifier {
   AppThemeType _themeType = AppThemeType.dark;
   AppThemeType get themeType => _themeType;
-
   ThemeProvider() {
     _loadTheme();
   }
-
   Future<void> _loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    final index = prefs.getInt('app_theme') ?? 1;
-    _themeType = AppThemeType.values[index];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getInt('app_theme');
+      _themeType =
+          stored != null && stored >= 0 && stored < AppThemeType.values.length
+          ? AppThemeType.values[stored]
+          : AppThemeType.dark;
+    } catch (_) {
+      _themeType = AppThemeType.dark;
+    }
     _syncPrimaryColor();
     notifyListeners();
   }
@@ -82,9 +88,7 @@ class ThemeProvider extends ChangeNotifier {
   }
 
   Brightness get brightness => theme.brightness;
-
   static const _fontFamily = 'GoogleSans';
-
   TextTheme _buildTextTheme(TextTheme base) {
     return base.copyWith(
       displayLarge: base.displayLarge?.copyWith(fontFamily: _fontFamily),
@@ -128,15 +132,51 @@ class ThemeProvider extends ChangeNotifier {
   ThemeData get _lightTheme {
     final tt = _buildTextTheme(ThemeData.light().textTheme);
     return ThemeData(
-      useMaterial3: true, brightness: Brightness.light,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6C63FF), brightness: Brightness.light),
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF6C63FF),
+        brightness: Brightness.light,
+      ),
       textTheme: tt,
       scaffoldBackgroundColor: const Color(0xFFF5F5F8),
-      cardTheme: CardThemeData(color: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.shade100))),
-      inputDecorationTheme: _inputTheme(const Color(0xFF6C63FF), Colors.grey.shade50, Colors.grey.shade200),
-      appBarTheme: AppBarTheme(backgroundColor: Colors.white, foregroundColor: Colors.black87, elevation: 0, titleTextStyle: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.black87)),
-      elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6C63FF), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
-      snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: Colors.black87, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.grey.shade100),
+        ),
+      ),
+      inputDecorationTheme: _inputTheme(
+        const Color(0xFF6C63FF),
+        Colors.grey.shade50,
+        Colors.grey.shade200,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
+        titleTextStyle: tt.titleLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: Colors.black87,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF6C63FF),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.black87,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
       dividerTheme: DividerThemeData(color: Colors.grey.shade200),
     );
   }
@@ -144,16 +184,55 @@ class ThemeProvider extends ChangeNotifier {
   ThemeData get _darkTheme {
     final tt = _buildTextTheme(ThemeData.dark().textTheme);
     return ThemeData(
-      useMaterial3: true, brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6C63FF), brightness: Brightness.dark, primary: const Color(0xFF8B85FF)),
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF6C63FF),
+        brightness: Brightness.dark,
+        primary: const Color(0xFF8B85FF),
+      ),
       textTheme: tt,
       scaffoldBackgroundColor: const Color(0xFF0D0D0D),
-      cardTheme: CardThemeData(color: const Color(0xFF1A1A1A), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withValues(alpha: 0.06)))),
-      inputDecorationTheme: _inputTheme(const Color(0xFF8B85FF), const Color(0xFF1A1A1A), Colors.white.withValues(alpha: 0.1)),
-      appBarTheme: AppBarTheme(backgroundColor: const Color(0xFF0D0D0D), foregroundColor: Colors.white, elevation: 0, titleTextStyle: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white)),
-      elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6C63FF), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
-      snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: const Color(0xFF1A1A1A), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-      dividerTheme: DividerThemeData(color: Colors.white.withValues(alpha: 0.06)),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF1A1A1A),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+      ),
+      inputDecorationTheme: _inputTheme(
+        const Color(0xFF8B85FF),
+        const Color(0xFF1A1A1A),
+        Colors.white.withValues(alpha: 0.1),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: const Color(0xFF0D0D0D),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        titleTextStyle: tt.titleLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF6C63FF),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      dividerTheme: DividerThemeData(
+        color: Colors.white.withValues(alpha: 0.06),
+      ),
       iconTheme: const IconThemeData(color: Colors.white70),
       listTileTheme: const ListTileThemeData(iconColor: Colors.white70),
     );
@@ -162,16 +241,55 @@ class ThemeProvider extends ChangeNotifier {
   ThemeData get _midnightTheme {
     final tt = _buildTextTheme(ThemeData.dark().textTheme);
     return ThemeData(
-      useMaterial3: true, brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFBB86FC), brightness: Brightness.dark, primary: const Color(0xFFBB86FC)),
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFFBB86FC),
+        brightness: Brightness.dark,
+        primary: const Color(0xFFBB86FC),
+      ),
       textTheme: tt,
       scaffoldBackgroundColor: const Color(0xFF080808),
-      cardTheme: CardThemeData(color: const Color(0xFF141414), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.white.withValues(alpha: 0.05)))),
-      inputDecorationTheme: _inputTheme(const Color(0xFFBB86FC), const Color(0xFF141414), Colors.white.withValues(alpha: 0.08)),
-      appBarTheme: AppBarTheme(backgroundColor: const Color(0xFF080808), foregroundColor: Colors.white, elevation: 0, titleTextStyle: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white)),
-      elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFBB86FC), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
-      snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: const Color(0xFF141414), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-      dividerTheme: DividerThemeData(color: Colors.white.withValues(alpha: 0.05)),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF141414),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
+      ),
+      inputDecorationTheme: _inputTheme(
+        const Color(0xFFBB86FC),
+        const Color(0xFF141414),
+        Colors.white.withValues(alpha: 0.08),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: const Color(0xFF080808),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        titleTextStyle: tt.titleLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFBB86FC),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF141414),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      dividerTheme: DividerThemeData(
+        color: Colors.white.withValues(alpha: 0.05),
+      ),
       iconTheme: const IconThemeData(color: Colors.white70),
       listTileTheme: const ListTileThemeData(iconColor: Colors.white70),
     );
@@ -180,16 +298,57 @@ class ThemeProvider extends ChangeNotifier {
   ThemeData get _neonPurpleTheme {
     final tt = _buildTextTheme(ThemeData.dark().textTheme);
     return ThemeData(
-      useMaterial3: true, brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF9C27B0), brightness: Brightness.dark, primary: const Color(0xFFCE93D8)),
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF9C27B0),
+        brightness: Brightness.dark,
+        primary: const Color(0xFFCE93D8),
+      ),
       textTheme: tt,
       scaffoldBackgroundColor: const Color(0xFF0D0D0D),
-      cardTheme: CardThemeData(color: const Color(0xFF1A1A1A), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: const Color(0xFF9C27B0).withValues(alpha: 0.12)))),
-      inputDecorationTheme: _inputTheme(const Color(0xFFCE93D8), const Color(0xFF1A1A1A), const Color(0xFF9C27B0).withValues(alpha: 0.15)),
-      appBarTheme: AppBarTheme(backgroundColor: const Color(0xFF0D0D0D), foregroundColor: Colors.white, elevation: 0, titleTextStyle: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white)),
-      elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF9C27B0), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
-      snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: const Color(0xFF1A1A1A), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-      dividerTheme: DividerThemeData(color: const Color(0xFF9C27B0).withValues(alpha: 0.08)),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF1A1A1A),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: const Color(0xFF9C27B0).withValues(alpha: 0.12),
+          ),
+        ),
+      ),
+      inputDecorationTheme: _inputTheme(
+        const Color(0xFFCE93D8),
+        const Color(0xFF1A1A1A),
+        const Color(0xFF9C27B0).withValues(alpha: 0.15),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: const Color(0xFF0D0D0D),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        titleTextStyle: tt.titleLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF9C27B0),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      dividerTheme: DividerThemeData(
+        color: const Color(0xFF9C27B0).withValues(alpha: 0.08),
+      ),
       iconTheme: const IconThemeData(color: Colors.white70),
       listTileTheme: const ListTileThemeData(iconColor: Colors.white70),
     );
@@ -198,16 +357,57 @@ class ThemeProvider extends ChangeNotifier {
   ThemeData get _electricBlueTheme {
     final tt = _buildTextTheme(ThemeData.dark().textTheme);
     return ThemeData(
-      useMaterial3: true, brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2196F3), brightness: Brightness.dark, primary: const Color(0xFF64B5F6)),
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF2196F3),
+        brightness: Brightness.dark,
+        primary: const Color(0xFF64B5F6),
+      ),
       textTheme: tt,
       scaffoldBackgroundColor: const Color(0xFF0D0D0D),
-      cardTheme: CardThemeData(color: const Color(0xFF1A1A1A), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: const Color(0xFF2196F3).withValues(alpha: 0.1)))),
-      inputDecorationTheme: _inputTheme(const Color(0xFF64B5F6), const Color(0xFF1A1A1A), const Color(0xFF2196F3).withValues(alpha: 0.12)),
-      appBarTheme: AppBarTheme(backgroundColor: const Color(0xFF0D0D0D), foregroundColor: Colors.white, elevation: 0, titleTextStyle: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white)),
-      elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2196F3), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
-      snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: const Color(0xFF1A1A1A), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-      dividerTheme: DividerThemeData(color: const Color(0xFF2196F3).withValues(alpha: 0.08)),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF1A1A1A),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: const Color(0xFF2196F3).withValues(alpha: 0.1),
+          ),
+        ),
+      ),
+      inputDecorationTheme: _inputTheme(
+        const Color(0xFF64B5F6),
+        const Color(0xFF1A1A1A),
+        const Color(0xFF2196F3).withValues(alpha: 0.12),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: const Color(0xFF0D0D0D),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        titleTextStyle: tt.titleLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF2196F3),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      dividerTheme: DividerThemeData(
+        color: const Color(0xFF2196F3).withValues(alpha: 0.08),
+      ),
       iconTheme: const IconThemeData(color: Colors.white70),
       listTileTheme: const ListTileThemeData(iconColor: Colors.white70),
     );
@@ -216,16 +416,57 @@ class ThemeProvider extends ChangeNotifier {
   ThemeData get _emeraldTheme {
     final tt = _buildTextTheme(ThemeData.dark().textTheme);
     return ThemeData(
-      useMaterial3: true, brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF00C853), brightness: Brightness.dark, primary: const Color(0xFF69F0AE)),
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF00C853),
+        brightness: Brightness.dark,
+        primary: const Color(0xFF69F0AE),
+      ),
       textTheme: tt,
       scaffoldBackgroundColor: const Color(0xFF0D0D0D),
-      cardTheme: CardThemeData(color: const Color(0xFF1A1A1A), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: const Color(0xFF00C853).withValues(alpha: 0.1)))),
-      inputDecorationTheme: _inputTheme(const Color(0xFF69F0AE), const Color(0xFF1A1A1A), const Color(0xFF00C853).withValues(alpha: 0.12)),
-      appBarTheme: AppBarTheme(backgroundColor: const Color(0xFF0D0D0D), foregroundColor: Colors.white, elevation: 0, titleTextStyle: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white)),
-      elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C853), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
-      snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: const Color(0xFF1A1A1A), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-      dividerTheme: DividerThemeData(color: const Color(0xFF00C853).withValues(alpha: 0.08)),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF1A1A1A),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: const Color(0xFF00C853).withValues(alpha: 0.1),
+          ),
+        ),
+      ),
+      inputDecorationTheme: _inputTheme(
+        const Color(0xFF69F0AE),
+        const Color(0xFF1A1A1A),
+        const Color(0xFF00C853).withValues(alpha: 0.12),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: const Color(0xFF0D0D0D),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        titleTextStyle: tt.titleLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF00C853),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      dividerTheme: DividerThemeData(
+        color: const Color(0xFF00C853).withValues(alpha: 0.08),
+      ),
       iconTheme: const IconThemeData(color: Colors.white70),
       listTileTheme: const ListTileThemeData(iconColor: Colors.white70),
     );
@@ -234,16 +475,57 @@ class ThemeProvider extends ChangeNotifier {
   ThemeData get _oceanTheme {
     final tt = _buildTextTheme(ThemeData.dark().textTheme);
     return ThemeData(
-      useMaterial3: true, brightness: Brightness.dark,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF00BCD4), brightness: Brightness.dark, primary: const Color(0xFF4DD0E1)),
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF00BCD4),
+        brightness: Brightness.dark,
+        primary: const Color(0xFF4DD0E1),
+      ),
       textTheme: tt,
       scaffoldBackgroundColor: const Color(0xFF0D0D0D),
-      cardTheme: CardThemeData(color: const Color(0xFF1A1A1A), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: const Color(0xFF00BCD4).withValues(alpha: 0.1)))),
-      inputDecorationTheme: _inputTheme(const Color(0xFF4DD0E1), const Color(0xFF1A1A1A), const Color(0xFF00BCD4).withValues(alpha: 0.12)),
-      appBarTheme: AppBarTheme(backgroundColor: const Color(0xFF0D0D0D), foregroundColor: Colors.white, elevation: 0, titleTextStyle: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white)),
-      elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00BCD4), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
-      snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: const Color(0xFF1A1A1A), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-      dividerTheme: DividerThemeData(color: const Color(0xFF00BCD4).withValues(alpha: 0.08)),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF1A1A1A),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: const Color(0xFF00BCD4).withValues(alpha: 0.1),
+          ),
+        ),
+      ),
+      inputDecorationTheme: _inputTheme(
+        const Color(0xFF4DD0E1),
+        const Color(0xFF1A1A1A),
+        const Color(0xFF00BCD4).withValues(alpha: 0.12),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: const Color(0xFF0D0D0D),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        titleTextStyle: tt.titleLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF00BCD4),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      dividerTheme: DividerThemeData(
+        color: const Color(0xFF00BCD4).withValues(alpha: 0.08),
+      ),
       iconTheme: const IconThemeData(color: Colors.white70),
       listTileTheme: const ListTileThemeData(iconColor: Colors.white70),
     );

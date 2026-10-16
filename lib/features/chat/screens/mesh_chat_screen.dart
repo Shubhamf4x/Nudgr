@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/color_constants.dart';
 import '../models/chat_peer.dart';
@@ -12,7 +13,6 @@ import '../widgets/mesh_status_indicator.dart';
 
 class MeshChatScreen extends StatefulWidget {
   const MeshChatScreen({super.key});
-
   @override
   State<MeshChatScreen> createState() => _MeshChatScreenState();
 }
@@ -21,7 +21,6 @@ class _MeshChatScreenState extends State<MeshChatScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ScrollController _scrollController = ScrollController();
-
   @override
   void initState() {
     super.initState();
@@ -42,22 +41,89 @@ class _MeshChatScreenState extends State<MeshChatScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
-    return Selector<MeshChatProvider, ({bool isInitializing, bool permissionsGranted, dynamic meshStatus})>(
-      selector: (_, p) => (isInitializing: p.state.isInitializing, permissionsGranted: p.state.permissionsGranted, meshStatus: p.state.meshStatus),
+    return Selector<
+      MeshChatProvider,
+      ({
+        bool isInitializing,
+        String? error,
+        bool permissionsGranted,
+        MeshStatus meshStatus,
+        String? activePrivateChatPeerId,
+      })
+    >(
+      selector: (_, p) => (
+        isInitializing: p.state.isInitializing,
+        error: p.state.error,
+        permissionsGranted: p.state.permissionsGranted,
+        meshStatus: p.state.meshStatus,
+        activePrivateChatPeerId: p.state.activePrivateChatPeerId,
+      ),
       builder: (context, data, _) {
         final provider = context.read<MeshChatProvider>();
-
         if (data.isInitializing) {
           return _buildLoadingScreen(theme);
         }
-
+        if (data.error != null) {
+          return _buildErrorScreen(provider, theme, data.error!);
+        }
         if (!data.permissionsGranted || data.meshStatus == MeshStatus.offline) {
           return _buildPermissionScreen(provider, theme);
         }
-
         return _buildMainContent(provider, isDark);
       },
+    );
+  }
+
+  Widget _buildErrorScreen(
+    MeshChatProvider provider,
+    ThemeData theme,
+    String message,
+  ) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 40,
+                  color: theme.colorScheme.error,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.googleSans(fontSize: 15),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => provider.retry(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ColorConstants.primary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Text(
+                    'Try again',
+                    style: AppTextStyles.googleSans(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -86,9 +152,8 @@ class _MeshChatScreenState extends State<MeshChatScreen>
     final isOffline = provider.state.meshStatus == MeshStatus.offline;
     final buttonText = isOffline ? 'Turn On Bluetooth' : 'Allow Bluetooth';
     final descriptionText = isOffline
-        ? 'Bluetooth is turned off. Please enable Bluetooth to discover nearby Chat devices and communicate through the local mesh.'
-        : 'Nudgr needs Bluetooth access to discover nearby Chat devices and communicate through the local mesh.';
-
+        ? 'Bluetooth is turned off. Turn it on to let Nudgr look for other devices running Nudgr nearby.'
+        : 'Nudgr needs Bluetooth access to find other devices running Nudgr nearby.';
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -105,7 +170,9 @@ class _MeshChatScreenState extends State<MeshChatScreen>
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    isOffline ? Icons.bluetooth_disabled_rounded : Icons.bluetooth_rounded,
+                    isOffline
+                        ? Icons.bluetooth_disabled_rounded
+                        : Icons.bluetooth_rounded,
                     size: 40,
                     color: ColorConstants.primary,
                   ),
@@ -124,7 +191,9 @@ class _MeshChatScreenState extends State<MeshChatScreen>
                   textAlign: TextAlign.center,
                   style: AppTextStyles.googleSans(
                     fontSize: 15,
-                    color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                    color: theme.textTheme.bodyMedium?.color?.withValues(
+                      alpha: 0.7,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -159,14 +228,11 @@ class _MeshChatScreenState extends State<MeshChatScreen>
 
   Widget _buildMainContent(MeshChatProvider provider, bool isDark) {
     final peerCount = provider.state.peers.length;
-    final isActive = provider.state.meshStatus == MeshStatus.active ||
-        provider.state.meshStatus == MeshStatus.scanning;
-
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(provider, peerCount, isActive, isDark),
+            _buildHeader(provider, peerCount, isDark),
             _buildTabBar(provider, isDark),
             Expanded(
               child: TabBarView(
@@ -178,9 +244,7 @@ class _MeshChatScreenState extends State<MeshChatScreen>
               ),
             ),
             if (_state.activePrivateChatPeerId == null)
-              ChatComposer(
-                onSend: (text) => provider.sendMessage(text),
-              ),
+              ChatComposer(onSend: (text) => provider.sendMessage(text)),
           ],
         ),
       ),
@@ -188,10 +252,17 @@ class _MeshChatScreenState extends State<MeshChatScreen>
   }
 
   MeshChatState get _state => context.read<MeshChatProvider>().state;
+  static String _initialFor(String? nickname, String peerId) {
+    final label = (nickname ?? '').trim().isNotEmpty
+        ? nickname!.trim()
+        : peerId.trim();
+    return label.isEmpty ? '?' : label[0].toUpperCase();
+  }
 
-  Widget _buildHeader(MeshChatProvider provider, int peerCount, bool isDark, bool isActive) {
+  Widget _buildHeader(MeshChatProvider provider, int peerCount, bool isDark) {
     return Selector<MeshChatProvider, ({dynamic meshStatus, int peerCount})>(
-      selector: (_, p) => (meshStatus: p.state.meshStatus, peerCount: p.state.peers.length),
+      selector: (_, p) =>
+          (meshStatus: p.state.meshStatus, peerCount: p.state.peers.length),
       builder: (context, data, _) {
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -208,9 +279,7 @@ class _MeshChatScreenState extends State<MeshChatScreen>
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  MeshStatusIndicator(
-                    status: data.meshStatus,
-                  ),
+                  MeshStatusIndicator(status: data.meshStatus),
                 ],
               ),
               const SizedBox(height: 4),
@@ -265,7 +334,6 @@ class _MeshChatScreenState extends State<MeshChatScreen>
     if (provider.state.activePrivateChatPeerId != null) {
       return _buildPrivateChatTab(provider, isDark);
     }
-
     return Selector<MeshChatProvider, int>(
       selector: (_, p) =>
           p.currentMessages.length * 31 + p.state.selectedChannel.hashCode,
@@ -280,7 +348,10 @@ class _MeshChatScreenState extends State<MeshChatScreen>
                   ? _buildEmptyState(isDark)
                   : ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       itemCount: channelMessages.length,
                       itemBuilder: (context, index) {
                         final msg = channelMessages[index];
@@ -289,7 +360,9 @@ class _MeshChatScreenState extends State<MeshChatScreen>
                         return MessageBubble(
                           message: msg,
                           isMine: isMine,
-                          peerNickname: provider.getPeer(msg.senderPeerId)?.nickname,
+                          peerNickname: provider
+                              .getPeer(msg.senderPeerId)
+                              ?.nickname,
                         );
                       },
                     ),
@@ -303,92 +376,95 @@ class _MeshChatScreenState extends State<MeshChatScreen>
   Widget _buildPrivateChatTab(MeshChatProvider provider, bool isDark) {
     final peerId = provider.state.activePrivateChatPeerId!;
     final peer = provider.getPeer(peerId);
-
     return Selector<MeshChatProvider, int>(
       selector: (_, p) => p.getPrivateMessages(peerId).length,
       shouldRebuild: (previous, next) => previous != next,
       builder: (context, messageCount, _) {
         final messages = provider.getPrivateMessages(peerId);
         return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardTheme.color,
-            border: Border(
-              bottom: BorderSide(
-                color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade200,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                onPressed: () => provider.closePrivateChat(),
-              ),
-              const SizedBox(width: 8),
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: ColorConstants.primary.withValues(alpha: 0.1),
-                child: Text(
-                  (peer?.nickname ?? peerId).substring(0, 1).toUpperCase(),
-                  style: AppTextStyles.googleSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: ColorConstants.primary,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardTheme.color,
+                border: Border(
+                  bottom: BorderSide(
+                    color:
+                        Theme.of(context).dividerTheme.color ??
+                        Colors.grey.shade200,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    peer?.nickname ?? peerId,
-                    style: AppTextStyles.googleSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                  IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 18,
+                    ),
+                    onPressed: () => provider.closePrivateChat(),
+                  ),
+                  const SizedBox(width: 8),
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: ColorConstants.primary.withValues(
+                      alpha: 0.1,
+                    ),
+                    child: Text(
+                      _initialFor(peer?.nickname, peerId),
+                      style: AppTextStyles.googleSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: ColorConstants.primary,
+                      ),
                     ),
                   ),
-                  Text(
-                    'Private',
-                    style: AppTextStyles.googleSans(
-                      fontSize: 12,
-                      color: ColorConstants.primary,
-                    ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        peer?.nickname ?? peerId,
+                        style: AppTextStyles.googleSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Private',
+                        style: AppTextStyles.googleSans(
+                          fontSize: 12,
+                          color: ColorConstants.primary,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: messages.isEmpty
-              ? Center(
-                  child: Text(
-                    'Send a private message',
-                    style: AppTextStyles.googleSans(color: Colors.grey),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = messages[index];
-                    final myId = provider.service.identity?.peerId ?? '';
-                    final isMine = msg.senderPeerId == myId;
-                    return MessageBubble(
-                      message: msg,
-                      isMine: isMine,
-                    );
-                  },
-                ),
-        ),
-        ChatComposer(
-          onSend: (text) => provider.sendPrivateMessage(text, peerId),
-        ),
-      ],
+            ),
+            Expanded(
+              child: messages.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Send a private message',
+                        style: AppTextStyles.googleSans(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final msg = messages[index];
+                        final myId = provider.service.identity?.peerId ?? '';
+                        final isMine = msg.senderPeerId == myId;
+                        return MessageBubble(message: msg, isMine: isMine);
+                      },
+                    ),
+            ),
+            ChatComposer(
+              onSend: (text) => provider.sendPrivateMessage(text, peerId),
+            ),
+          ],
         );
       },
     );
@@ -403,7 +479,7 @@ class _MeshChatScreenState extends State<MeshChatScreen>
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: channels.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final channel = channels[index];
           final isSelected = channel.name == provider.state.selectedChannel;
@@ -416,13 +492,14 @@ class _MeshChatScreenState extends State<MeshChatScreen>
                 color: isSelected
                     ? ColorConstants.primary
                     : isDark
-                        ? Colors.white.withValues(alpha: 0.08)
-                        : Colors.grey.shade100,
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: isSelected
                       ? ColorConstants.primary
-                      : Theme.of(context).dividerTheme.color ?? Colors.grey.shade300,
+                      : Theme.of(context).dividerTheme.color ??
+                            Colors.grey.shade300,
                 ),
               ),
               child: Text(
@@ -449,7 +526,6 @@ class _MeshChatScreenState extends State<MeshChatScreen>
         if (peers.isEmpty) {
           return _buildNoPeersState(isDark);
         }
-
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           itemCount: peers.length,
@@ -583,7 +659,7 @@ class _MeshChatScreenState extends State<MeshChatScreen>
               radius: 28,
               backgroundColor: ColorConstants.primary.withValues(alpha: 0.1),
               child: Text(
-                (peer.nickname ?? peer.peerId).substring(0, 1).toUpperCase(),
+                _initialFor(peer.nickname, peer.peerId),
                 style: AppTextStyles.googleSans(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
@@ -603,10 +679,7 @@ class _MeshChatScreenState extends State<MeshChatScreen>
             const SizedBox(height: 4),
             Text(
               'Peer ID: ${peer.displayId}',
-              style: AppTextStyles.googleSans(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
+              style: AppTextStyles.googleSans(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 8),
             Container(

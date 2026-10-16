@@ -1,28 +1,27 @@
 import 'dart:io';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../core/theme/app_text_styles.dart';
 import 'home_provider.dart';
 import '../auth/auth_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnim;
   late AnimationController _slideController;
   late Animation<Offset> _slideAnim;
   late Animation<double> _scaleAnim;
   String? _profileImagePath;
-
   @override
   void initState() {
     super.initState();
@@ -32,19 +31,18 @@ class _HomeScreenState extends State<HomeScreen>
       vsync: this,
     );
     _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
-
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
-    _scaleAnim = Tween<double>(begin: 0.97, end: 1.0).animate(
-      CurvedAnimation(parent: _slideController, curve: Curves.easeOut),
-    );
-
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
+    _scaleAnim = Tween<double>(
+      begin: 0.97,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
       final userName = authProvider.user?.displayName ?? 'User';
@@ -73,59 +71,70 @@ class _HomeScreenState extends State<HomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Selector<HomeProvider, ({bool isLoading, String userName, int completed30Days, double completionRate, List<double> weeklyActivity, List<double> dailyActivity})>(
-          selector: (_, provider) => (
-            isLoading: provider.state.isLoading,
-            userName: provider.state.userName,
-            completed30Days: provider.state.completed30Days,
-            completionRate: provider.state.completionRate,
-            weeklyActivity: provider.state.weeklyActivity,
-            dailyActivity: provider.state.dailyActivity,
-          ),
-          builder: (context, data, _) {
-            final provider = context.read<HomeProvider>();
-            if (data.isLoading) {
-              return const Center(
-                child: CircularProgressIndicator(strokeWidth: 2.5),
-              );
-            }
-            return RefreshIndicator(
-              onRefresh: () async {
-                final authProvider = context.read<AuthProvider>();
-                final userName = authProvider.user?.displayName ?? 'User';
-                await provider.loadData(userName);
-              },
-              child: FadeTransition(
-                opacity: _fadeAnim,
-                child: SlideTransition(
-                  position: _slideAnim,
-                  child: ScaleTransition(
-                    scale: _scaleAnim,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 8),
-                          _buildHeader(),
-                          const SizedBox(height: 20),
-                          _buildProfileAndStats(),
-                          const SizedBox(height: 28),
-                          _buildActivityGraphSection(),
-                          const SizedBox(height: 28),
-                          _buildDailyActivitySection(),
-                          const SizedBox(height: 100),
-                        ],
+        child:
+            Selector<
+              HomeProvider,
+              ({
+                bool isLoading,
+                String userName,
+                int completed30Days,
+                double completionRate,
+                List<double> weeklyActivity,
+                List<double> dailyActivity,
+              })
+            >(
+              selector: (_, provider) => (
+                isLoading: provider.state.isLoading,
+                userName: provider.state.userName,
+                completed30Days: provider.state.completed30Days,
+                completionRate: provider.state.completionRate,
+                weeklyActivity: provider.state.weeklyActivity,
+                dailyActivity: provider.state.dailyActivity,
+              ),
+              builder: (context, data, _) {
+                final provider = context.read<HomeProvider>();
+                if (data.isLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  );
+                }
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    final authProvider = context.read<AuthProvider>();
+                    final userName = authProvider.user?.displayName ?? 'User';
+                    await provider.loadData(userName);
+                  },
+                  child: FadeTransition(
+                    opacity: _fadeAnim,
+                    child: SlideTransition(
+                      position: _slideAnim,
+                      child: ScaleTransition(
+                        scale: _scaleAnim,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 8),
+                              _buildHeader(),
+                              const SizedBox(height: 20),
+                              _buildProfileAndStats(),
+                              const SizedBox(height: 28),
+                              _buildActivityGraphSection(),
+                              const SizedBox(height: 28),
+                              _buildDailyActivitySection(),
+                              const SizedBox(height: 100),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-            );
-          },
-        ),
+                );
+              },
+            ),
       ),
     );
   }
@@ -163,7 +172,6 @@ class _HomeScreenState extends State<HomeScreen>
     final initial = provider.state.userName.isNotEmpty
         ? provider.state.userName[0].toUpperCase()
         : 'U';
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -173,11 +181,13 @@ class _HomeScreenState extends State<HomeScreen>
             height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: hasImage ? null : const LinearGradient(
-                colors: [Color(0xFF6C63FF), Color(0xFF9C7CFF)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              gradient: hasImage
+                  ? null
+                  : const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFF9C7CFF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
@@ -197,14 +207,16 @@ class _HomeScreenState extends State<HomeScreen>
                       policy: ResizeImagePolicy.exact,
                     )
                   : null,
-              child: hasImage ? null : Text(
-                initial,
-                style: AppTextStyles.googleSans(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
+              child: hasImage
+                  ? null
+                  : Text(
+                      initial,
+                      style: AppTextStyles.googleSans(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -230,10 +242,7 @@ class _HomeScreenState extends State<HomeScreen>
             const SizedBox(width: 6),
             Text(
               'Online',
-              style: AppTextStyles.googleSans(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
+              style: AppTextStyles.googleSans(fontSize: 12, color: Colors.grey),
             ),
           ],
         ),
@@ -285,10 +294,7 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         Text(
           label,
-          style: AppTextStyles.googleSans(
-            fontSize: 12,
-            color: Colors.grey,
-          ),
+          style: AppTextStyles.googleSans(fontSize: 12, color: Colors.grey),
         ),
       ],
     );
@@ -298,7 +304,6 @@ class _HomeScreenState extends State<HomeScreen>
     final provider = context.read<HomeProvider>();
     final weeklyData = provider.state.weeklyActivity;
     final hasActivity = weeklyData.any((v) => v > 0);
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
@@ -326,7 +331,6 @@ class _HomeScreenState extends State<HomeScreen>
     final data = provider.state.weeklyActivity;
     final maxValue = data.isNotEmpty ? data.reduce(max) : 1.0;
     final displayMax = maxValue > 0 ? maxValue : 1.0;
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -347,10 +351,7 @@ class _HomeScreenState extends State<HomeScreen>
             child: RepaintBoundary(
               child: CustomPaint(
                 size: const Size(double.infinity, 180),
-                painter: ActivityGraphPainter(
-                  data: data,
-                  maxValue: displayMax,
-                ),
+                painter: ActivityGraphPainter(data: data, maxValue: displayMax),
               ),
             ),
           ),
@@ -394,7 +395,6 @@ class _HomeScreenState extends State<HomeScreen>
     final provider = context.read<HomeProvider>();
     final dailyData = provider.state.dailyActivity;
     final hasActivity = dailyData.any((v) => v > 0);
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
@@ -428,7 +428,6 @@ class _HomeScreenState extends State<HomeScreen>
       final day = DateTime(now.year, now.month, now.day - (4 - i));
       return dayNames[day.weekday - 1];
     });
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -536,36 +535,37 @@ class _HomeScreenState extends State<HomeScreen>
 class ActivityGraphPainter extends CustomPainter {
   final List<double> data;
   final double maxValue;
-
   ActivityGraphPainter({required this.data, required this.maxValue});
-
   @override
   void paint(Canvas canvas, Size size) {
     if (data.isEmpty) return;
-
     final width = size.width;
     final height = size.height;
     final padT = 20.0, padB = 20.0, padL = 8.0, padR = 8.0;
     final cW = width - padL - padR;
     final cH = height - padT - padB;
-
     final points = <Offset>[];
     for (int i = 0; i < data.length; i++) {
       final x = padL + (cW / (data.length - 1)) * i;
       final y = padT + cH - (data[i] / maxValue) * cH;
       points.add(Offset(x, y));
     }
-
     final fillPath = Path();
     fillPath.moveTo(points.first.dx, height - padB);
     fillPath.lineTo(points.first.dx, points.first.dy);
     for (int i = 0; i < points.length - 1; i++) {
       final cp = (points[i].dx + points[i + 1].dx) / 2;
-      fillPath.cubicTo(cp, points[i].dy, cp, points[i + 1].dy, points[i + 1].dx, points[i + 1].dy);
+      fillPath.cubicTo(
+        cp,
+        points[i].dy,
+        cp,
+        points[i + 1].dy,
+        points[i + 1].dx,
+        points[i + 1].dy,
+      );
     }
     fillPath.lineTo(points.last.dx, height - padB);
     fillPath.close();
-
     canvas.drawPath(
       fillPath,
       Paint()
@@ -578,14 +578,19 @@ class ActivityGraphPainter extends CustomPainter {
           end: Alignment.bottomCenter,
         ).createShader(Rect.fromLTWH(0, 0, width, height)),
     );
-
     final linePath = Path();
     linePath.moveTo(points.first.dx, points.first.dy);
     for (int i = 0; i < points.length - 1; i++) {
       final cp = (points[i].dx + points[i + 1].dx) / 2;
-      linePath.cubicTo(cp, points[i].dy, cp, points[i + 1].dy, points[i + 1].dx, points[i + 1].dy);
+      linePath.cubicTo(
+        cp,
+        points[i].dy,
+        cp,
+        points[i + 1].dy,
+        points[i + 1].dx,
+        points[i + 1].dy,
+      );
     }
-
     canvas.drawPath(
       linePath,
       Paint()
@@ -599,15 +604,17 @@ class ActivityGraphPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round,
     );
-
     final lp = points.last;
     canvas.drawCircle(lp, 5, Paint()..color = const Color(0xFF6C63FF));
     canvas.drawCircle(lp, 3, Paint()..color = Colors.white);
-
     final dashPaint = Paint()
       ..color = const Color(0xFF6C63FF).withValues(alpha: 0.4)
       ..strokeWidth = 1;
-    canvas.drawLine(Offset(lp.dx, lp.dy + 6), Offset(lp.dx, height - padB), dashPaint);
+    canvas.drawLine(
+      Offset(lp.dx, lp.dy + 6),
+      Offset(lp.dx, height - padB),
+      dashPaint,
+    );
   }
 
   @override

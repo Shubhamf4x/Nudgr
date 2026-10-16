@@ -13,7 +13,6 @@ class NoteModel extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isSynced;
-
   const NoteModel({
     required this.id,
     required this.title,
@@ -28,16 +27,17 @@ class NoteModel extends Equatable {
     required this.updatedAt,
     this.isSynced = true,
   });
-
-  String get preview => content.length > 100 ? content.substring(0, 100) : content;
-
+  String get preview =>
+      content.length > 100 ? content.substring(0, 100) : content;
   factory NoteModel.fromJson(Map<String, dynamic> json) => NoteModel(
     id: json['id'] as String,
     title: json['title'] as String,
     content: json['content'] as String,
     categoryId: json['categoryId'] as String?,
     categoryName: json['categoryName'] as String?,
-    tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
+    tags:
+        (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+        [],
     isPinned: json['isPinned'] as bool? ?? false,
     isArchived: json['isArchived'] as bool? ?? false,
     userId: json['userId'] as String,
@@ -45,7 +45,6 @@ class NoteModel extends Equatable {
     updatedAt: DateTime.parse(json['updatedAt'] as String),
     isSynced: json['isSynced'] as bool? ?? true,
   );
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'title': title,
@@ -60,7 +59,6 @@ class NoteModel extends Equatable {
     'updatedAt': updatedAt.toIso8601String(),
     'isSynced': isSynced,
   };
-
   NoteModel copyWith({
     String? id,
     String? title,
@@ -88,7 +86,6 @@ class NoteModel extends Equatable {
     updatedAt: updatedAt ?? this.updatedAt,
     isSynced: isSynced ?? this.isSynced,
   );
-
   @override
   List<Object?> get props => [id, title, isPinned, isArchived];
 }

@@ -1,0 +1,17 @@
+# Normalise all text to LF in the repository so the Dart formatter, the
+# analyzer and CI agree regardless of the machine's core.autocrlf setting.
+# Without this, `dart format` rewrites every file's line endings and buries
+# real changes in a whole-file diff.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ttf binary
+*.otf binary
+*.jks binary
+*.keystore binary
+*.apk binary
+*.ico binary

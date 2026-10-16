@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -6,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
+
 import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/color_constants.dart';
 
@@ -17,7 +19,6 @@ class NotificationItem {
   final bool isRead;
   final DateTime createdAt;
   final Map<String, dynamic>? data;
-
   const NotificationItem({
     required this.id,
     required this.title,
@@ -27,17 +28,16 @@ class NotificationItem {
     required this.createdAt,
     this.data,
   });
-
-  factory NotificationItem.fromJson(Map<String, dynamic> json) => NotificationItem(
-    id: json['id'] as String,
-    title: json['title'] as String,
-    body: json['body'] as String,
-    type: json['type'] as String,
-    isRead: json['isRead'] as bool? ?? false,
-    createdAt: DateTime.parse(json['createdAt'] as String),
-    data: json['data'] as Map<String, dynamic>?,
-  );
-
+  factory NotificationItem.fromJson(Map<String, dynamic> json) =>
+      NotificationItem(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        body: json['body'] as String,
+        type: json['type'] as String,
+        isRead: json['isRead'] as bool? ?? false,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        data: json['data'] as Map<String, dynamic>?,
+      );
   Map<String, dynamic> toJson() => {
     'id': id,
     'title': title,
@@ -47,7 +47,6 @@ class NotificationItem {
     'createdAt': createdAt.toIso8601String(),
     'data': data,
   };
-
   NotificationItem copyWith({bool? isRead}) => NotificationItem(
     id: id,
     title: title,
@@ -62,48 +61,52 @@ class NotificationItem {
 class NotificationService {
   static NotificationService? _instance;
   static SharedPreferences? _prefs;
-  static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
   List<NotificationItem> _notifications = [];
   static bool _initialized = false;
-
   NotificationService._();
-
   static NotificationService getInstance() {
     _instance ??= NotificationService._();
     return _instance!;
   }
 
   FlutterLocalNotificationsPlugin get localNotifications => _localNotifications;
-
   Future<void> initialize() async {
     _prefs = await SharedPreferences.getInstance();
-    _loadNotifications();
-
+    restoreStoredNotifications();
     if (!_initialized) {
-      tz_data.initializeTimeZones();
-
       try {
-        final tzInfo = await FlutterTimezone.getLocalTimezone();
-        tz.setLocalLocation(tz.getLocation(tzInfo.identifier));
-      } catch (_) {
+        tz_data.initializeTimeZones();
         try {
-          final offset = DateTime.now().timeZoneOffset;
-          final name = 'Etc/GMT${offset.isNegative ? '+' : '-'}${offset.inHours.abs()}';
-          tz.setLocalLocation(tz.getLocation(name));
-        } catch (_) {}
+          final tzInfo = await FlutterTimezone.getLocalTimezone();
+          tz.setLocalLocation(tz.getLocation(tzInfo.identifier));
+        } catch (_) {
+          try {
+            final offset = DateTime.now().timeZoneOffset;
+            final name =
+                'Etc/GMT${offset.isNegative ? '+' : '-'}${offset.inHours.abs()}';
+            tz.setLocalLocation(tz.getLocation(name));
+          } catch (_) {}
+        }
+        const androidSettings = AndroidInitializationSettings(
+          '@mipmap/ic_launcher',
+        );
+        const iosSettings = DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        );
+        const settings = InitializationSettings(
+          android: androidSettings,
+          iOS: iosSettings,
+        );
+        await _localNotifications.initialize(settings);
+        await _createNotificationChannel();
+        _initialized = true;
+      } catch (e) {
+        debugPrint('Notification plugin unavailable: $e');
       }
-
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-      const iosSettings = DarwinInitializationSettings(
-        requestAlertPermission: false,
-        requestBadgePermission: false,
-        requestSoundPermission: false,
-      );
-      const settings = InitializationSettings(android: androidSettings, iOS: iosSettings);
-
-      await _localNotifications.initialize(settings);
-      await _createNotificationChannel();
-      _initialized = true;
     }
   }
 
@@ -117,18 +120,33 @@ class NotificationService {
       enableLights: true,
     );
     await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
   }
 
   List<NotificationItem> get notifications => List.unmodifiable(_notifications);
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
-
-  void _loadNotifications() {
-    final jsonString = _prefs?.getString('notifications');
-    if (jsonString != null) {
-      final jsonList = jsonDecode(jsonString) as List<dynamic>;
-      _notifications = jsonList.map((e) => NotificationItem.fromJson(e as Map<String, dynamic>)).toList();
+  void restoreStoredNotifications() {
+    _notifications = [];
+    try {
+      final jsonString = _prefs?.getString('notifications');
+      if (jsonString == null || jsonString.isEmpty) return;
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! List) return;
+      final restored = <NotificationItem>[];
+      for (final entry in decoded) {
+        if (entry is! Map) continue;
+        try {
+          restored.add(
+            NotificationItem.fromJson(Map<String, dynamic>.from(entry)),
+          );
+        } catch (_) {}
+      }
+      _notifications = restored;
+    } catch (_) {
+      _notifications = [];
     }
   }
 
@@ -164,7 +182,9 @@ class NotificationService {
   }
 
   Future<void> markAllAsRead() async {
-    _notifications = _notifications.map((n) => n.copyWith(isRead: true)).toList();
+    _notifications = _notifications
+        .map((n) => n.copyWith(isRead: true))
+        .toList();
     await _saveNotifications();
   }
 
@@ -207,11 +227,13 @@ class NotificationService {
     }
   }
 
-  Future<void> scheduleTaskNotification(String taskId, String taskTitle, DateTime dueTime) async {
+  Future<void> scheduleTaskNotification(
+    String taskId,
+    String taskTitle,
+    DateTime dueTime,
+  ) async {
     if (dueTime.isBefore(DateTime.now())) return;
-
     final notificationId = taskId.hashCode.abs() % 2147483647;
-
     await _zonedScheduleWithFallback(
       notificationId,
       'Task Due Now',
@@ -236,7 +258,6 @@ class NotificationService {
         ),
       ),
     );
-
     await addNotification(
       title: 'Task Due Now',
       body: taskTitle,
@@ -252,11 +273,13 @@ class NotificationService {
     } catch (_) {}
   }
 
-  Future<void> scheduleTaskReminder(String taskId, String taskTitle, DateTime reminderTime) async {
+  Future<void> scheduleTaskReminder(
+    String taskId,
+    String taskTitle,
+    DateTime reminderTime,
+  ) async {
     if (reminderTime.isBefore(DateTime.now())) return;
-
     final notificationId = (taskId.hashCode.abs() % 2147483647) + 1;
-
     await _zonedScheduleWithFallback(
       notificationId,
       'Task Reminder',
@@ -280,7 +303,6 @@ class NotificationService {
         ),
       ),
     );
-
     await addNotification(
       title: 'Task Reminder',
       body: taskTitle,
@@ -289,19 +311,25 @@ class NotificationService {
     );
   }
 
-  Future<void> scheduleFocusComplete(int durationMinutes, int sessionNumber) async {
+  Future<void> scheduleFocusComplete(
+    int durationMinutes,
+    int sessionNumber,
+  ) async {
     await addNotification(
       title: 'Focus Session Complete!',
-      body: 'Great job! You focused for $durationMinutes minutes. Session #$sessionNumber done.',
+      body:
+          'Great job! You focused for $durationMinutes minutes. Session #$sessionNumber done.',
       type: 'focus_complete',
-      data: {'durationMinutes': durationMinutes, 'sessionNumber': sessionNumber},
+      data: {
+        'durationMinutes': durationMinutes,
+        'sessionNumber': sessionNumber,
+      },
     );
   }
 
   static Future<void> requestPermissionOnce(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool('notification_prompt_shown') ?? false) return;
-
     bool alreadyGranted = false;
     try {
       final status = await Permission.notification.status;
@@ -309,14 +337,11 @@ class NotificationService {
     } catch (_) {
       return;
     }
-
     if (alreadyGranted) {
       await prefs.setBool('notification_prompt_shown', true);
       return;
     }
-
     if (!context.mounted) return;
-
     final enable = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
@@ -382,14 +407,12 @@ class NotificationService {
         ],
       ),
     );
-
     if (enable == true) {
       try {
         await Permission.notification.request();
         await Permission.scheduleExactAlarm.request();
       } catch (_) {}
     }
-
     await prefs.setBool('notification_prompt_shown', true);
   }
 }

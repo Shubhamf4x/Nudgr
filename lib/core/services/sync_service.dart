@@ -25,7 +25,6 @@ class SyncQueueItem {
   final Map<String, dynamic>? data;
   final DateTime timestamp;
   int retryCount;
-
   SyncQueueItem({
     required this.id,
     required this.collection,
@@ -35,7 +34,6 @@ class SyncQueueItem {
     DateTime? timestamp,
     this.retryCount = 0,
   }) : timestamp = timestamp ?? DateTime.now();
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'collection': collection,
@@ -45,7 +43,6 @@ class SyncQueueItem {
     'timestamp': timestamp.toIso8601String(),
     'retryCount': retryCount,
   };
-
   factory SyncQueueItem.fromJson(Map<String, dynamic> json) => SyncQueueItem(
     id: json['id'] as String,
     collection: json['collection'] as String,
@@ -66,7 +63,6 @@ class SyncService {
   final DatabaseService _db = DatabaseService.getInstance();
   final Connectivity _connectivity = Connectivity();
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-
   String? _currentUserId;
   bool _cloudEnabled = false;
   SyncStatus _status = SyncStatus.idle;
@@ -76,12 +72,9 @@ class SyncService {
   bool _isSyncing = false;
   bool _isOnline = true;
   final int _maxRetries = 6;
-
   static const String _syncQueueKey = 'sync_queue';
   static const String _lastSyncKey = 'last_sync_time';
-
   SyncService._();
-
   static SyncService getInstance() {
     _instance ??= SyncService._();
     return _instance!;
@@ -95,25 +88,20 @@ class SyncService {
   bool get isSyncing => _isSyncing;
   String? get currentUserId => _currentUserId;
   bool get cloudEnabled => _cloudEnabled;
-
   bool get _canSync => _cloudEnabled && _currentUserId != null && _isOnline;
-
   Future<void> initialize() async {
     _prefs = await SharedPreferences.getInstance();
     _loadLastSyncTime();
     await _loadSyncQueue();
-
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
       results,
     ) {
       final wasOnline = _isOnline;
       _isOnline = results.any((r) => r != ConnectivityResult.none);
-
       if (_isOnline && !wasOnline) {
         syncPendingData();
       }
     });
-
     final results = await _connectivity.checkConnectivity();
     _isOnline = results.any((r) => r != ConnectivityResult.none);
   }
@@ -131,7 +119,6 @@ class SyncService {
   }
 
   List<SyncQueueItem> _syncQueue = [];
-
   Future<void> _loadSyncQueue() async {
     final jsonString = _prefs?.getString(_syncQueueKey);
     if (jsonString == null || jsonString.isEmpty) {
@@ -162,21 +149,37 @@ class SyncService {
     Map<String, dynamic>? data,
   }) {
     if (!_cloudEnabled) return;
-
-    final item = SyncQueueItem(
-      id: '${collection}_${documentId}_${DateTime.now().millisecondsSinceEpoch}',
+    _enqueue(
       collection: collection,
       documentId: documentId,
       operation: operation,
       data: data,
     );
-    _syncQueue.add(item);
-    _pendingCount = _syncQueue.length;
-    _saveSyncQueue();
-
     if (_isOnline && !_isSyncing) {
       syncPendingData();
     }
+  }
+
+  void _enqueue({
+    required String collection,
+    required String documentId,
+    required SyncOperation operation,
+    Map<String, dynamic>? data,
+  }) {
+    _syncQueue.removeWhere(
+      (q) => q.collection == collection && q.documentId == documentId,
+    );
+    _syncQueue.add(
+      SyncQueueItem(
+        id: '${collection}_${documentId}_${DateTime.now().microsecondsSinceEpoch}',
+        collection: collection,
+        documentId: documentId,
+        operation: operation,
+        data: data,
+      ),
+    );
+    _pendingCount = _syncQueue.length;
+    unawaited(_saveSyncQueue());
   }
 
   CollectionReference _userCollection(String collection) {
@@ -188,14 +191,12 @@ class SyncService {
 
   Future<void> syncPendingData() async {
     if (_isSyncing || !_canSync) return;
-
     _isSyncing = true;
     _status = SyncStatus.syncing;
-
     try {
       final items = List<SyncQueueItem>.from(_syncQueue);
       final failedItems = <SyncQueueItem>[];
-
+      var droppedCount = 0;
       for (final item in items) {
         try {
           await _processQueueItem(item);
@@ -206,14 +207,19 @@ class SyncService {
           item.retryCount++;
           if (item.retryCount >= _maxRetries) {
             _syncQueue.removeWhere((q) => q.id == item.id);
+            droppedCount++;
           } else {
             failedItems.add(item);
           }
         }
       }
-
       await _saveSyncQueue();
-      if (_syncQueue.isEmpty) {
+      if (droppedCount > 0) {
+        _lastSyncError =
+            '$droppedCount change(s) could not be saved to the cloud and were '
+            'discarded. Your data is still on this device.';
+        _status = SyncStatus.error;
+      } else if (_syncQueue.isEmpty) {
         _lastSyncTime = DateTime.now();
         await _prefs!.setString(_lastSyncKey, _lastSyncTime!.toIso8601String());
         _status = SyncStatus.idle;
@@ -252,15 +258,17 @@ class SyncService {
   ) {
     final stamped = Map<String, dynamic>.from(data);
     stamped['id'] = documentId;
-    if (_currentUserId != null && _currentUserId!.isNotEmpty) {
-      stamped['userId'] = _currentUserId;
+    final userId = _currentUserId;
+    if (userId != null && userId.isNotEmpty) {
+      stamped['userId'] = userId;
+    } else {
+      stamped.remove('userId');
     }
     return stamped;
   }
 
   Future<void> _processQueueItem(SyncQueueItem item) async {
     final ref = _userCollection(item.collection).doc(item.documentId);
-
     switch (item.operation) {
       case SyncOperation.create:
       case SyncOperation.update:
@@ -279,12 +287,10 @@ class SyncService {
 
   Future<void> pullFromCloud() async {
     if (_isSyncing || !_canSync) return;
-
     final userId = _currentUserId;
     _status = SyncStatus.syncing;
     _isSyncing = true;
     var anyFailure = false;
-
     try {
       for (final pull in [
         _pullTasks,
@@ -302,7 +308,6 @@ class SyncService {
           _lastSyncError = _describeError(e);
         }
       }
-
       if (_currentUserId != userId) {
         return;
       }
@@ -352,37 +357,33 @@ class SyncService {
       final data = doc.data() as Map<String, dynamic>;
       cloudTasks.add(TaskModel.fromJson(data));
     }
-
     if (cloudTasks.isEmpty) return;
-
     final localTasks = _db.getTasks();
     final localMap = {for (final t in localTasks) t.id: t};
     final cloudMap = {for (final t in cloudTasks) t.id: t};
-
     final merged = <TaskModel>[];
-
+    final needsUpload = <TaskModel>[];
     for (final cloudTask in cloudTasks) {
       final localTask = localMap[cloudTask.id];
       if (localTask == null) {
         merged.add(cloudTask);
       } else {
-        merged.add(_resolveConflictTask(localTask, cloudTask));
+        final resolved = _resolveConflictTask(localTask, cloudTask);
+        merged.add(resolved);
+        if (!resolved.isSynced) needsUpload.add(resolved);
       }
     }
-
     for (final localTask in localTasks) {
       if (!cloudMap.containsKey(localTask.id)) {
         merged.add(localTask);
-        addToQueue(
-          collection: 'tasks',
-          documentId: localTask.id,
-          operation: SyncOperation.create,
-          data: localTask.toJson(),
-        );
+        needsUpload.add(localTask);
       }
     }
-
     await _db.saveTasks(merged);
+    _queueForUpload(
+      collection: 'tasks',
+      records: needsUpload.map((t) => (t.id, t.toJson())),
+    );
   }
 
   Future<void> _pullNotes() async {
@@ -392,37 +393,33 @@ class SyncService {
       final data = doc.data() as Map<String, dynamic>;
       cloudNotes.add(NoteModel.fromJson(data));
     }
-
     if (cloudNotes.isEmpty) return;
-
     final localNotes = _db.getNotes();
     final localMap = {for (final n in localNotes) n.id: n};
     final cloudMap = {for (final n in cloudNotes) n.id: n};
-
     final merged = <NoteModel>[];
-
+    final needsUpload = <NoteModel>[];
     for (final cloudNote in cloudNotes) {
       final localNote = localMap[cloudNote.id];
       if (localNote == null) {
         merged.add(cloudNote);
       } else {
-        merged.add(_resolveConflictNote(localNote, cloudNote));
+        final resolved = _resolveConflictNote(localNote, cloudNote);
+        merged.add(resolved);
+        if (!resolved.isSynced) needsUpload.add(resolved);
       }
     }
-
     for (final localNote in localNotes) {
       if (!cloudMap.containsKey(localNote.id)) {
         merged.add(localNote);
-        addToQueue(
-          collection: 'notes',
-          documentId: localNote.id,
-          operation: SyncOperation.create,
-          data: localNote.toJson(),
-        );
+        needsUpload.add(localNote);
       }
     }
-
     await _db.saveNotes(merged);
+    _queueForUpload(
+      collection: 'notes',
+      records: needsUpload.map((n) => (n.id, n.toJson())),
+    );
   }
 
   Future<void> _pullCategories() async {
@@ -432,37 +429,33 @@ class SyncService {
       final data = doc.data() as Map<String, dynamic>;
       cloudCategories.add(CategoryModel.fromJson(data));
     }
-
     if (cloudCategories.isEmpty) return;
-
     final localCategories = _db.getCategories();
     final localMap = {for (final c in localCategories) c.id: c};
     final cloudMap = {for (final c in cloudCategories) c.id: c};
-
     final merged = <CategoryModel>[];
-
+    final needsUpload = <CategoryModel>[];
     for (final cloudCat in cloudCategories) {
       final localCat = localMap[cloudCat.id];
       if (localCat == null) {
         merged.add(cloudCat);
       } else {
-        merged.add(_resolveConflictCategory(localCat, cloudCat));
+        final resolved = _resolveConflictCategory(localCat, cloudCat);
+        merged.add(resolved);
+        if (!resolved.isSynced) needsUpload.add(resolved);
       }
     }
-
     for (final localCat in localCategories) {
       if (!cloudMap.containsKey(localCat.id)) {
         merged.add(localCat);
-        addToQueue(
-          collection: 'categories',
-          documentId: localCat.id,
-          operation: SyncOperation.create,
-          data: localCat.toJson(),
-        );
+        needsUpload.add(localCat);
       }
     }
-
     await _db.saveCategories(merged);
+    _queueForUpload(
+      collection: 'categories',
+      records: needsUpload.map((c) => (c.id, c.toJson())),
+    );
   }
 
   Future<void> _pullFocusSessions() async {
@@ -472,37 +465,50 @@ class SyncService {
       final data = doc.data() as Map<String, dynamic>;
       cloudSessions.add(FocusSessionModel.fromJson(data));
     }
-
     if (cloudSessions.isEmpty) return;
-
     final localSessions = _db.getFocusSessions();
     final localMap = {for (final s in localSessions) s.id: s};
     final cloudMap = {for (final s in cloudSessions) s.id: s};
-
     final merged = <FocusSessionModel>[];
-
+    final needsUpload = <FocusSessionModel>[];
     for (final cloudSession in cloudSessions) {
       final localSession = localMap[cloudSession.id];
       if (localSession == null) {
         merged.add(cloudSession);
       } else {
-        merged.add(_resolveConflictFocusSession(localSession, cloudSession));
+        final resolved = _resolveConflictFocusSession(
+          localSession,
+          cloudSession,
+        );
+        merged.add(resolved);
+        if (!resolved.isSynced) needsUpload.add(resolved);
       }
     }
-
     for (final localSession in localSessions) {
       if (!cloudMap.containsKey(localSession.id)) {
         merged.add(localSession);
-        addToQueue(
-          collection: 'focus_sessions',
-          documentId: localSession.id,
-          operation: SyncOperation.create,
-          data: localSession.toJson(),
-        );
+        needsUpload.add(localSession);
       }
     }
-
     await _db.saveFocusSessions(merged);
+    _queueForUpload(
+      collection: 'focus_sessions',
+      records: needsUpload.map((s) => (s.id, s.toJson())),
+    );
+  }
+
+  void _queueForUpload({
+    required String collection,
+    required Iterable<(String, Map<String, dynamic>)> records,
+  }) {
+    for (final (id, data) in records) {
+      _enqueue(
+        collection: collection,
+        documentId: id,
+        operation: SyncOperation.update,
+        data: data,
+      );
+    }
   }
 
   TaskModel _resolveConflictTask(TaskModel local, TaskModel cloud) {
@@ -551,7 +557,6 @@ class SyncService {
       );
       return;
     }
-
     try {
       await _userCollection('tasks')
           .doc(task.id)
@@ -577,7 +582,6 @@ class SyncService {
       );
       return;
     }
-
     try {
       await _userCollection('tasks').doc(taskId).delete();
     } catch (e) {
@@ -599,7 +603,6 @@ class SyncService {
       );
       return;
     }
-
     try {
       await _userCollection('notes')
           .doc(note.id)
@@ -625,7 +628,6 @@ class SyncService {
       );
       return;
     }
-
     try {
       await _userCollection('notes').doc(noteId).delete();
     } catch (e) {
@@ -647,7 +649,6 @@ class SyncService {
       );
       return;
     }
-
     try {
       await _userCollection('categories')
           .doc(category.id)
@@ -674,7 +675,6 @@ class SyncService {
       );
       return;
     }
-
     try {
       await _userCollection('categories').doc(categoryId).delete();
     } catch (e) {
@@ -696,7 +696,6 @@ class SyncService {
       );
       return;
     }
-
     try {
       await _userCollection('focus_sessions')
           .doc(session.id)
@@ -724,7 +723,6 @@ class SyncService {
       );
       return;
     }
-
     try {
       await _userCollection('steps')
           .doc(date)
@@ -744,12 +742,14 @@ class SyncService {
 
   Future<void> saveUserToFirestore(Map<String, dynamic> userData) async {
     if (!_canSync) return;
-
     try {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(_currentUserId)
-          .set(userData, SetOptions(merge: true));
+          .set(
+            _withOwnership(_currentUserId!, userData),
+            SetOptions(merge: true),
+          );
     } catch (_) {}
   }
 

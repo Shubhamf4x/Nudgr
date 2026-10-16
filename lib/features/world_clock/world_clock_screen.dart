@@ -1,41 +1,50 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
+
 import '../../core/theme/app_text_styles.dart';
 import 'world_clock_city.dart';
 
 class WorldClockScreen extends StatefulWidget {
   const WorldClockScreen({super.key});
-
   @override
   State<WorldClockScreen> createState() => _WorldClockScreenState();
 }
 
 class _WorldClockScreenState extends State<WorldClockScreen> {
   Timer? _timer;
-  final ValueNotifier<DateTime> _nowNotifier = ValueNotifier<DateTime>(DateTime.now());
+  final ValueNotifier<DateTime> _nowNotifier = ValueNotifier<DateTime>(
+    DateTime.now(),
+  );
   bool _is24Hour = false;
   List<WorldClockCity> _cities = [];
   final TextEditingController _searchController = TextEditingController();
   List<WorldClockCity> _searchResults = [];
   bool _isSearching = false;
-
   static const List<WorldClockCity> _defaultCities = [
     WorldClockCity(name: 'Tokyo', timezone: 'Asia/Tokyo', offset: 9),
     WorldClockCity(name: 'Sydney', timezone: 'Australia/Sydney', offset: 11),
     WorldClockCity(name: 'New York', timezone: 'America/New_York', offset: -5),
-    WorldClockCity(name: 'Los Angeles', timezone: 'America/Los_Angeles', offset: -8),
+    WorldClockCity(
+      name: 'Los Angeles',
+      timezone: 'America/Los_Angeles',
+      offset: -8,
+    ),
     WorldClockCity(name: 'London', timezone: 'Europe/London', offset: 0),
   ];
-
   static const List<WorldClockCity> _allCities = [
     WorldClockCity(name: 'Tokyo', timezone: 'Asia/Tokyo', offset: 9),
     WorldClockCity(name: 'Sydney', timezone: 'Australia/Sydney', offset: 11),
     WorldClockCity(name: 'London', timezone: 'Europe/London', offset: 0),
     WorldClockCity(name: 'New York', timezone: 'America/New_York', offset: -5),
-    WorldClockCity(name: 'Los Angeles', timezone: 'America/Los_Angeles', offset: -8),
+    WorldClockCity(
+      name: 'Los Angeles',
+      timezone: 'America/Los_Angeles',
+      offset: -8,
+    ),
     WorldClockCity(name: 'Singapore', timezone: 'Asia/Singapore', offset: 8),
     WorldClockCity(name: 'Dubai', timezone: 'Asia/Dubai', offset: 4),
     WorldClockCity(name: 'Paris', timezone: 'Europe/Paris', offset: 1),
@@ -50,11 +59,27 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     WorldClockCity(name: 'Lagos', timezone: 'Africa/Lagos', offset: 1),
     WorldClockCity(name: 'Nairobi', timezone: 'Africa/Nairobi', offset: 3),
     WorldClockCity(name: 'Toronto', timezone: 'America/Toronto', offset: -5),
-    WorldClockCity(name: 'Vancouver', timezone: 'America/Vancouver', offset: -8),
+    WorldClockCity(
+      name: 'Vancouver',
+      timezone: 'America/Vancouver',
+      offset: -8,
+    ),
     WorldClockCity(name: 'Chicago', timezone: 'America/Chicago', offset: -6),
-    WorldClockCity(name: 'Mexico City', timezone: 'America/Mexico_City', offset: -6),
-    WorldClockCity(name: 'Buenos Aires', timezone: 'America/Argentina/Buenos_Aires', offset: -3),
-    WorldClockCity(name: 'Johannesburg', timezone: 'Africa/Johannesburg', offset: 2),
+    WorldClockCity(
+      name: 'Mexico City',
+      timezone: 'America/Mexico_City',
+      offset: -6,
+    ),
+    WorldClockCity(
+      name: 'Buenos Aires',
+      timezone: 'America/Argentina/Buenos_Aires',
+      offset: -3,
+    ),
+    WorldClockCity(
+      name: 'Johannesburg',
+      timezone: 'Africa/Johannesburg',
+      offset: 2,
+    ),
     WorldClockCity(name: 'Athens', timezone: 'Europe/Athens', offset: 2),
     WorldClockCity(name: 'Warsaw', timezone: 'Europe/Warsaw', offset: 1),
     WorldClockCity(name: 'Stockholm', timezone: 'Europe/Stockholm', offset: 1),
@@ -68,17 +93,37 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     WorldClockCity(name: 'Kathmandu', timezone: 'Asia/Kathmandu', offset: 5.75),
     WorldClockCity(name: 'Colombo', timezone: 'Asia/Colombo', offset: 5.5),
     WorldClockCity(name: 'Perth', timezone: 'Australia/Perth', offset: 8),
-    WorldClockCity(name: 'Melbourne', timezone: 'Australia/Melbourne', offset: 11),
+    WorldClockCity(
+      name: 'Melbourne',
+      timezone: 'Australia/Melbourne',
+      offset: 11,
+    ),
     WorldClockCity(name: 'Auckland', timezone: 'Pacific/Auckland', offset: 13),
     WorldClockCity(name: 'Honolulu', timezone: 'Pacific/Honolulu', offset: -10),
-    WorldClockCity(name: 'Anchorage', timezone: 'America/Anchorage', offset: -9),
+    WorldClockCity(
+      name: 'Anchorage',
+      timezone: 'America/Anchorage',
+      offset: -9,
+    ),
     WorldClockCity(name: 'Denver', timezone: 'America/Denver', offset: -7),
     WorldClockCity(name: 'Phoenix', timezone: 'America/Phoenix', offset: -7),
     WorldClockCity(name: 'Miami', timezone: 'America/New_York', offset: -5),
-    WorldClockCity(name: 'Seattle', timezone: 'America/Los_Angeles', offset: -8),
-    WorldClockCity(name: 'San Francisco', timezone: 'America/Los_Angeles', offset: -8),
+    WorldClockCity(
+      name: 'Seattle',
+      timezone: 'America/Los_Angeles',
+      offset: -8,
+    ),
+    WorldClockCity(
+      name: 'San Francisco',
+      timezone: 'America/Los_Angeles',
+      offset: -8,
+    ),
     WorldClockCity(name: 'Boston', timezone: 'America/New_York', offset: -5),
-    WorldClockCity(name: 'Washington DC', timezone: 'America/New_York', offset: -5),
+    WorldClockCity(
+      name: 'Washington DC',
+      timezone: 'America/New_York',
+      offset: -5,
+    ),
     WorldClockCity(name: 'Atlanta', timezone: 'America/New_York', offset: -5),
     WorldClockCity(name: 'Dallas', timezone: 'America/Chicago', offset: -6),
     WorldClockCity(name: 'Houston', timezone: 'America/Chicago', offset: -6),
@@ -87,13 +132,25 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     WorldClockCity(name: 'Santiago', timezone: 'America/Santiago', offset: -4),
     WorldClockCity(name: 'Manila', timezone: 'Asia/Manila', offset: 8),
     WorldClockCity(name: 'Jakarta', timezone: 'Asia/Jakarta', offset: 7),
-    WorldClockCity(name: 'Kuala Lumpur', timezone: 'Asia/Kuala_Lumpur', offset: 8),
-    WorldClockCity(name: 'Ho Chi Minh', timezone: 'Asia/Ho_Chi_Minh', offset: 7),
+    WorldClockCity(
+      name: 'Kuala Lumpur',
+      timezone: 'Asia/Kuala_Lumpur',
+      offset: 8,
+    ),
+    WorldClockCity(
+      name: 'Ho Chi Minh',
+      timezone: 'Asia/Ho_Chi_Minh',
+      offset: 7,
+    ),
     WorldClockCity(name: 'Riyadh', timezone: 'Asia/Riyadh', offset: 3),
     WorldClockCity(name: 'Doha', timezone: 'Asia/Qatar', offset: 3),
     WorldClockCity(name: 'Abu Dhabi', timezone: 'Asia/Dubai', offset: 4),
     WorldClockCity(name: 'Tehran', timezone: 'Asia/Tehran', offset: 3.5),
-    WorldClockCity(name: 'Reykjavik', timezone: 'Atlantic/Reykjavik', offset: 0),
+    WorldClockCity(
+      name: 'Reykjavik',
+      timezone: 'Atlantic/Reykjavik',
+      offset: 0,
+    ),
     WorldClockCity(name: 'Lisbon', timezone: 'Europe/Lisbon', offset: 0),
     WorldClockCity(name: 'Madrid', timezone: 'Europe/Madrid', offset: 1),
     WorldClockCity(name: 'Rome', timezone: 'Europe/Rome', offset: 1),
@@ -104,12 +161,15 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     WorldClockCity(name: 'Bucharest', timezone: 'Europe/Bucharest', offset: 2),
     WorldClockCity(name: 'Kyiv', timezone: 'Europe/Kyiv', offset: 2),
     WorldClockCity(name: 'Dublin', timezone: 'Europe/Dublin', offset: 0),
-    WorldClockCity(name: 'Copenhagen', timezone: 'Europe/Copenhagen', offset: 1),
+    WorldClockCity(
+      name: 'Copenhagen',
+      timezone: 'Europe/Copenhagen',
+      offset: 1,
+    ),
     WorldClockCity(name: 'Oslo', timezone: 'Europe/Oslo', offset: 1),
     WorldClockCity(name: 'Amsterdam', timezone: 'Europe/Amsterdam', offset: 1),
     WorldClockCity(name: 'Brussels', timezone: 'Europe/Brussels', offset: 1),
   ];
-
   @override
   void initState() {
     super.initState();
@@ -135,7 +195,11 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
       setState(() {
         _cities = saved.map((s) {
           final p = s.split('|');
-          return WorldClockCity(name: p[0], timezone: p[1], offset: double.parse(p[2]));
+          return WorldClockCity(
+            name: p[0],
+            timezone: p[1],
+            offset: double.parse(p[2]),
+          );
         }).toList();
       });
     } else {
@@ -146,7 +210,9 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
 
   Future<void> _saveCities() async {
     final prefs = await SharedPreferences.getInstance();
-    final data = _cities.map((c) => '${c.name}|${c.timezone}|${c.offset}').toList();
+    final data = _cities
+        .map((c) => '${c.name}|${c.timezone}|${c.offset}')
+        .toList();
     await prefs.setStringList('world_clock_cities', data);
   }
 
@@ -168,7 +234,6 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
   }
 
   bool _isDaytime(DateTime time) => time.hour >= 6 && time.hour < 18;
-
   DateTime _getCityTime(WorldClockCity city, DateTime now) {
     try {
       final location = tz.getLocation(city.timezone);
@@ -176,7 +241,10 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     } catch (_) {
       final utc = now.toUtc();
       return utc.add(
-        Duration(hours: city.offset.toInt(), minutes: ((city.offset % 1) * 60).toInt()),
+        Duration(
+          hours: city.offset.toInt(),
+          minutes: ((city.offset % 1) * 60).toInt(),
+        ),
       );
     }
   }
@@ -199,7 +267,11 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     for (final c in _allCities) {
       if ((c.offset - total).abs() < 0.01) return c;
     }
-    return WorldClockCity(name: now.timeZoneName, timezone: now.timeZoneName, offset: total);
+    return WorldClockCity(
+      name: now.timeZoneName,
+      timezone: now.timeZoneName,
+      offset: total,
+    );
   }
 
   void _searchCities(String q) {
@@ -213,12 +285,14 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     final lower = q.toLowerCase();
     setState(() {
       _isSearching = true;
-      final matches =
-          _allCities.where((c) => c.name.toLowerCase().contains(lower)).toList();
+      final matches = _allCities
+          .where((c) => c.name.toLowerCase().contains(lower))
+          .toList();
       if (matches.length < 5) {
-        final tzMatches = _allCities.where((c) =>
-            c.timezone.toLowerCase().contains(lower) &&
-            !matches.contains(c));
+        final tzMatches = _allCities.where(
+          (c) =>
+              c.timezone.toLowerCase().contains(lower) && !matches.contains(c),
+        );
         matches.addAll(tzMatches);
       }
       _searchResults = matches;
@@ -245,7 +319,6 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final deviceCity = _getDeviceCity();
-
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -270,7 +343,13 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('World Time', style: AppTextStyles.googleSans(fontSize: 28, fontWeight: FontWeight.w800)),
+          Text(
+            'World Time',
+            style: AppTextStyles.googleSans(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -282,24 +361,41 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1A1A28) : Colors.white,
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.4)),
+                    border: Border.all(
+                      color: const Color(0xFF6C63FF).withValues(alpha: 0.4),
+                    ),
                   ),
-                  child: const Center(child: Icon(Icons.add_rounded, size: 20, color: Color(0xFF6C63FF))),
+                  child: const Center(
+                    child: Icon(
+                      Icons.add_rounded,
+                      size: 20,
+                      color: Color(0xFF6C63FF),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => setState(() => _is24Hour = !_is24Hour),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1A1A28) : Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Text(
                     _is24Hour ? '24h' : '12h',
-                    style: AppTextStyles.googleSans(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF6C63FF)),
+                    style: AppTextStyles.googleSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF6C63FF),
+                    ),
                   ),
                 ),
               ),
@@ -318,7 +414,8 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
         if (oldIndex == 0 || newIndex == 0) return;
         final actualOld = oldIndex - 1;
         final actualNew = newIndex - 1;
-        if (actualOld < 0 || actualNew < 0) return;
+        if (actualOld < 0 || actualOld >= _cities.length) return;
+        if (actualNew < 0 || actualNew >= _cities.length) return;
         setState(() {
           final city = _cities.removeAt(actualOld);
           _cities.insert(actualNew, city);
@@ -355,7 +452,11 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: const Color(0xFF6C63FF).withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6)),
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: ValueListenableBuilder<DateTime>(
@@ -367,16 +468,43 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Your Time', style: AppTextStyles.googleSans(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.8))),
+                  Text(
+                    'Your Time',
+                    style: AppTextStyles.googleSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(city.name, style: AppTextStyles.googleSans(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
+                  Text(
+                    city.name,
+                    style: AppTextStyles.googleSans(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(_formatTime(now), style: AppTextStyles.googleSans(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white)),
-                  Text(_getUtcLabel(city.offset), style: AppTextStyles.googleSans(fontSize: 12, color: Colors.white70)),
+                  Text(
+                    _formatTime(now),
+                    style: AppTextStyles.googleSans(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    _getUtcLabel(city.offset),
+                    style: AppTextStyles.googleSans(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -406,7 +534,11 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
           color: isDark ? const Color(0xFF1A1A28) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
         child: Row(
@@ -419,11 +551,21 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                     valueListenable: _nowNotifier,
                     builder: (context, now, _) => Text(
                       _getUtcLabel(_getCurrentOffset(city, now)),
-                      style: AppTextStyles.googleSans(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                      style: AppTextStyles.googleSans(
+                        fontSize: 11,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(city.name, style: AppTextStyles.googleSans(fontSize: 18, fontWeight: FontWeight.w600)),
+                  Text(
+                    city.name,
+                    style: AppTextStyles.googleSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -431,7 +573,10 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
               valueListenable: _nowNotifier,
               builder: (context, now, _) {
                 final time = _getCityTime(city, now);
-                return Text(_isDaytime(time) ? '\u2600' : '\u263E', style: const TextStyle(fontSize: 18));
+                return Text(
+                  _isDaytime(time) ? '\u2600' : '\u263E',
+                  style: const TextStyle(fontSize: 18),
+                );
               },
             ),
             const SizedBox(width: 16),
@@ -439,7 +584,10 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
               valueListenable: _nowNotifier,
               builder: (context, now, _) => Text(
                 _formatTime(_getCityTime(city, now)),
-                style: AppTextStyles.googleSans(fontSize: 28, fontWeight: FontWeight.w700),
+                style: AppTextStyles.googleSans(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -465,14 +613,23 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
               suffixIcon: GestureDetector(
                 onTap: () {
                   _searchController.clear();
-                  setState(() { _searchResults = []; _isSearching = false; });
+                  setState(() {
+                    _searchResults = [];
+                    _isSearching = false;
+                  });
                 },
                 child: const Icon(Icons.close_rounded, color: Colors.grey),
               ),
               filled: true,
               fillColor: isDark ? const Color(0xFF1A1A28) : Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
             ),
           ),
         ),
@@ -481,7 +638,10 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
               ? Center(
                   child: Text(
                     'No cities found',
-                    style: AppTextStyles.googleSans(color: Colors.grey, fontSize: 14),
+                    style: AppTextStyles.googleSans(
+                      color: Colors.grey,
+                      fontSize: 14,
+                    ),
                   ),
                 )
               : Column(
@@ -506,14 +666,38 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                         itemCount: _searchResults.length,
                         itemBuilder: (context, i) {
                           final city = _searchResults[i];
-                          final alreadyAdded = _cities.any((c) => c.name == city.name);
+                          final alreadyAdded = _cities.any(
+                            (c) => c.name == city.name,
+                          );
                           return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            title: Text(city.name, style: AppTextStyles.googleSans(fontWeight: FontWeight.w600)),
-                            subtitle: Text(city.timezone, style: AppTextStyles.googleSans(fontSize: 12, color: Colors.grey)),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            title: Text(
+                              city.name,
+                              style: AppTextStyles.googleSans(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              city.timezone,
+                              style: AppTextStyles.googleSans(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
                             trailing: alreadyAdded
-                                ? Icon(Icons.check_rounded, color: Colors.grey.shade400, size: 20)
-                                : const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF6C63FF), size: 22),
+                                ? Icon(
+                                    Icons.check_rounded,
+                                    color: Colors.grey.shade400,
+                                    size: 20,
+                                  )
+                                : const Icon(
+                                    Icons.add_circle_outline_rounded,
+                                    color: Color(0xFF6C63FF),
+                                    size: 22,
+                                  ),
                             onTap: alreadyAdded ? null : () => _addCity(city),
                           );
                         },

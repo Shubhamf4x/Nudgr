@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../../shared/models/message_model.dart';
 import '../../shared/models/conversation_model.dart';
 import '../../shared/models/user_model.dart';
@@ -11,7 +13,6 @@ class ChatState {
   final ConversationModel? selectedConversation;
   final bool isLoading;
   final String? error;
-
   const ChatState({
     this.conversations = const [],
     this.messages = const [],
@@ -19,7 +20,6 @@ class ChatState {
     this.isLoading = true,
     this.error,
   });
-
   ChatState copyWith({
     List<ConversationModel>? conversations,
     List<MessageModel>? messages,
@@ -39,9 +39,7 @@ class ChatProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService.getInstance();
   ChatState _state = const ChatState();
   Timer? _autoReplyTimer;
-
   ChatState get state => _state;
-
   @override
   void dispose() {
     _autoReplyTimer?.cancel();
@@ -55,26 +53,17 @@ class ChatProvider extends ChangeNotifier {
   Future<void> loadConversations() async {
     _state = _state.copyWith(isLoading: true);
     notifyListeners();
-
     final conversations = _db.getConversations();
-    _state = _state.copyWith(
-      conversations: conversations,
-      isLoading: false,
-    );
+    _state = _state.copyWith(conversations: conversations, isLoading: false);
     notifyListeners();
   }
 
   Future<void> loadMessages(String conversationId) async {
     _state = _state.copyWith(isLoading: true);
     notifyListeners();
-
     final messages = _db.getMessages(conversationId);
     messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
-    _state = _state.copyWith(
-      messages: messages,
-      isLoading: false,
-    );
+    _state = _state.copyWith(messages: messages, isLoading: false);
     notifyListeners();
   }
 
@@ -93,30 +82,32 @@ class ChatProvider extends ChangeNotifier {
       createdAt: DateTime.now(),
       isPending: true,
     );
-
     await _db.saveMessage(message);
-    _state = _state.copyWith(
-      messages: [..._state.messages, message],
-    );
+    _state = _state.copyWith(messages: [..._state.messages, message]);
     notifyListeners();
-
-    final pendingMessage = message.copyWith(isPending: false, isDelivered: true);
+    final pendingMessage = message.copyWith(
+      isPending: false,
+      isDelivered: true,
+    );
     await _db.saveMessage(pendingMessage);
-
     final updatedMessages = _state.messages.map((m) {
       if (m.id == message.id) return pendingMessage;
       return m;
     }).toList();
     _state = _state.copyWith(messages: updatedMessages);
     notifyListeners();
-
     _updateConversationLastMessage(conversationId, content, sender.id);
     _scheduleAutoReply(conversationId, sender);
   }
 
   void _updateConversationLastMessage(
-      String conversationId, String content, String senderId) {
-    final index = _state.conversations.indexWhere((c) => c.id == conversationId);
+    String conversationId,
+    String content,
+    String senderId,
+  ) {
+    final index = _state.conversations.indexWhere(
+      (c) => c.id == conversationId,
+    );
     if (index >= 0) {
       final updated = _state.conversations[index].copyWith(
         lastMessage: content,
@@ -145,8 +136,8 @@ class ChatProvider extends ChangeNotifier {
         'I agree with that.',
         'Let me think about it.',
       ];
-      final reply = replies[DateTime.now().millisecondsSinceEpoch % replies.length];
-
+      final reply =
+          replies[DateTime.now().millisecondsSinceEpoch % replies.length];
       final autoReply = MessageModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         conversationId: conversationId,
@@ -155,11 +146,8 @@ class ChatProvider extends ChangeNotifier {
         content: reply,
         createdAt: DateTime.now(),
       );
-
       await _db.saveMessage(autoReply);
-      _state = _state.copyWith(
-        messages: [..._state.messages, autoReply],
-      );
+      _state = _state.copyWith(messages: [..._state.messages, autoReply]);
       notifyListeners();
     });
   }
@@ -180,7 +168,6 @@ class ChatProvider extends ChangeNotifier {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
-
     await _db.saveConversation(conversation);
     _state = _state.copyWith(
       conversations: [..._state.conversations, conversation],
@@ -190,14 +177,18 @@ class ChatProvider extends ChangeNotifier {
   }
 
   Future<void> deleteConversation(String conversationId) async {
-    final conversations = _state.conversations.where((c) => c.id != conversationId).toList();
+    final conversations = _state.conversations
+        .where((c) => c.id != conversationId)
+        .toList();
     _state = _state.copyWith(conversations: conversations);
     await _db.saveConversations(conversations);
     notifyListeners();
   }
 
   Future<void> markAsRead(String conversationId) async {
-    final index = _state.conversations.indexWhere((c) => c.id == conversationId);
+    final index = _state.conversations.indexWhere(
+      (c) => c.id == conversationId,
+    );
     if (index >= 0) {
       final updated = _state.conversations[index].copyWith(unreadCount: 0);
       final conversations = List<ConversationModel>.from(_state.conversations);

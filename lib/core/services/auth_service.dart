@@ -16,14 +16,11 @@ class AuthService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   UserModel? _currentUser;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
-
   static const String _authVersionKey = 'auth_version';
   static const String _currentAuthVersion = '2.0';
   static const String _explicitLogoutKey = 'session_ended';
   bool _explicitLogout = false;
-
   AuthService._();
-
   static AuthService getInstance() {
     _instance ??= AuthService._();
     return _instance!;
@@ -31,18 +28,14 @@ class AuthService {
 
   Future<void> initialize() async {
     _prefs = await SharedPreferences.getInstance();
-
     final savedVersion = _prefs!.getString(_authVersionKey);
     if (savedVersion != _currentAuthVersion) {
       await _prefs!.remove('current_user');
       await _prefs!.remove('registered_users');
       await _prefs!.setString(_authVersionKey, _currentAuthVersion);
     }
-
     _explicitLogout = _prefs!.getBool(_explicitLogoutKey) ?? false;
-
     _loadCurrentUser();
-
     if (_currentUser == null && !_explicitLogout) {
       await restoreLastActiveLocalSession();
     }
@@ -50,7 +43,6 @@ class AuthService {
 
   Future<void> completeRestore() async {
     if (_explicitLogout) return;
-
     if (_currentUser == null) {
       try {
         await restoreSessionFromFirebase().timeout(const Duration(seconds: 6));
@@ -58,18 +50,14 @@ class AuthService {
         _currentUser = null;
       }
     }
-
     if (_currentUser == null) return;
-
     if (!_currentUser!.isGoogleAccount) return;
-
     try {
       final fbUser = _firebaseAuth.currentUser;
       if (fbUser == null || fbUser.uid != _currentUser!.id) return;
     } catch (_) {
       return;
     }
-
     try {
       final doc = await _usersRef.doc(_currentUser!.id).get();
       if (doc.exists) {
@@ -83,10 +71,8 @@ class AuthService {
 
   UserModel? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
-
   CollectionReference get _usernamesRef => _firestore.collection('usernames');
   CollectionReference get _usersRef => _firestore.collection('users');
-
   void _loadCurrentUser() {
     try {
       final jsonString = _prefs!.getString('current_user');
@@ -103,7 +89,6 @@ class AuthService {
 
   Future<UserModel?> restoreSessionFromFirebase() async {
     fb.User? fbUser = _firebaseAuth.currentUser;
-
     if (fbUser == null) {
       try {
         fbUser = await _firebaseAuth
@@ -116,15 +101,12 @@ class AuthService {
         fbUser = null;
       }
     }
-
     if (fbUser == null) {
       return null;
     }
-
     if (_currentUser != null && _currentUser!.id == fbUser.uid) {
       return _currentUser;
     }
-
     final email = fbUser.email ?? '';
     final displayName = fbUser.displayName ?? email.split('@').first;
     final now = DateTime.now().toIso8601String();
@@ -143,7 +125,6 @@ class AuthService {
       'statistics': <String, dynamic>{},
       'isGoogleAccount': _detectGoogleAccount(fbUser),
     };
-
     final users = _getRegisteredUsers();
     final index = users.indexWhere((u) => u['id'] == fbUser?.uid);
     if (index >= 0) {
@@ -158,30 +139,25 @@ class AuthService {
           ? (stored['email'] ?? email)
           : userData['email'];
     }
-
     final restored = UserModel.fromJson(userData);
     _currentUser = restored;
     _prefs!.setBool(_explicitLogoutKey, false);
     _explicitLogout = false;
     await _prefs!.setString('current_user', jsonEncode(restored.toJson()));
-
     if (index >= 0) {
       users[index] = userData;
     } else {
       users.add(userData);
     }
     await _saveRegisteredUsers(users);
-
     return restored;
   }
 
   Future<UserModel?> restoreLastActiveLocalSession() async {
     final users = _getRegisteredUsers();
     if (users.isEmpty) return null;
-
     DateTime? latest(DateTime? a, DateTime? b) =>
         (a == null || (b != null && b.isAfter(a))) ? b : a;
-
     Map<String, dynamic>? best;
     DateTime? bestTime;
     for (final u in users) {
@@ -195,7 +171,6 @@ class AuthService {
       }
     }
     best ??= users.last;
-
     final restored = UserModel.fromJson(best);
     _currentUser = restored;
     _prefs!.setBool(_explicitLogoutKey, false);
@@ -218,7 +193,6 @@ class AuthService {
     required String password,
   }) async {
     final input = email.trim().toLowerCase();
-
     String resolvedEmail = input;
     if (!_isEmail(input)) {
       try {
@@ -229,7 +203,6 @@ class AuthService {
         throw Exception('No account found with this username');
       }
     }
-
     try {
       final userCredential = await _firebaseAuth
           .signInWithEmailAndPassword(email: resolvedEmail, password: password)
@@ -264,9 +237,7 @@ class AuthService {
         break;
       }
     }
-
     Map<String, dynamic> userData;
-
     if (existingIndex >= 0) {
       userData = Map<String, dynamic>.from(users[existingIndex]);
       userData['isOnline'] = true;
@@ -303,7 +274,6 @@ class AuthService {
       _saveRegisteredUsers(users);
       _syncUserToFirestore(userData);
     }
-
     final userModel = UserModel.fromJson(userData);
     _currentUser = userModel;
     _prefs!.setBool(_explicitLogoutKey, false);
@@ -335,7 +305,6 @@ class AuthService {
     final finalUsername = InputValidators.sanitizeUsername(
       (username != null && username.isNotEmpty) ? username : displayName,
     );
-
     try {
       final usernameDoc = await _usernamesRef
           .doc(finalUsername)
@@ -347,7 +316,6 @@ class AuthService {
     } catch (e) {
       if (e.toString().contains('Username already taken')) rethrow;
     }
-
     fb.User? fbUser;
     try {
       final userCredential = await _firebaseAuth
@@ -373,7 +341,6 @@ class AuthService {
       throw Exception('Registration failed. Please try again.');
     }
     if (fbUser == null) throw Exception('Firebase registration failed');
-
     final now = DateTime.now().toIso8601String();
     final userData = <String, dynamic>{
       'id': fbUser.uid,
@@ -395,20 +362,16 @@ class AuthService {
       },
       'isGoogleAccount': false,
     };
-
     final users = _getRegisteredUsers();
     users.add(userData);
     _saveRegisteredUsers(users);
-
     final userModel = UserModel.fromJson(userData);
     _currentUser = userModel;
     _prefs!.setBool(_explicitLogoutKey, false);
     _explicitLogout = false;
     _prefs!.setString('current_user', jsonEncode(userModel.toJson()));
-
     _syncUsernameMapping(finalUsername, normalizedEmail, fbUser.uid);
     _syncUserToFirestore(userData);
-
     return userModel;
   }
 
@@ -417,9 +380,7 @@ class AuthService {
     if (googleUser == null) {
       throw Exception('Google sign in was cancelled');
     }
-
     GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
     fb.User? fbUser;
     Object? lastError;
     for (var attempt = 1; attempt <= 3; attempt++) {
@@ -442,7 +403,7 @@ class AuthService {
             text.contains('timeout') ||
             text.contains('network') ||
             text.contains('network_error') ||
-            text.contains('integerated' /* upstream typo of the plugin */);
+            text.contains('integerated');
         if (!isRetryable) rethrow;
       }
       if (attempt < 3) {
@@ -462,13 +423,11 @@ class AuthService {
       }
       throw Exception('Google sign in failed. Please try again.');
     }
-
     final email = fbUser.email ?? googleUser.email;
     final displayName =
         fbUser.displayName ?? googleUser.displayName ?? email.split('@').first;
     final photoUrl = fbUser.photoURL ?? googleUser.photoUrl;
     final normalizedEmail = email.toLowerCase();
-
     final users = _getRegisteredUsers();
     int existingIndex = -1;
     for (int i = 0; i < users.length; i++) {
@@ -478,9 +437,7 @@ class AuthService {
         break;
       }
     }
-
     Map<String, dynamic> userData;
-
     if (existingIndex >= 0) {
       userData = Map<String, dynamic>.from(users[existingIndex]);
       userData['isOnline'] = true;
@@ -517,7 +474,6 @@ class AuthService {
       _saveRegisteredUsers(users);
       _syncUserToFirestore(userData);
     }
-
     final userModel = UserModel.fromJson(userData);
     _currentUser = userModel;
     _prefs!.setBool(_explicitLogoutKey, false);
@@ -527,6 +483,7 @@ class AuthService {
   }
 
   void _syncUserToFirestore(Map<String, dynamic> userData) {
+    if (userData['isGoogleAccount'] != true) return;
     try {
       final id = userData['id'] as String?;
       if (id == null || id.isEmpty) return;
@@ -536,12 +493,10 @@ class AuthService {
 
   void mergeCloudProfile(Map<String, dynamic> cloudData) {
     if (_currentUser == null) return;
-
     final cloudUpdated =
         DateTime.tryParse(cloudData['updatedAt'] as String? ?? '') ??
         DateTime.fromMillisecondsSinceEpoch(0);
     if (!cloudUpdated.isAfter(_currentUser!.updatedAt)) return;
-
     final merged = _currentUser!.copyWith(
       displayName:
           (cloudData['displayName'] as String?) ?? _currentUser!.displayName,
@@ -553,10 +508,8 @@ class AuthService {
           _currentUser!.statistics,
       updatedAt: cloudUpdated,
     );
-
     _currentUser = merged;
     _prefs!.setString('current_user', jsonEncode(merged.toJson()));
-
     final users = _getRegisteredUsers();
     final index = users.indexWhere((u) => u['id'] == merged.id);
     if (index >= 0) {
@@ -611,7 +564,6 @@ class AuthService {
     String? photoUrl,
   }) async {
     if (_currentUser == null) throw Exception('Not authenticated');
-
     final previousUsername = _currentUser!.username;
     String? normalizedUsername;
     if (username != null && username.isNotEmpty) {
@@ -634,7 +586,6 @@ class AuthService {
         if (e.toString().contains('Username already taken')) rethrow;
       }
     }
-
     final updated = _currentUser!.copyWith(
       displayName: displayName,
       username: normalizedUsername ?? username,
@@ -642,12 +593,9 @@ class AuthService {
       photoUrl: photoUrl,
       updatedAt: DateTime.now(),
     );
-
     _currentUser = updated;
     await _prefs!.setString('current_user', jsonEncode(updated.toJson()));
-
     _syncUserToFirestore(updated.toJson());
-
     if (normalizedUsername != null &&
         normalizedUsername != previousUsername &&
         updated.email.isNotEmpty) {
@@ -658,7 +606,6 @@ class AuthService {
         _releaseUsernameMapping(previousUsername, updated.id);
       }
     }
-
     final users = _getRegisteredUsers();
     final index = users.indexWhere((u) => u['id'] == updated.id);
     if (index >= 0) {
@@ -666,13 +613,11 @@ class AuthService {
         ..addAll(updated.toJson());
       await _saveRegisteredUsers(users);
     }
-
     return updated;
   }
 
   Future<UserModel> updateStatistics(Map<String, dynamic> stats) async {
     if (_currentUser == null) throw Exception('Not authenticated');
-
     final currentStats = Map<String, dynamic>.from(_currentUser!.statistics);
     stats.forEach((key, value) {
       if (value is int && currentStats[key] is int) {
@@ -681,22 +626,20 @@ class AuthService {
         currentStats[key] = value;
       }
     });
-
     final updated = _currentUser!.copyWith(
       statistics: currentStats,
       updatedAt: DateTime.now(),
     );
-
     _currentUser = updated;
     await _prefs!.setString('current_user', jsonEncode(updated.toJson()));
-
     try {
-      _usersRef.doc(updated.id).set({
-        'statistics': currentStats,
-        'updatedAt': updated.updatedAt.toIso8601String(),
-      }, SetOptions(merge: true));
+      if (updated.isGoogleAccount) {
+        _usersRef.doc(updated.id).set({
+          'statistics': currentStats,
+          'updatedAt': updated.updatedAt.toIso8601String(),
+        }, SetOptions(merge: true));
+      }
     } catch (_) {}
-
     final users = _getRegisteredUsers();
     final index = users.indexWhere((u) => u['id'] == updated.id);
     if (index >= 0) {
@@ -704,7 +647,6 @@ class AuthService {
         ..addAll(updated.toJson());
       await _saveRegisteredUsers(users);
     }
-
     return updated;
   }
 
@@ -713,12 +655,10 @@ class AuthService {
     required String newPassword,
   }) async {
     if (_currentUser == null) throw Exception('Not authenticated');
-
     final fbUser = _firebaseAuth.currentUser;
     if (fbUser == null || fbUser.email == null) {
       throw Exception('Not authenticated with Firebase');
     }
-
     final credential = fb.EmailAuthProvider.credential(
       email: fbUser.email!,
       password: currentPassword,
@@ -729,26 +669,20 @@ class AuthService {
 
   Future<void> deleteAccount() async {
     if (_currentUser == null) throw Exception('Not authenticated');
-
     final uid = _currentUser!.id;
     final username = _currentUser!.username;
-
     final users = _getRegisteredUsers();
     users.removeWhere((u) => u['id'] == uid);
     await _saveRegisteredUsers(users);
-
     if (username != null && username.isNotEmpty) {
       _releaseUsernameMapping(username, uid);
     }
-
     try {
       await _usersRef.doc(uid).delete();
     } catch (_) {}
-
     try {
       await _firebaseAuth.currentUser?.delete();
     } catch (_) {}
-
     _currentUser = null;
     await _prefs!.remove('current_user');
     await _prefs!.setBool(_explicitLogoutKey, true);

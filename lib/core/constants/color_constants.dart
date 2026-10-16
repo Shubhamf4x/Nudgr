@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 
 class ColorConstants {
   ColorConstants._();
-
   static Color _primaryOverride = const Color(0xFF6C63FF);
   static bool _hasOverride = false;
-
   static void setPrimary(Color color) {
     _primaryOverride = color;
     _hasOverride = true;
@@ -15,7 +13,8 @@ class ColorConstants {
     _hasOverride = false;
   }
 
-  static Color get primary => _hasOverride ? _primaryOverride : const Color(0xFF6C63FF);
+  static Color get primary =>
+      _hasOverride ? _primaryOverride : const Color(0xFF6C63FF);
   static Color get primaryDark => _hasOverride
       ? Color.lerp(_primaryOverride, Colors.black, 0.15)!
       : const Color(0xFF5A52D5);

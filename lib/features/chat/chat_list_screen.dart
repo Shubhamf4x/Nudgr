@@ -1,6 +1,8 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/constants/color_constants.dart';
 import '../../core/utils/helpers.dart';
 import '../../shared/widgets/avatar_widget.dart';
@@ -11,7 +13,6 @@ import 'create_conversation_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
-
   @override
   State<ChatListScreen> createState() => _ChatListScreenState();
 }
@@ -76,7 +77,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => ChatScreen(conversation: conversation),
+                              builder: (_) =>
+                                  ChatScreen(conversation: conversation),
                             ),
                           );
                         },
@@ -106,7 +108,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           children: [
                             if (conversation.lastMessageTime != null)
                               Text(
-                                Helpers.formatRelativeTime(conversation.lastMessageTime!),
+                                Helpers.formatRelativeTime(
+                                  conversation.lastMessageTime!,
+                                ),
                                 style: AppTextStyles.googleSans(
                                   fontSize: 11,
                                   color: Colors.grey,

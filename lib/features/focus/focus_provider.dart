@@ -1,5 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
+
 import '../../shared/models/focus_session_model.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/database_service.dart';
@@ -20,7 +23,6 @@ class FocusState {
   final String? taskTitle;
   final List<FocusSessionModel> sessions;
   final bool isLoading;
-
   const FocusState({
     this.status = FocusStatus.idle,
     this.totalSeconds = 0,
@@ -35,7 +37,6 @@ class FocusState {
     this.sessions = const [],
     this.isLoading = false,
   });
-
   FocusState copyWith({
     FocusStatus? status,
     int? totalSeconds,
@@ -63,26 +64,24 @@ class FocusState {
     sessions: sessions ?? this.sessions,
     isLoading: isLoading ?? this.isLoading,
   );
-
   double get progress =>
       totalSeconds > 0 ? 1.0 - (remainingSeconds / totalSeconds) : 0.0;
-
-  int get totalFocusMinutes =>
-      sessions.where((s) => s.sessionType == 'focus' && s.isCompleted).fold(
-          0, (sum, s) => sum + s.actualDurationMinutes);
-
+  int get totalFocusMinutes => sessions
+      .where((s) => s.sessionType == 'focus' && s.isCompleted)
+      .fold(0, (sum, s) => sum + s.actualDurationMinutes);
   int get completedSessions =>
       sessions.where((s) => s.sessionType == 'focus' && s.isCompleted).length;
-
   int get todayFocusMinutes {
     final today = DateTime.now();
     return sessions
-        .where((s) =>
-            s.sessionType == 'focus' &&
-            s.isCompleted &&
-            s.startTime.year == today.year &&
-            s.startTime.month == today.month &&
-            s.startTime.day == today.day)
+        .where(
+          (s) =>
+              s.sessionType == 'focus' &&
+              s.isCompleted &&
+              s.startTime.year == today.year &&
+              s.startTime.month == today.month &&
+              s.startTime.day == today.day,
+        )
         .fold(0, (sum, s) => sum + s.actualDurationMinutes);
   }
 
@@ -91,13 +90,14 @@ class FocusState {
     int streak = 0;
     final today = DateTime.now();
     var checkDate = DateTime(today.year, today.month, today.day);
-
     for (int i = 0; i < 365; i++) {
-      final hasSession = sessions.any((s) =>
-          s.isCompleted &&
-          s.startTime.year == checkDate.year &&
-          s.startTime.month == checkDate.month &&
-          s.startTime.day == checkDate.day);
+      final hasSession = sessions.any(
+        (s) =>
+            s.isCompleted &&
+            s.startTime.year == checkDate.year &&
+            s.startTime.month == checkDate.month &&
+            s.startTime.day == checkDate.day,
+      );
       if (hasSession) {
         streak++;
         checkDate = checkDate.subtract(const Duration(days: 1));
@@ -117,9 +117,7 @@ class FocusProvider extends ChangeNotifier {
   final SyncService _sync = SyncService.getInstance();
   Timer? _timer;
   FocusState _state = const FocusState();
-
   FocusState get state => _state;
-
   @override
   void dispose() {
     _timer?.cancel();
@@ -129,13 +127,8 @@ class FocusProvider extends ChangeNotifier {
   Future<void> loadData() async {
     _state = _state.copyWith(isLoading: true);
     notifyListeners();
-
     final sessions = _db.getFocusSessions();
-
-    _state = _state.copyWith(
-      sessions: sessions,
-      isLoading: false,
-    );
+    _state = _state.copyWith(sessions: sessions, isLoading: false);
     notifyListeners();
   }
 
@@ -154,10 +147,11 @@ class FocusProvider extends ChangeNotifier {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_state.remainingSeconds > 0) {
-        _state = _state.copyWith(
-          remainingSeconds: _state.remainingSeconds - 1,
-        );
+        _state = _state.copyWith(remainingSeconds: _state.remainingSeconds - 1);
         notifyListeners();
+      } else if (_state.status == FocusStatus.breakTime) {
+        _timer?.cancel();
+        endBreak();
       } else {
         _timer?.cancel();
         _onSessionComplete();
@@ -179,9 +173,10 @@ class FocusProvider extends ChangeNotifier {
 
   void stop() {
     _timer?.cancel();
-    final actualMinutes = (_state.totalSeconds - _state.remainingSeconds) ~/ 60;
-    if (actualMinutes > 0) {
-      _saveSession(actualMinutes: actualMinutes, completed: false);
+    if (_state.status == FocusStatus.running ||
+        _state.status == FocusStatus.paused) {
+      final elapsedSeconds = _state.totalSeconds - _state.remainingSeconds;
+      _saveSession(actualMinutes: elapsedSeconds ~/ 60, completed: false);
     }
     _state = _state.copyWith(
       status: FocusStatus.idle,
@@ -197,14 +192,20 @@ class FocusProvider extends ChangeNotifier {
   }
 
   void _onSessionComplete() {
-    _saveSession(actualMinutes: _state.focusDuration, completed: true);
-
+    final elapsedSeconds = _state.totalSeconds - _state.remainingSeconds;
+    final wasFocusing =
+        _state.status == FocusStatus.running ||
+        _state.status == FocusStatus.paused;
+    if (wasFocusing) {
+      _saveSession(
+        actualMinutes: elapsedSeconds.clamp(0, _state.focusDuration * 60) ~/ 60,
+        completed: true,
+      );
+    }
     final nextSession = _state.currentSession + 1;
     final isLongBreak = _state.currentSession % _state.totalSessions == 0;
-    final breakDuration =
-        isLongBreak ? _state.longBreak : _state.shortBreak;
+    final breakDuration = isLongBreak ? _state.longBreak : _state.shortBreak;
     final breakSeconds = breakDuration * 60;
-
     _state = _state.copyWith(
       status: FocusStatus.breakTime,
       totalSeconds: breakSeconds,
@@ -214,9 +215,20 @@ class FocusProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void endBreak() {
+    _timer?.cancel();
+    _state = _state.copyWith(
+      status: FocusStatus.idle,
+      totalSeconds: 0,
+      remainingSeconds: 0,
+    );
+    notifyListeners();
+  }
+
   void _saveSession({required int actualMinutes, required bool completed}) {
+    final now = DateTime.now();
     final session = FocusSessionModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       taskId: _state.taskId,
       taskTitle: _state.taskTitle,
       userId: '',
@@ -225,16 +237,16 @@ class FocusProvider extends ChangeNotifier {
       sessionType: 'focus',
       sessionNumber: _state.currentSession,
       isCompleted: completed,
-      startTime: DateTime.now().subtract(Duration(seconds: _state.totalSeconds - _state.remainingSeconds)),
-      endTime: DateTime.now(),
-      createdAt: DateTime.now(),
+      startTime: now.subtract(
+        Duration(seconds: _state.totalSeconds - _state.remainingSeconds),
+      ),
+      endTime: now,
+      createdAt: now,
       isSynced: false,
     );
-    _db.saveFocusSession(session);
+    unawaited(_db.saveFocusSession(session));
     _sync.saveFocusSessionToFirestore(session);
-    _state = _state.copyWith(
-      sessions: [..._state.sessions, session],
-    );
+    _state = _state.copyWith(sessions: [..._state.sessions, session]);
   }
 
   void setTask(String? taskId, String? taskTitle) {
@@ -242,11 +254,7 @@ class FocusProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setDurations({
-    int? focusDuration,
-    int? shortBreak,
-    int? longBreak,
-  }) {
+  void setDurations({int? focusDuration, int? shortBreak, int? longBreak}) {
     _state = _state.copyWith(
       focusDuration: focusDuration,
       shortBreak: shortBreak,

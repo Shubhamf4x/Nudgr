@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/color_constants.dart';
 import '../models/chat_peer.dart';
@@ -7,19 +8,16 @@ class PeerTile extends StatelessWidget {
   final ChatPeer peer;
   final VoidCallback onTap;
   final VoidCallback onPrivateMessage;
-
   const PeerTile({
     super.key,
     required this.peer,
     required this.onTap,
     required this.onPrivateMessage,
   });
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       child: Material(
@@ -30,9 +28,7 @@ class PeerTile extends StatelessWidget {
           onTap: onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
             child: Row(
               children: [
                 Container(
@@ -44,7 +40,7 @@ class PeerTile extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      (peer.nickname ?? peer.peerId).substring(0, 1).toUpperCase(),
+                      _initialFor(peer),
                       style: AppTextStyles.googleSans(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -87,8 +83,9 @@ class PeerTile extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: (peer.isActive ? Colors.green : Colors.orange)
-                                .withValues(alpha: 0.4),
+                            color:
+                                (peer.isActive ? Colors.green : Colors.orange)
+                                    .withValues(alpha: 0.4),
                             blurRadius: 4,
                           ),
                         ],
@@ -108,5 +105,11 @@ class PeerTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static String _initialFor(ChatPeer peer) {
+    final nickname = peer.nickname?.trim() ?? '';
+    final label = nickname.isNotEmpty ? nickname : peer.peerId.trim();
+    return label.isEmpty ? '?' : label[0].toUpperCase();
   }
 }

@@ -1,4 +1,5 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
 
 class NudgrTextField extends StatefulWidget {
@@ -15,7 +16,6 @@ class NudgrTextField extends StatefulWidget {
   final bool enabled;
   final VoidCallback? onTap;
   final bool readOnly;
-
   const NudgrTextField({
     super.key,
     required this.label,
@@ -32,14 +32,12 @@ class NudgrTextField extends StatefulWidget {
     this.onTap,
     this.readOnly = false,
   });
-
   @override
   State<NudgrTextField> createState() => _NudgrTextFieldState();
 }
 
 class _NudgrTextFieldState extends State<NudgrTextField> {
   late bool _obscureText;
-
   @override
   void initState() {
     super.initState();
@@ -82,7 +80,9 @@ class _NudgrTextFieldState extends State<NudgrTextField> {
             suffixIcon: widget.obscureText
                 ? IconButton(
                     icon: Icon(
-                      _obscureText ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                      _obscureText
+                          ? Icons.visibility_off_rounded
+                          : Icons.visibility_rounded,
                       size: 20,
                       color: Colors.grey,
                     ),

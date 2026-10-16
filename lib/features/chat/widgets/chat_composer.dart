@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/color_constants.dart';
 
 class ChatComposer extends StatefulWidget {
   final Function(String) onSend;
   final String hintText;
-
   const ChatComposer({
     super.key,
     required this.onSend,
     this.hintText = 'Type a message...',
   });
-
   @override
   State<ChatComposer> createState() => _ChatComposerState();
 }
@@ -20,7 +19,6 @@ class _ChatComposerState extends State<ChatComposer> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   bool _hasText = false;
-
   @override
   void initState() {
     super.initState();
@@ -51,7 +49,6 @@ class _ChatComposerState extends State<ChatComposer> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
     return Container(
       padding: EdgeInsets.only(
         left: 16,
@@ -109,8 +106,8 @@ class _ChatComposerState extends State<ChatComposer> {
               color: _hasText
                   ? ColorConstants.primary
                   : isDark
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : Colors.grey.shade200,
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.grey.shade200,
               shape: const CircleBorder(),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
@@ -123,8 +120,8 @@ class _ChatComposerState extends State<ChatComposer> {
                     color: _hasText
                         ? Colors.white
                         : isDark
-                            ? Colors.white38
-                            : Colors.black26,
+                        ? Colors.white38
+                        : Colors.black26,
                   ),
                 ),
               ),

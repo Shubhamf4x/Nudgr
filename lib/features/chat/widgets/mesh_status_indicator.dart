@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_text_styles.dart';
 import '../services/mesh_chat_service.dart';
 
 class MeshStatusIndicator extends StatelessWidget {
   final MeshStatus status;
-
   const MeshStatusIndicator({super.key, required this.status});
-
   @override
   Widget build(BuildContext context) {
     Color dotColor;
     String label;
-
     switch (status) {
       case MeshStatus.active:
         dotColor = Colors.green;
@@ -34,15 +32,12 @@ class MeshStatusIndicator extends StatelessWidget {
         label = 'Inactive';
         break;
     }
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: dotColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: dotColor.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: dotColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -80,17 +75,14 @@ class MeshStatusIndicator extends StatelessWidget {
 class MeshStatusText extends StatelessWidget {
   final MeshStatus status;
   final int peerCount;
-
   const MeshStatusText({
     super.key,
     required this.status,
     required this.peerCount,
   });
-
   @override
   Widget build(BuildContext context) {
     String text;
-
     switch (status) {
       case MeshStatus.active:
         text = 'Nearby devices: $peerCount';
@@ -108,13 +100,9 @@ class MeshStatusText extends StatelessWidget {
         text = 'Mesh inactive';
         break;
     }
-
     return Text(
       text,
-      style: AppTextStyles.googleSans(
-        fontSize: 13,
-        color: Colors.grey,
-      ),
+      style: AppTextStyles.googleSans(fontSize: 13, color: Colors.grey),
     );
   }
 }

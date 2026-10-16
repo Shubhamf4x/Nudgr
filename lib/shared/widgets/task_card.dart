@@ -1,5 +1,7 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
+
 import '../../shared/models/task_model.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/constants/color_constants.dart';
@@ -9,7 +11,6 @@ class TaskCard extends StatelessWidget {
   final VoidCallback? onToggle;
   final VoidCallback? onDelete;
   final VoidCallback? onTap;
-
   const TaskCard({
     super.key,
     required this.task,
@@ -17,15 +18,15 @@ class TaskCard extends StatelessWidget {
     this.onDelete,
     this.onTap,
   });
-
   @override
   Widget build(BuildContext context) {
     final completedSubtasks = task.subtasks.where((s) => s.isCompleted).length;
     final totalSubtasks = task.subtasks.length;
-
     return Dismissible(
       key: Key(task.id),
-      direction: onDelete != null ? DismissDirection.endToStart : DismissDirection.none,
+      direction: onDelete != null
+          ? DismissDirection.endToStart
+          : DismissDirection.none,
       onDismissed: (_) => onDelete?.call(),
       background: Container(
         alignment: Alignment.centerRight,
@@ -48,7 +49,8 @@ class TaskCard extends StatelessWidget {
             color: Theme.of(context).cardTheme.color,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade100,
+              color:
+                  Theme.of(context).dividerTheme.color ?? Colors.grey.shade100,
             ),
           ),
           child: Row(
@@ -87,11 +89,14 @@ class TaskCard extends StatelessWidget {
                       style: AppTextStyles.googleSans(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                        decoration: task.isCompleted
+                            ? TextDecoration.lineThrough
+                            : null,
                         color: task.isCompleted ? Colors.grey : null,
                       ),
                     ),
-                    if (task.description != null && task.description!.isNotEmpty) ...[
+                    if (task.description != null &&
+                        task.description!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         task.description!,
@@ -107,13 +112,18 @@ class TaskCard extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: Helpers.getPriorityColor(task.priority).withValues(alpha: 0.1),
+                            color: Helpers.getPriorityColor(task.priority)
+                                .withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            task.priority[0].toUpperCase() + task.priority.substring(1),
+                            task.priority[0].toUpperCase() +
+                                task.priority.substring(1),
                             style: AppTextStyles.googleSans(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -124,9 +134,14 @@ class TaskCard extends StatelessWidget {
                         if (task.categoryName != null) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              color: ColorConstants.primary.withValues(alpha: 0.1),
+                              color: ColorConstants.primary.withValues(
+                                alpha: 0.1,
+                              ),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -141,11 +156,18 @@ class TaskCard extends StatelessWidget {
                         ],
                         if (task.dueDate != null) ...[
                           const SizedBox(width: 8),
-                          const Icon(Icons.calendar_today_rounded, size: 12, color: Colors.grey),
+                          const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 12,
+                            color: Colors.grey,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             Helpers.formatDate(task.dueDate!),
-                            style: AppTextStyles.googleSans(fontSize: 11, color: Colors.grey),
+                            style: AppTextStyles.googleSans(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
                           ),
                         ],
                       ],
@@ -154,11 +176,18 @@ class TaskCard extends StatelessWidget {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.check_circle_outline_rounded, size: 14, color: Colors.grey),
+                          const Icon(
+                            Icons.check_circle_outline_rounded,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             '$completedSubtasks/$totalSubtasks subtasks',
-                            style: AppTextStyles.googleSans(fontSize: 12, color: Colors.grey),
+                            style: AppTextStyles.googleSans(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -191,7 +220,10 @@ class TaskCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Delete Task',
-          style: AppTextStyles.googleSans(fontSize: 18, fontWeight: FontWeight.w600),
+          style: AppTextStyles.googleSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         content: Text(
           'Are you sure you want to delete "${task.title}"?',
@@ -203,7 +235,10 @@ class TaskCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: AppTextStyles.googleSans(color: Colors.grey)),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.googleSans(color: Colors.grey),
+            ),
           ),
           TextButton(
             onPressed: () {

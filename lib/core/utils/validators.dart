@@ -1,6 +1,5 @@
 class InputValidators {
   InputValidators._();
-
   static const int maxNoteTitleLength = 200;
   static const int maxNoteContentLength = 100000;
   static const int maxTaskTitleLength = 500;
@@ -9,17 +8,14 @@ class InputValidators {
   static const int minUsernameLength = 3;
   static const int maxDisplayNameLength = 100;
   static const int maxBioLength = 500;
-
   static final _usernameAllowed = RegExp(r'^[a-z0-9._-]+$');
-
   static String clampLength(String value, int maxLength) =>
       value.length <= maxLength ? value : value.substring(0, maxLength);
-
   static String sanitizeUsername(String raw) {
-    final cleaned = raw
-        .trim()
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9._-]'), '');
+    final cleaned = raw.trim().toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9._-]'),
+      '',
+    );
     return clampLength(cleaned, maxUsernameLength);
   }
 
@@ -38,7 +34,8 @@ class InputValidators {
     if (v.length > maxUsernameLength) {
       return 'Username must be at most $maxUsernameLength characters';
     }
-    if (!isValidUsername(sanitizeUsername(v)) || sanitizeUsername(v) != v.toLowerCase()) {
+    if (!isValidUsername(sanitizeUsername(v)) ||
+        sanitizeUsername(v) != v.toLowerCase()) {
       return 'Only letters, numbers, dots, dashes and underscores are allowed';
     }
     return null;

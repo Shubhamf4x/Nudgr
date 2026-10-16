@@ -17,7 +17,6 @@ class StepsState {
   final bool hasSensor;
   final bool isLoading;
   final bool goalNotificationShown;
-
   const StepsState({
     this.todaySteps = 0,
     this.dailyGoal = 10000,
@@ -29,7 +28,6 @@ class StepsState {
     this.isLoading = true,
     this.goalNotificationShown = false,
   });
-
   StepsState copyWith({
     int? todaySteps,
     int? dailyGoal,
@@ -59,9 +57,7 @@ class StepsProvider extends ChangeNotifier {
   StepsState _state = const StepsState();
   DateTime _lastCloudSync = DateTime.fromMillisecondsSinceEpoch(0);
   int _lastSyncedSteps = -1;
-
   StepsState get state => _state;
-
   @override
   void dispose() {
     _stepsService.setPermissionResultHandler(null);
@@ -71,7 +67,6 @@ class StepsProvider extends ChangeNotifier {
 
   bool _initialized = false;
   int _stepOffset = 0;
-
   Future<void> initialize() async {
     if (_initialized) {
       await _refreshFromStorage();
@@ -80,9 +75,7 @@ class StepsProvider extends ChangeNotifier {
     _initialized = true;
     _state = _state.copyWith(isLoading: true);
     notifyListeners();
-
     _stepsService.setPermissionResultHandler(_onPermissionResult);
-
     final hasSensor = await _stepsService.isSensorAvailable();
     final hasPermission = await _stepsService.isActivityPermissionGranted();
     final dailyGoal = _stepsService.getDailyGoal();
@@ -90,7 +83,6 @@ class StepsProvider extends ChangeNotifier {
     final todayRecord = _stepsService.getTodayRecord();
     var todaySteps = todayRecord?.stepCount ?? 0;
     final goalShown = _stepsService.hasGoalNotificationBeenSentToday();
-
     final foregroundSteps = _stepsService.getForegroundSteps();
     if (foregroundSteps != null && foregroundSteps > todaySteps) {
       final fgBaseline = _stepsService.getForegroundBaseline();
@@ -100,11 +92,9 @@ class StepsProvider extends ChangeNotifier {
         lastSensorValue: fgBaseline + foregroundSteps,
       );
       todaySteps = foregroundSteps;
-      _stepOffset = 0;
       history.clear();
       history.addAll(_stepsService.getStepHistory());
     }
-
     _state = _state.copyWith(
       hasSensor: hasSensor,
       hasPermission: hasPermission,
@@ -116,7 +106,6 @@ class StepsProvider extends ChangeNotifier {
       goalNotificationShown: goalShown,
     );
     notifyListeners();
-
     if (hasSensor &&
         hasPermission &&
         !_stepsService.foregroundTrackingStopped) {
@@ -129,7 +118,6 @@ class StepsProvider extends ChangeNotifier {
     final history = _stepsService.getStepHistory();
     final todayRecord = _stepsService.getTodayRecord();
     var todaySteps = todayRecord?.stepCount ?? 0;
-
     final foregroundSteps = _stepsService.getForegroundSteps();
     if (foregroundSteps != null && foregroundSteps > todaySteps) {
       final fgBaseline = _stepsService.getForegroundBaseline();
@@ -139,11 +127,9 @@ class StepsProvider extends ChangeNotifier {
         lastSensorValue: fgBaseline + foregroundSteps,
       );
       todaySteps = foregroundSteps;
-      _stepOffset = 0;
       history.clear();
       history.addAll(_stepsService.getStepHistory());
     }
-
     _state = _state.copyWith(
       dailyGoal: dailyGoal,
       history: history,
@@ -230,9 +216,34 @@ class StepsProvider extends ChangeNotifier {
     }
   }
 
+  static ({int steps, int baseline, int offset}) resolveSensorReading({
+    required int sensorValue,
+    required int previousBaseline,
+    required int previousSensorValue,
+    required int previousStepCount,
+    int baseOffset = 0,
+  }) {
+    if (previousBaseline <= 0) {
+      return (steps: previousStepCount, baseline: sensorValue, offset: 0);
+    }
+    if (sensorValue < previousSensorValue) {
+      return (
+        steps: previousStepCount,
+        baseline: sensorValue,
+        offset: previousStepCount,
+      );
+    }
+    final delta = (sensorValue - previousBaseline).clamp(0, 1000000);
+    final steps = (baseOffset + delta).clamp(0, 1000000);
+    return (
+      steps: steps > 0 ? steps : previousStepCount,
+      baseline: previousBaseline,
+      offset: baseOffset,
+    );
+  }
+
   void _onStepUpdate(int sensorValue) {
     final todayRecord = _stepsService.getTodayRecord();
-
     if (todayRecord == null) {
       _stepOffset = 0;
       _stepsService.updateTodaySteps(
@@ -244,40 +255,30 @@ class StepsProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-
-    int baseline = todayRecord.sensorBaseline;
-    final previousSensorValue = todayRecord.lastSensorValue;
-    final bool needsRebaseline = baseline <= 0;
-    if (needsRebaseline) baseline = sensorValue;
-
-    if (!needsRebaseline && sensorValue < previousSensorValue) {
-      _stepOffset = todayRecord.stepCount;
-      baseline = sensorValue;
-    }
-
-    final steps = needsRebaseline
-        ? todayRecord.stepCount
-        : _stepOffset + (sensorValue - baseline);
-    final todaySteps = steps > 0 ? steps : todayRecord.stepCount;
-
+    final resolved = resolveSensorReading(
+      sensorValue: sensorValue,
+      previousBaseline: todayRecord.sensorBaseline,
+      previousSensorValue: todayRecord.lastSensorValue,
+      previousStepCount: todayRecord.stepCount,
+      baseOffset: _stepOffset,
+    );
+    _stepOffset = resolved.offset;
+    final baseline = resolved.baseline;
+    final todaySteps = resolved.steps;
     if (todaySteps == todayRecord.stepCount &&
-        sensorValue == previousSensorValue) {
+        sensorValue == todayRecord.lastSensorValue) {
       return;
     }
-
     _stepsService.updateTodaySteps(
       stepCount: todaySteps,
       sensorBaseline: baseline,
       lastSensorValue: sensorValue,
     );
-
     final progress = _state.dailyGoal > 0
         ? (todaySteps / _state.dailyGoal).clamp(0.0, 1.0)
         : 0.0;
-
     _state = _state.copyWith(todaySteps: todaySteps, progress: progress);
     notifyListeners();
-
     _checkGoalNotification(todaySteps);
     _syncStepToFirestore(todaySteps);
   }
@@ -316,7 +317,6 @@ class StepsProvider extends ChangeNotifier {
   }
 
   bool get notificationsEnabled => _stepsService.areNotificationsEnabled();
-
   StepDayModel? getRecordForDate(DateTime date) {
     final key =
         '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';

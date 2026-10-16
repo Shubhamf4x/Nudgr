@@ -19,32 +19,34 @@ class AuthProvider extends ChangeNotifier {
   UserModel? _user;
   String? _error;
   bool _onboardingComplete = true;
+  bool _disposed = false;
+  int _restoreGeneration = 0;
+  @override
+  void dispose() {
+    _disposed = true;
+    _restoreGeneration++;
+    super.dispose();
+  }
 
   AuthState get state => _state;
   UserModel? get user => _user;
   String? get error => _error;
   bool get isAuthenticated => _state == AuthState.authenticated;
   bool get onboardingComplete => _onboardingComplete;
-
   bool get cloudSyncEnabled => _user?.isGoogleAccount ?? false;
-
   Future<void> initialize() async {
     _state = AuthState.loading;
     notifyListeners();
-
     try {
       final prefs = await SharedPreferences.getInstance();
       _onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
     } catch (_) {}
-
     try {
       await _authService.initialize();
     } catch (e) {
       debugPrint('Auth init failed: $e');
     }
-
     _user = _authService.currentUser;
-
     if (_user != null) {
       try {
         await _activateSession();
@@ -59,7 +61,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void completeRestore() {
+    final generation = ++_restoreGeneration;
     _authService.completeRestore().then((_) {
+      if (_disposed || generation != _restoreGeneration) return;
       if (_state != AuthState.unauthenticated) return;
       final refreshed = _authService.currentUser;
       if (refreshed == null) {
@@ -78,14 +82,17 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _activateSession() async {
     final user = _user;
     if (user == null) return;
-
     final owner = _db.getDataOwnerUid();
-    if (owner != null && owner != user.id) {
+    final hasLocalData =
+        _db.getTasks().isNotEmpty ||
+        _db.getNotes().isNotEmpty ||
+        _db.getFocusSessions().isNotEmpty;
+    if ((owner != null && owner != user.id) ||
+        (owner == null && hasLocalData)) {
       await _db.clearAll();
       await StepsService.getInstance().clearStepHistory();
     }
     await _db.setDataOwnerUid(user.id);
-
     _syncService.setUser(user.id, cloudEnabled: cloudSyncEnabled);
     if (cloudSyncEnabled) {
       unawaited(_syncService.pullFromCloud());
@@ -96,7 +103,6 @@ class AuthProvider extends ChangeNotifier {
     _state = AuthState.loading;
     _error = null;
     notifyListeners();
-
     try {
       _user = await _authService.login(email: email, password: password);
       _state = AuthState.authenticated;
@@ -120,7 +126,6 @@ class AuthProvider extends ChangeNotifier {
     _state = AuthState.loading;
     _error = null;
     notifyListeners();
-
     try {
       _user = await _authService.register(
         email: email,
@@ -144,7 +149,6 @@ class AuthProvider extends ChangeNotifier {
     _state = AuthState.loading;
     _error = null;
     notifyListeners();
-
     try {
       _user = await _authService.signInWithGoogle();
       _state = AuthState.authenticated;
@@ -181,7 +185,9 @@ class AuthProvider extends ChangeNotifier {
         bio: bio,
         photoUrl: photoUrl,
       );
-      _syncService.saveUserToFirestore(_user!.toJson());
+      if (cloudSyncEnabled) {
+        _syncService.saveUserToFirestore(_user!.toJson());
+      }
       notifyListeners();
       return true;
     } catch (e) {
@@ -205,6 +211,9 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> deleteAccount() async {
     try {
       await _authService.deleteAccount();
+      _syncService.clearUserData();
+      await _db.clearAll();
+      await StepsService.getInstance().clearStepHistory();
       _user = null;
       _state = AuthState.unauthenticated;
       notifyListeners();

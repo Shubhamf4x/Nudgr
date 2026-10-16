@@ -83,7 +83,7 @@ service cloud.firestore {
           && request.resource.data.title.size() > 0
           && request.resource.data.title.size() <= 500
           && nullableString(request.resource.data.get('description', null), 5000)
-          && request.resource.data.get('priority', 'medium') in ['low', 'medium', 'high']
+          && request.resource.data.get('priority', 'medium') in ['low', 'medium', 'high', 'urgent']
           && request.resource.data.get('isCompleted', false) is bool
           && request.resource.data.get('isRecurring', false) is bool
           && request.resource.data.get('isSynced', true) is bool
@@ -106,7 +106,7 @@ service cloud.firestore {
                   && request.resource.data.title.size() <= 500))
           && nullableString(request.resource.data.get('description', null), 5000)
           && (!('priority' in request.resource.data)
-              || request.resource.data.priority in ['low', 'medium', 'high']);
+              || request.resource.data.priority in ['low', 'medium', 'high', 'urgent']);
 
         allow delete: if isSyncOwner(uid);
       }

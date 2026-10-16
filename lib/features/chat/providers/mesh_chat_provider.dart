@@ -18,9 +18,7 @@ class MeshChatState {
   final String selectedChannel;
   final String? activePrivateChatPeerId;
   final bool permissionsGranted;
-
   static const Object _unset = Object();
-
   const MeshChatState({
     this.peers = const [],
     this.channels = const [],
@@ -33,7 +31,6 @@ class MeshChatState {
     this.activePrivateChatPeerId,
     this.permissionsGranted = false,
   });
-
   MeshChatState copyWith({
     List<ChatPeer>? peers,
     List<ChatChannel>? channels,
@@ -42,6 +39,7 @@ class MeshChatState {
     MeshStatus? meshStatus,
     bool? isInitializing,
     String? error,
+    bool clearError = false,
     String? selectedChannel,
     Object? activePrivateChatPeerId = _unset,
     bool? permissionsGranted,
@@ -53,7 +51,7 @@ class MeshChatState {
       privateMessages: privateMessages ?? this.privateMessages,
       meshStatus: meshStatus ?? this.meshStatus,
       isInitializing: isInitializing ?? this.isInitializing,
-      error: error,
+      error: clearError ? null : (error ?? this.error),
       selectedChannel: selectedChannel ?? this.selectedChannel,
       activePrivateChatPeerId: identical(activePrivateChatPeerId, _unset)
           ? this.activePrivateChatPeerId
@@ -70,10 +68,8 @@ class MeshChatProvider extends ChangeNotifier {
   StreamSubscription? _peersSub;
   StreamSubscription? _statusSub;
   bool _initialized = false;
-
   MeshChatState get state => _state;
   MeshChatService get service => _service;
-
   @override
   void dispose() {
     _messageSub?.cancel();
@@ -88,6 +84,8 @@ class MeshChatProvider extends ChangeNotifier {
       _state = _state.copyWith(
         peers: _service.nearbyPeers,
         channels: _service.channels,
+        isInitializing: false,
+        clearError: true,
       );
       notifyListeners();
       if (_service.meshStatus != MeshStatus.active &&
@@ -97,42 +95,43 @@ class MeshChatProvider extends ChangeNotifier {
       return;
     }
     _initialized = true;
-
-    _state = _state.copyWith(isInitializing: true);
+    _state = _state.copyWith(isInitializing: true, clearError: true);
     notifyListeners();
-
-    await _service.initialize();
-
-    final granted = await _service.meshService.requestPermissions();
-
-    await _messageSub?.cancel();
-    await _peersSub?.cancel();
-    await _statusSub?.cancel();
-
-    _messageSub = _service.messageStream.listen((message) {
-      _refreshState();
-    });
-
-    _peersSub = _service.peersStream.listen((peers) {
-      _state = _state.copyWith(peers: peers);
+    try {
+      await _service.initialize();
+      final granted = await _service.meshService.requestPermissions();
+      await _messageSub?.cancel();
+      await _peersSub?.cancel();
+      await _statusSub?.cancel();
+      _messageSub = _service.messageStream.listen((message) {
+        _refreshState();
+      });
+      _peersSub = _service.peersStream.listen((peers) {
+        _state = _state.copyWith(peers: peers);
+        notifyListeners();
+      });
+      _statusSub = _service.statusStream.listen((status) {
+        _state = _state.copyWith(meshStatus: status);
+        notifyListeners();
+      });
+      _state = _state.copyWith(
+        isInitializing: false,
+        peers: _service.nearbyPeers,
+        channels: _service.channels,
+        permissionsGranted: granted,
+        clearError: true,
+      );
       notifyListeners();
-    });
-
-    _statusSub = _service.statusStream.listen((status) {
-      _state = _state.copyWith(meshStatus: status);
+      if (granted) {
+        await startMesh();
+      }
+    } catch (e) {
+      debugPrint('[MeshChat] Initialization failed: $e');
+      _state = _state.copyWith(
+        isInitializing: false,
+        error: 'Chat could not start. Please try again.',
+      );
       notifyListeners();
-    });
-
-    _state = _state.copyWith(
-      isInitializing: false,
-      peers: _service.nearbyPeers,
-      channels: _service.channels,
-      permissionsGranted: granted,
-    );
-    notifyListeners();
-
-    if (granted) {
-      await startMesh();
     }
   }
 
@@ -147,12 +146,27 @@ class MeshChatProvider extends ChangeNotifier {
   }
 
   Future<void> requestPermissions() async {
+    if (!_service.meshService.isBluetoothOn) {
+      final turnedOn = await _service.meshService.requestBluetoothOn();
+      if (!turnedOn) {
+        _state = _state.copyWith(meshStatus: MeshStatus.offline);
+        notifyListeners();
+        return;
+      }
+    }
     final granted = await _service.meshService.requestPermissions();
     _state = _state.copyWith(permissionsGranted: granted);
     notifyListeners();
     if (granted) {
       await startMesh();
     }
+  }
+
+  Future<void> retry() async {
+    _initialized = false;
+    _state = _state.copyWith(isInitializing: true, clearError: true);
+    notifyListeners();
+    await initialize();
   }
 
   void openPrivateChat(String peerId) {

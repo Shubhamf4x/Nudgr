@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../shared/models/note_model.dart';
 import '../../shared/models/category_model.dart';
 import '../../core/services/database_service.dart';
@@ -10,7 +11,6 @@ class NotesState {
   final String? selectedCategoryId;
   final String searchQuery;
   final bool isLoading;
-
   const NotesState({
     this.notes = const [],
     this.categories = const [],
@@ -18,25 +18,28 @@ class NotesState {
     this.searchQuery = '',
     this.isLoading = true,
   });
-
   NotesState copyWith({
     List<NoteModel>? notes,
     List<CategoryModel>? categories,
     String? selectedCategoryId,
     String? searchQuery,
     bool? isLoading,
+    bool clearCategory = false,
   }) => NotesState(
     notes: notes ?? this.notes,
     categories: categories ?? this.categories,
-    selectedCategoryId: selectedCategoryId,
+    selectedCategoryId: clearCategory
+        ? null
+        : (selectedCategoryId ?? this.selectedCategoryId),
     searchQuery: searchQuery ?? this.searchQuery,
     isLoading: isLoading ?? this.isLoading,
   );
-
   List<NoteModel> get filteredNotes {
     var filtered = List<NoteModel>.from(notes);
     if (selectedCategoryId != null) {
-      filtered = filtered.where((n) => n.categoryId == selectedCategoryId).toList();
+      filtered = filtered
+          .where((n) => n.categoryId == selectedCategoryId)
+          .toList();
     }
     filtered = filtered.where((n) => !n.isArchived).toList();
     if (searchQuery.isNotEmpty) {
@@ -59,11 +62,8 @@ class NotesProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService.getInstance();
   final SyncService _sync = SyncService.getInstance();
   NotesState _state = const NotesState();
-
   NotesState get state => _state;
-
   bool _loadedOnce = false;
-
   Future<void> initialize() async {
     if (_loadedOnce) return;
     await loadData();
@@ -73,10 +73,11 @@ class NotesProvider extends ChangeNotifier {
     _loadedOnce = true;
     _state = _state.copyWith(isLoading: true);
     notifyListeners();
-
     final notes = _db.getNotes();
-    final categories = _db.getCategories().where((c) => c.type == 'note').toList();
-
+    final categories = _db
+        .getCategories()
+        .where((c) => c.type == 'note')
+        .toList();
     _state = _state.copyWith(
       notes: notes,
       categories: categories,
@@ -126,7 +127,10 @@ class NotesProvider extends ChangeNotifier {
   }
 
   void selectCategory(String? categoryId) {
-    _state = _state.copyWith(selectedCategoryId: categoryId);
+    _state = _state.copyWith(
+      selectedCategoryId: categoryId,
+      clearCategory: categoryId == null,
+    );
     notifyListeners();
   }
 }

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,22 +17,22 @@ class MeshChatService {
   final Map<String, List<ChatMessage>> _channelMessages = {};
   final Map<String, List<ChatMessage>> _privateMessages = {};
   final List<ChatChannel> _channels = [];
-  final Map<String, Uint8List> _sharedSecrets = {};
-
+  final Set<String> _seenMessageIds = {};
+  final List<String> _seenMessageIdOrder = [];
+  static const int _maxSeenMessageIds = 1000;
+  static const int _maxMessagesPerConversation = 200;
   final StreamController<ChatMessage> _messageController =
       StreamController<ChatMessage>.broadcast();
   final StreamController<List<ChatPeer>> _peersController =
       StreamController<List<ChatPeer>>.broadcast();
   final StreamController<MeshStatus> _statusController =
       StreamController<MeshStatus>.broadcast();
-
   MeshStatus _meshStatus = MeshStatus.inactive;
   Timer? _peersUpdateTimer;
   StreamSubscription? _peerSub;
   StreamSubscription? _dataSub;
   StreamSubscription? _scanStateSub;
   StreamSubscription? _bluetoothStateSub;
-
   ChatIdentity? get identity => _identity;
   BleMeshService get meshService => _meshService;
   Stream<ChatMessage> get messageStream => _messageController.stream;
@@ -45,9 +44,7 @@ class MeshChatService {
       Map.unmodifiable(_channelMessages);
   Map<String, List<ChatMessage>> get privateMessages =>
       Map.unmodifiable(_privateMessages);
-
   List<ChatPeer> get nearbyPeers => _meshService.peers.values.toList();
-
   Future<void> initialize() async {
     await _loadIdentity();
     if (_identity != null) {
@@ -62,24 +59,42 @@ class MeshChatService {
     final prefs = await SharedPreferences.getInstance();
     final identityJson = prefs.getString('nudgr_chat_identity');
     if (identityJson != null) {
-      _identity = ChatIdentity.fromJson(jsonDecode(identityJson));
-    } else {
-      _identity = ChatIdentity.generate();
-      await prefs.setString(
-        'nudgr_chat_identity',
-        jsonEncode(_identity!.toJson()),
-      );
+      try {
+        final decoded = jsonDecode(identityJson);
+        if (decoded is Map) {
+          _identity = ChatIdentity.fromJson(Map<String, dynamic>.from(decoded));
+        }
+      } catch (e) {
+        debugPrint('[MeshChat] Unreadable stored identity, regenerating: $e');
+      }
     }
+    _identity ??= ChatIdentity.generate();
+    await prefs.setString(
+      'nudgr_chat_identity',
+      jsonEncode(_identity!.toJson()),
+    );
   }
 
   Future<void> _loadChannels() async {
     final prefs = await SharedPreferences.getInstance();
     final channelsJson = prefs.getString('nudgr_chat_channels');
     if (channelsJson != null) {
-      final list = jsonDecode(channelsJson) as List;
-      _channels.addAll(list.map((c) => ChatChannel.fromJson(c)));
+      try {
+        final decoded = jsonDecode(channelsJson);
+        if (decoded is List) {
+          for (final entry in decoded) {
+            if (entry is! Map) continue;
+            try {
+              _channels.add(
+                ChatChannel.fromJson(Map<String, dynamic>.from(entry)),
+              );
+            } catch (_) {}
+          }
+        }
+      } catch (e) {
+        debugPrint('[MeshChat] Unreadable stored channels: $e');
+      }
     }
-
     if (_channels.isEmpty) {
       _channels.add(
         ChatChannel(
@@ -120,25 +135,35 @@ class MeshChatService {
 
   Future<void> _loadMessages() async {
     final prefs = await SharedPreferences.getInstance();
-    final channelMsgsJson = prefs.getString('nudgr_chat_channel_messages');
-    if (channelMsgsJson != null) {
-      final map = jsonDecode(channelMsgsJson) as Map<String, dynamic>;
-      for (final entry in map.entries) {
-        final msgs = (entry.value as List)
-            .map((m) => ChatMessage.fromJson(m))
-            .toList();
-        _channelMessages[entry.key] = msgs;
+    _loadMessageMap(
+      prefs.getString('nudgr_chat_channel_messages'),
+      _channelMessages,
+    );
+    _loadMessageMap(
+      prefs.getString('nudgr_chat_private_messages'),
+      _privateMessages,
+    );
+  }
+
+  void _loadMessageMap(String? raw, Map<String, List<ChatMessage>> target) {
+    if (raw == null || raw.isEmpty) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      for (final entry in decoded.entries) {
+        if (entry.key is! String || entry.value is! List) continue;
+        final messages = <ChatMessage>[];
+        for (final item in entry.value as List) {
+          if (item is! Map) continue;
+          try {
+            messages.add(ChatMessage.fromJson(Map<String, dynamic>.from(item)));
+          } catch (_) {}
+        }
+        _trimHistory(messages);
+        target[entry.key as String] = messages;
       }
-    }
-    final privateMsgsJson = prefs.getString('nudgr_chat_private_messages');
-    if (privateMsgsJson != null) {
-      final map = jsonDecode(privateMsgsJson) as Map<String, dynamic>;
-      for (final entry in map.entries) {
-        final msgs = (entry.value as List)
-            .map((m) => ChatMessage.fromJson(m))
-            .toList();
-        _privateMessages[entry.key] = msgs;
-      }
+    } catch (e) {
+      debugPrint('[MeshChat] Unreadable stored messages, starting empty: $e');
     }
   }
 
@@ -152,7 +177,6 @@ class MeshChatService {
       'nudgr_chat_channel_messages',
       jsonEncode(channelMap),
     );
-
     final privateMap = <String, dynamic>{};
     for (final entry in _privateMessages.entries) {
       privateMap[entry.key] = entry.value.map((m) => m.toJson()).toList();
@@ -168,11 +192,9 @@ class MeshChatService {
     _peerSub = _meshService.peerStream.listen((peer) {
       _peersController.add(_meshService.peers.values.toList());
     });
-
     _dataSub = _meshService.dataStream.listen((data) {
       _handleIncomingData(data);
     });
-
     _scanStateSub = _meshService.scanStateStream.listen((scanning) {
       if (!_meshService.isBluetoothOn) {
         _meshStatus = MeshStatus.offline;
@@ -181,7 +203,6 @@ class MeshChatService {
       }
       _statusController.add(_meshStatus);
     });
-
     _bluetoothStateSub = _meshService.bluetoothStateStream.listen((isOn) {
       if (!isOn) {
         _meshStatus = MeshStatus.offline;
@@ -191,7 +212,6 @@ class MeshChatService {
         _statusController.add(_meshStatus);
       }
     });
-
     _peersUpdateTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _peersController.add(_meshService.peers.values.toList());
       _updateMeshStatus();
@@ -227,79 +247,94 @@ class MeshChatService {
 
   void _handleIncomingData(Uint8List data) {
     final parsed = MeshProtocol.parsePacket(data);
-    if (!parsed['valid']) return;
-
+    if (parsed == null) return;
     final type = parsed['type'] as int;
     final senderId = parsed['senderId'] as String;
-    if (senderId == _identity?.peerId) return;
-
+    final messageId = parsed['messageId'] as String;
+    final identity = _identity;
+    if (identity == null) return;
+    final ttl = parsed['ttl'] as int;
+    final hopCount = parsed['hopCount'] as int;
+    if (senderId == MeshProtocol.normalizePeerId(identity.peerId)) return;
+    if (!_admitMessage(messageId, hopCount, ttl)) return;
     final recipientId = parsed['recipientId'] as String?;
     final payload = parsed['payload'] as Uint8List;
-
     switch (type) {
       case MeshProtocol.PACKET_TYPE_DISCOVERY:
         _handleDiscovery(senderId, payload);
         break;
-      case MeshProtocol.PACKET_TYPE_MESSAGE:
       case MeshProtocol.PACKET_TYPE_CHANNEL:
-        _handleMessage(senderId, recipientId, payload);
+        _handleChannelMessage(senderId, messageId, payload);
         break;
-      case MeshProtocol.PACKET_TYPE_PRIVATE:
-        _handlePrivateMessage(senderId, payload);
-        break;
+      case MeshProtocol.PACKET_TYPE_MESSAGE:
       case MeshProtocol.PACKET_TYPE_RELAY:
-        _meshService.relayPacket(data);
+      case MeshProtocol.PACKET_TYPE_PRIVATE:
+        if (type == MeshProtocol.PACKET_TYPE_RELAY) {
+          unawaited(_meshService.relayPacket(data));
+        }
+        if (recipientId == null) {
+          _handleChannelMessage(senderId, messageId, payload);
+        } else {
+          _handlePrivateMessage(senderId, messageId, recipientId, payload);
+        }
         break;
     }
+  }
+
+  bool _admitMessage(String messageId, int hopCount, int ttl) {
+    if (_seenMessageIds.contains(messageId)) return false;
+    if (ttl <= 0 || hopCount >= ttl) return false;
+    _seenMessageIds.add(messageId);
+    _seenMessageIdOrder.add(messageId);
+    while (_seenMessageIdOrder.length > _maxSeenMessageIds) {
+      _seenMessageIds.remove(_seenMessageIdOrder.removeAt(0));
+    }
+    return true;
   }
 
   void _handleDiscovery(String senderId, Uint8List payload) {
     final info = MeshProtocol.parseDiscoveryPayload(payload);
-    final peerId = info['peerId'];
-    if (peerId != null && peerId.isNotEmpty) {
-      _meshService.processIncomingData(
-        MeshProtocol.createPacket(
-          type: MeshProtocol.PACKET_TYPE_DISCOVERY_RESPONSE,
-          senderId: _identity!.peerId,
-          payload: MeshProtocol.createDiscoveryPayload(
-            _identity!.peerId,
-            _identity!.nickname,
-          ),
-        ),
-        senderId,
-      );
-    }
-  }
-
-  void _handleMessage(String senderId, String? recipientId, Uint8List payload) {
-    final content = MeshProtocol.parseMessagePayload(payload);
-    if (content.isEmpty) return;
-
-    final channelName = recipientId ?? 'nearby';
-    final message = ChatMessage(
-      id: MeshProtocol.generateMessageId(),
-      senderPeerId: senderId,
-      senderNickname: _meshService.peers[senderId]?.nickname,
-      content: content,
-      timestamp: DateTime.now(),
-      type: ChatMessageType.publicChannel,
-      channelName: channelName,
+    if (info == null || info.peerId.isEmpty) return;
+    _meshService.registerPeer(
+      MeshProtocol.normalizePeerId(info.peerId),
+      nickname: info.nickname,
     );
-
-    if (!_channelMessages.containsKey(channelName)) {
-      _channelMessages[channelName] = [];
-    }
-    _channelMessages[channelName]!.add(message);
-    _messageController.add(message);
-    _saveMessages();
   }
 
-  void _handlePrivateMessage(String senderId, Uint8List payload) {
+  void _handleChannelMessage(
+    String senderId,
+    String messageId,
+    Uint8List payload,
+  ) {
+    final decoded = MeshProtocol.parseChannelMessagePayload(payload);
+    if (decoded == null) return;
+    final channelName = decoded.channelName;
+    if (!_isKnownChannel(channelName)) return;
+    _appendChannelMessage(
+      channelName,
+      ChatMessage(
+        id: messageId,
+        senderPeerId: senderId,
+        senderNickname: _meshService.peers[senderId]?.nickname,
+        content: decoded.content,
+        timestamp: DateTime.now(),
+        type: ChatMessageType.publicChannel,
+        channelName: channelName,
+      ),
+    );
+  }
+
+  void _handlePrivateMessage(
+    String senderId,
+    String messageId,
+    String recipientId,
+    Uint8List payload,
+  ) {
+    if (recipientId != MeshProtocol.normalizePeerId(_identity!.peerId)) return;
     final content = MeshProtocol.parseMessagePayload(payload);
     if (content.isEmpty) return;
-
     final message = ChatMessage(
-      id: MeshProtocol.generateMessageId(),
+      id: messageId,
       senderPeerId: senderId,
       senderNickname: _meshService.peers[senderId]?.nickname,
       recipientPeerId: _identity!.peerId,
@@ -307,13 +342,26 @@ class MeshChatService {
       timestamp: DateTime.now(),
       type: ChatMessageType.privateMessage,
     );
-
-    if (!_privateMessages.containsKey(senderId)) {
-      _privateMessages[senderId] = [];
-    }
-    _privateMessages[senderId]!.add(message);
+    final messages = _privateMessages.putIfAbsent(senderId, () => []);
+    messages.add(message);
+    _trimHistory(messages);
     _messageController.add(message);
-    _saveMessages();
+    unawaited(_saveMessages());
+  }
+
+  bool _isKnownChannel(String channelName) =>
+      _channels.any((c) => c.name == channelName && c.isJoined);
+  void _appendChannelMessage(String channelName, ChatMessage message) {
+    final messages = _channelMessages.putIfAbsent(channelName, () => []);
+    messages.add(message);
+    _trimHistory(messages);
+    _messageController.add(message);
+    unawaited(_saveMessages());
+  }
+
+  void _trimHistory(List<ChatMessage> messages) {
+    if (messages.length <= _maxMessagesPerConversation) return;
+    messages.removeRange(0, messages.length - _maxMessagesPerConversation);
   }
 
   Future<void> startMesh() async {
@@ -322,7 +370,6 @@ class MeshChatService {
       _statusController.add(_meshStatus);
       return;
     }
-
     final granted = await _meshService.requestPermissions();
     if (!granted) {
       _meshStatus = MeshStatus.permissionDenied;
@@ -346,71 +393,66 @@ class MeshChatService {
     String content, {
     String channelName = 'nearby',
   }) async {
-    final payload = MeshProtocol.createMessagePayload(content);
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) return;
+    final payload = MeshProtocol.createChannelMessagePayload(
+      channelName,
+      trimmed,
+    );
     final message = ChatMessage(
       id: MeshProtocol.generateMessageId(),
       senderPeerId: _identity!.peerId,
       senderNickname: _identity!.nickname,
-      content: content,
+      content: trimmed,
       timestamp: DateTime.now(),
       type: ChatMessageType.publicChannel,
       channelName: channelName,
       deliveryState: MessageDeliveryState.sending,
     );
-
-    if (!_channelMessages.containsKey(channelName)) {
-      _channelMessages[channelName] = [];
-    }
-    _channelMessages[channelName]!.add(message);
-    _messageController.add(message);
-
+    _appendChannelMessage(channelName, message);
     await _meshService.sendData(payload);
     _updateMessageDeliveryState(message.id, MessageDeliveryState.sent);
-    _saveMessages();
+    await _saveMessages();
   }
 
   Future<void> sendPrivateMessage(
     String content,
     String recipientPeerId,
   ) async {
-    final payload = MeshProtocol.createMessagePayload(content);
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) return;
+    final payload = MeshProtocol.createMessagePayload(trimmed);
     final message = ChatMessage(
       id: MeshProtocol.generateMessageId(),
       senderPeerId: _identity!.peerId,
       senderNickname: _identity!.nickname,
       recipientPeerId: recipientPeerId,
-      content: content,
+      content: trimmed,
       timestamp: DateTime.now(),
       type: ChatMessageType.privateMessage,
       deliveryState: MessageDeliveryState.sending,
     );
-
-    if (!_privateMessages.containsKey(recipientPeerId)) {
-      _privateMessages[recipientPeerId] = [];
-    }
-    _privateMessages[recipientPeerId]!.add(message);
+    final messages = _privateMessages.putIfAbsent(recipientPeerId, () => []);
+    messages.add(message);
+    _trimHistory(messages);
     _messageController.add(message);
-
     await _meshService.sendData(payload, targetPeerId: recipientPeerId);
     _updateMessageDeliveryState(message.id, MessageDeliveryState.sent);
-    _saveMessages();
+    await _saveMessages();
   }
 
   void _updateMessageDeliveryState(
     String messageId,
     MessageDeliveryState state,
   ) {
-    for (final messages in _channelMessages.values) {
+    for (final messages in [
+      ..._channelMessages.values,
+      ..._privateMessages.values,
+    ]) {
       for (var i = 0; i < messages.length; i++) {
         if (messages[i].id == messageId) {
           messages[i] = messages[i].copyWith(deliveryState: state);
-        }
-      }
-    }
-    for (final messages in _privateMessages.values) {
-      for (var i = 0; i < messages.length; i++) {
-        if (messages[i].id == messageId) {
-          messages[i] = messages[i].copyWith(deliveryState: state);
+          return;
         }
       }
     }
@@ -454,7 +496,8 @@ class MeshChatService {
     _channelMessages.clear();
     _privateMessages.clear();
     _channels.clear();
-    _sharedSecrets.clear();
+    _seenMessageIds.clear();
+    _seenMessageIdOrder.clear();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('nudgr_chat_identity');
     await prefs.remove('nudgr_chat_channels');
@@ -465,6 +508,11 @@ class MeshChatService {
       'nudgr_chat_identity',
       jsonEncode(_identity!.toJson()),
     );
+    _meshService.forgetPeers();
+    await _meshService.initialize(_identity!);
+    await _loadChannels();
+    _meshStatus = MeshStatus.inactive;
+    _statusController.add(_meshStatus);
   }
 
   void dispose() {

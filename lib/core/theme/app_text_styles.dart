@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 class AppTextStyles {
   AppTextStyles._();
-
   static TextStyle googleSans({
     double? fontSize,
     FontWeight? fontWeight,
@@ -23,8 +22,6 @@ class AppTextStyles {
   }
 
   static TextStyle googleSansTextTheme() {
-    return const TextStyle(
-      fontFamily: 'GoogleSans',
-    );
+    return const TextStyle(fontFamily: 'GoogleSans');
   }
 }

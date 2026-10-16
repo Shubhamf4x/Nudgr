@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/color_constants.dart';
 import '../models/chat_message.dart';
@@ -8,19 +9,16 @@ class MessageBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isMine;
   final String? peerNickname;
-
   const MessageBubble({
     super.key,
     required this.message,
     required this.isMine,
     this.peerNickname,
   });
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
@@ -32,8 +30,9 @@ class MessageBubble extends StatelessWidget {
             right: isMine ? 0 : 60,
           ),
           child: Column(
-            crossAxisAlignment:
-                isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            crossAxisAlignment: isMine
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
             children: [
               if (!isMine) ...[
                 Padding(
@@ -49,18 +48,25 @@ class MessageBubble extends StatelessWidget {
                 ),
               ],
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: isMine
                       ? ColorConstants.primary
                       : isDark
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : Colors.grey.shade100,
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : Colors.grey.shade100,
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(16),
                     topRight: const Radius.circular(16),
-                    bottomLeft: isMine ? const Radius.circular(16) : const Radius.circular(4),
-                    bottomRight: isMine ? const Radius.circular(4) : const Radius.circular(16),
+                    bottomLeft: isMine
+                        ? const Radius.circular(16)
+                        : const Radius.circular(4),
+                    bottomRight: isMine
+                        ? const Radius.circular(4)
+                        : const Radius.circular(16),
                   ),
                 ),
                 child: Column(
@@ -107,7 +113,6 @@ class MessageBubble extends StatelessWidget {
   Widget _buildDeliveryIcon() {
     IconData icon;
     Color color;
-
     switch (message.deliveryState) {
       case MessageDeliveryState.pending:
       case MessageDeliveryState.sending:
@@ -131,7 +136,6 @@ class MessageBubble extends StatelessWidget {
         color = Colors.red.shade300;
         break;
     }
-
     return Icon(icon, size: 14, color: color);
   }
 

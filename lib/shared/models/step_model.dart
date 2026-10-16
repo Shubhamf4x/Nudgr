@@ -6,7 +6,6 @@ class StepDayModel extends Equatable {
   final int sensorBaseline;
   final int lastSensorValue;
   final DateTime lastUpdated;
-
   const StepDayModel({
     required this.date,
     required this.stepCount,
@@ -14,7 +13,6 @@ class StepDayModel extends Equatable {
     this.lastSensorValue = 0,
     required this.lastUpdated,
   });
-
   factory StepDayModel.fromJson(Map<String, dynamic> json) => StepDayModel(
     date: json['date'] as String,
     stepCount: json['stepCount'] as int? ?? 0,
@@ -22,7 +20,6 @@ class StepDayModel extends Equatable {
     lastSensorValue: json['lastSensorValue'] as int? ?? 0,
     lastUpdated: DateTime.parse(json['lastUpdated'] as String),
   );
-
   Map<String, dynamic> toJson() => {
     'date': date,
     'stepCount': stepCount,
@@ -30,7 +27,6 @@ class StepDayModel extends Equatable {
     'lastSensorValue': lastSensorValue,
     'lastUpdated': lastUpdated.toIso8601String(),
   };
-
   StepDayModel copyWith({
     String? date,
     int? stepCount,
@@ -44,7 +40,6 @@ class StepDayModel extends Equatable {
     lastSensorValue: lastSensorValue ?? this.lastSensorValue,
     lastUpdated: lastUpdated ?? this.lastUpdated,
   );
-
   @override
   List<Object?> get props => [date, stepCount, sensorBaseline, lastSensorValue];
 }

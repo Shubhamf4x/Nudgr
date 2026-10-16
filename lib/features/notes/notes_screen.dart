@@ -1,6 +1,8 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../shared/models/note_model.dart';
 import '../../shared/widgets/note_card.dart';
 import '../../shared/widgets/category_chip.dart';
@@ -10,7 +12,6 @@ import 'note_editor_screen.dart';
 
 class NotesScreen extends StatefulWidget {
   const NotesScreen({super.key});
-
   @override
   State<NotesScreen> createState() => _NotesScreenState();
 }
@@ -19,7 +20,6 @@ class _NotesScreenState extends State<NotesScreen> {
   final _searchController = TextEditingController();
   final GlobalKey _gridKey = GlobalKey();
   final ValueNotifier<bool> _hasSearchText = ValueNotifier(false);
-
   @override
   void initState() {
     super.initState();
@@ -37,7 +37,10 @@ class _NotesScreenState extends State<NotesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<NotesProvider, ({bool isLoading, List<NoteModel> filteredNotes})>(
+    return Selector<
+      NotesProvider,
+      ({bool isLoading, List<NoteModel> filteredNotes})
+    >(
       selector: (_, provider) => (
         isLoading: provider.state.isLoading,
         filteredNotes: provider.state.filteredNotes,
@@ -55,7 +58,10 @@ class _NotesScreenState extends State<NotesScreen> {
                     children: [
                       Text(
                         'Notes',
-                        style: AppTextStyles.googleSans(fontSize: 28, fontWeight: FontWeight.w700),
+                        style: AppTextStyles.googleSans(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildSearchBar(),
@@ -64,25 +70,25 @@ class _NotesScreenState extends State<NotesScreen> {
                     ],
                   ),
                 ),
-                Expanded(
-                  child: _buildNotesArea(data),
-                ),
+                Expanded(child: _buildNotesArea(data)),
               ],
             ),
           ),
           floatingActionButton:
               (!data.isLoading && data.filteredNotes.isNotEmpty)
-                  ? FloatingActionButton(
-                      onPressed: () => _navigateToEditor(context),
-                      child: const Icon(Icons.add_rounded),
-                    )
-                  : null,
+              ? FloatingActionButton(
+                  onPressed: () => _navigateToEditor(context),
+                  child: const Icon(Icons.add_rounded),
+                )
+              : null,
         );
       },
     );
   }
 
-  Widget _buildNotesArea(({bool isLoading, List<NoteModel> filteredNotes}) data) {
+  Widget _buildNotesArea(
+    ({bool isLoading, List<NoteModel> filteredNotes}) data,
+  ) {
     if (data.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -133,7 +139,10 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Widget _buildCategoryChips() {
-    return Selector<NotesProvider, ({List<dynamic> categories, String? selectedCategoryId})>(
+    return Selector<
+      NotesProvider,
+      ({List<dynamic> categories, String? selectedCategoryId})
+    >(
       selector: (_, provider) => (
         categories: provider.state.categories,
         selectedCategoryId: provider.state.selectedCategoryId,
@@ -182,9 +191,7 @@ class _NotesScreenState extends State<NotesScreen> {
 class _MasonryGrid extends StatelessWidget {
   final List<NoteModel> notes;
   final ValueChanged<NoteModel> onTap;
-
   const _MasonryGrid({super.key, required this.notes, required this.onTap});
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -193,23 +200,29 @@ class _MasonryGrid extends StatelessWidget {
         const spacing = 10.0;
         const horizontalPadding = 20.0;
         final availableWidth = constraints.maxWidth;
-        final gridWidth = (availableWidth - horizontalPadding * 2).clamp(0.0, availableWidth);
-        final columnWidth = (gridWidth - spacing * (crossAxisCount - 1)) / crossAxisCount;
-
+        final gridWidth = (availableWidth - horizontalPadding * 2).clamp(
+          0.0,
+          availableWidth,
+        );
+        final columnWidth =
+            (gridWidth - spacing * (crossAxisCount - 1)) / crossAxisCount;
         final columns = List.generate(crossAxisCount, (_) => <_MasonryItem>[]);
         final columnHeights = List.filled(crossAxisCount, 0.0);
-
         for (final note in notes) {
           final cardHeight = _estimateCardHeight(note, columnWidth);
-          final shortestCol = columnHeights.indexOf(columnHeights.reduce((a, b) => a < b ? a : b));
+          final shortestCol = columnHeights.indexOf(
+            columnHeights.reduce((a, b) => a < b ? a : b),
+          );
           columns[shortestCol].add(_MasonryItem(note, cardHeight));
           columnHeights[shortestCol] += cardHeight + spacing;
         }
-
         final maxColHeight = columnHeights.reduce((a, b) => a > b ? a : b);
-
         return SingleChildScrollView(
-          padding: const EdgeInsets.only(left: horizontalPadding, right: horizontalPadding, bottom: 96),
+          padding: const EdgeInsets.only(
+            left: horizontalPadding,
+            right: horizontalPadding,
+            bottom: 96,
+          ),
           child: SizedBox(
             width: gridWidth,
             height: maxColHeight,
@@ -234,7 +247,12 @@ class _MasonryGrid extends StatelessWidget {
     );
   }
 
-  double _getTopPosition(List<List<_MasonryItem>> columns, int col, int row, double spacing) {
+  double _getTopPosition(
+    List<List<_MasonryItem>> columns,
+    int col,
+    int row,
+    double spacing,
+  ) {
     double top = 0;
     for (int r = 0; r < row; r++) {
       top += columns[col][r].height + spacing;
@@ -244,29 +262,30 @@ class _MasonryGrid extends StatelessWidget {
 
   double _estimateCardHeight(NoteModel note, double width) {
     final titleLen = note.title.length;
-
     final hasContent = note.content.trim().isNotEmpty;
     int previewLines = 0;
     if (hasContent) {
       final clean = note.content.replaceAll(RegExp(r'\[/?[a-z]+\]'), '');
-      previewLines =
-          clean.split('\n').where((l) => l.trim().isNotEmpty).length.clamp(1, 7);
+      previewLines = clean
+          .split('\n')
+          .where((l) => l.trim().isNotEmpty)
+          .length
+          .clamp(1, 7);
     }
-    final maxLines = previewLines < 2 ? 3 : previewLines < 5 ? 5 : 7;
-
+    final maxLines = previewLines < 2
+        ? 3
+        : previewLines < 5
+        ? 5
+        : 7;
     double baseHeight = 14 + 14 + 8;
-
     final titleLines = (titleLen / (width / 7.2)).ceil().clamp(1, 2);
     baseHeight += titleLines * 20.0;
-
     if (hasContent) {
       baseHeight += 8;
       baseHeight += maxLines * 17.0;
     }
-
     baseHeight += 8 + 14;
     baseHeight += 14;
-
     return baseHeight;
   }
 }

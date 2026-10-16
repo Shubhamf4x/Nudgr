@@ -1,14 +1,15 @@
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/validators.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'auth_provider.dart';
 import 'onboarding_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
-
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
@@ -22,7 +23,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
-
   @override
   void dispose() {
     _fullNameController.dispose();
@@ -38,10 +38,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final authProvider = context.read<AuthProvider>();
     final username = _usernameController.text.trim().isNotEmpty
         ? _usernameController.text.trim()
-        : _fullNameController.text.trim()
-            .toLowerCase()
-            .replaceAll(RegExp(r'[^a-z0-9.]'), '')
-            .replaceAll(' ', '');
+        : _fullNameController.text
+              .trim()
+              .toLowerCase()
+              .replaceAll(RegExp(r'[^a-z0-9.]'), '')
+              .replaceAll(' ', '');
     final success = await authProvider.register(
       email: _emailController.text.trim(),
       password: _passwordController.text,
@@ -137,7 +138,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   hint: 'Alex Morgan',
                   icon: Icons.badge_outlined,
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Please enter your full name';
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your full name';
+                    }
+                    if (value.trim().length >
+                        InputValidators.maxDisplayNameLength) {
+                      return 'Name must be at most '
+                          '${InputValidators.maxDisplayNameLength} characters';
+                    }
                     return null;
                   },
                 ),
@@ -149,11 +157,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   hint: 'you@example.com',
                   icon: Icons.mail_outline_rounded,
                   keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Please enter your email';
-                    if (!value.contains('@') || !value.contains('.')) return 'Please enter a valid email';
-                    return null;
-                  },
+                  validator: InputValidators.validateEmail,
                 ),
                 const SizedBox(height: 16),
                 _buildLabel('Username'),
@@ -170,7 +174,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       if (value.length > InputValidators.maxUsernameLength) {
                         return 'Username must be at most ${InputValidators.maxUsernameLength} characters';
                       }
-                      if (!InputValidators.isValidUsername(value.toLowerCase())) {
+                      if (!InputValidators.isValidUsername(
+                        value.toLowerCase(),
+                      )) {
                         return 'Only letters, numbers, dots, dashes and underscores';
                       }
                     }
@@ -187,17 +193,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   obscureText: _obscurePassword,
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       color: Colors.white38,
                       size: 18,
                     ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Please enter a password';
-                    if (value.length < 6) return 'Password must be at least 6 characters';
-                    return null;
-                  },
+                  validator: InputValidators.validatePassword,
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
@@ -208,7 +213,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF6C63FF),
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: const Color(0xFF6C63FF).withValues(alpha: 0.5),
+                      disabledBackgroundColor: const Color(0xFF6C63FF)
+                          .withValues(alpha: 0.5),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -218,7 +224,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -239,15 +248,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    const Expanded(child: Divider(color: Colors.white12, height: 1)),
+                    const Expanded(
+                      child: Divider(color: Colors.white12, height: 1),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       child: Text(
                         'or',
-                        style: AppTextStyles.googleSans(color: Colors.white38, fontSize: 12),
+                        style: AppTextStyles.googleSans(
+                          color: Colors.white38,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
-                    const Expanded(child: Divider(color: Colors.white12, height: 1)),
+                    const Expanded(
+                      child: Divider(color: Colors.white12, height: 1),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -264,15 +280,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     child: _isGoogleLoading
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text('G', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+                              const Text(
+                                'G',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
                               const SizedBox(width: 10),
                               Text(
                                 'Continue with Google',
-                                style: AppTextStyles.googleSans(fontSize: 14, fontWeight: FontWeight.w500),
+                                style: AppTextStyles.googleSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ],
                           ),
@@ -281,13 +311,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 12),
                 Text(
                   'Continue with Google to sign up instantly and sync your data to the cloud for free.',
-                  style: AppTextStyles.googleSans(fontSize: 11, color: Colors.white30),
+                  style: AppTextStyles.googleSans(
+                    fontSize: 11,
+                    color: Colors.white30,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 10),
                 Text(
                   'Your data stays on your device. Nudgr signs you in with a secure local account.',
-                  style: AppTextStyles.googleSans(fontSize: 11, color: Colors.white30),
+                  style: AppTextStyles.googleSans(
+                    fontSize: 11,
+                    color: Colors.white30,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
@@ -327,7 +363,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       style: AppTextStyles.googleSans(color: Colors.white, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: AppTextStyles.googleSans(color: Colors.white24, fontSize: 14),
+        hintStyle: AppTextStyles.googleSans(
+          color: Colors.white24,
+          fontSize: 14,
+        ),
         prefixIcon: Icon(icon, color: Colors.white30, size: 18),
         suffixIcon: suffixIcon,
         filled: true,
@@ -348,7 +387,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFFF6B6B)),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
       ),
     );
   }

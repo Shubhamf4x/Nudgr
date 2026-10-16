@@ -1,6 +1,8 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/constants/color_constants.dart';
 import '../../shared/models/conversation_model.dart';
 import '../../shared/models/user_model.dart';
@@ -9,9 +11,7 @@ import 'chat_provider.dart';
 
 class ChatScreen extends StatefulWidget {
   final ConversationModel conversation;
-
   const ChatScreen({super.key, required this.conversation});
-
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
@@ -19,7 +19,6 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
-
   @override
   void initState() {
     super.initState();
@@ -50,7 +49,6 @@ class _ChatScreenState extends State<ChatScreen> {
   void _sendMessage() {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
-
     final sender = UserModel(
       id: 'current_user',
       email: 'user@nudgr.app',
@@ -59,13 +57,11 @@ class _ChatScreenState extends State<ChatScreen> {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
-
     context.read<ChatProvider>().sendMessage(
-          conversationId: widget.conversation.id,
-          content: content,
-          sender: sender,
-        );
-
+      conversationId: widget.conversation.id,
+      content: content,
+      sender: sender,
+    );
     _messageController.clear();
     _scrollToBottom();
   }
@@ -117,11 +113,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final messages = provider.state.messages;
-
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _scrollToBottom();
                 });
-
                 if (messages.isEmpty) {
                   return Center(
                     child: Text(
@@ -130,7 +124,6 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   );
                 }
-
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
@@ -138,7 +131,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, index) {
                     final message = messages[index];
                     final isMe = message.senderId == 'current_user';
-
                     return _buildMessageBubble(message, isMe);
                   },
                 );

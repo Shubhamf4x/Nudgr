@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+
 import '../../core/constants/color_constants.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/utils/validators.dart';
@@ -10,7 +14,6 @@ import 'tasks_provider.dart';
 
 class AddTaskScreen extends StatefulWidget {
   const AddTaskScreen({super.key});
-
   @override
   State<AddTaskScreen> createState() => _AddTaskScreenState();
 }
@@ -26,7 +29,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   bool _isRecurring = false;
   String _recurrencePattern = 'daily';
   final List<SubTaskModel> _subtasks = [];
-
+  bool _isSaving = false;
   @override
   void dispose() {
     _titleController.dispose();
@@ -57,8 +60,13 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Add Subtask',
-            style: AppTextStyles.googleSans(fontSize: 18, fontWeight: FontWeight.w600)),
+        title: Text(
+          'Add Subtask',
+          style: AppTextStyles.googleSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -73,11 +81,13 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
             onPressed: () {
               if (controller.text.isNotEmpty) {
                 setState(() {
-                  _subtasks.add(SubTaskModel(
-                    id: const Uuid().v4(),
-                    title: controller.text.trim(),
-                    createdAt: DateTime.now(),
-                  ));
+                  _subtasks.add(
+                    SubTaskModel(
+                      id: const Uuid().v4(),
+                      title: controller.text.trim(),
+                      createdAt: DateTime.now(),
+                    ),
+                  );
                 });
                 Navigator.pop(ctx);
               }
@@ -95,10 +105,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     ('personal', 'Personal'),
     ('fitness', 'Fitness'),
   ];
-
   void _saveTask() {
+    if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
-
+    setState(() => _isSaving = true);
     final now = DateTime.now();
     final task = TaskModel(
       id: const Uuid().v4(),
@@ -127,9 +137,11 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       categoryName: _categoryId == null
           ? null
           : _categoryLabels
-              .firstWhere((c) => c.$1 == _categoryId,
-                  orElse: () => ('', _categoryId!))
-              .$2,
+                .firstWhere(
+                  (c) => c.$1 == _categoryId,
+                  orElse: () => ('', _categoryId!),
+                )
+                .$2,
       isRecurring: _isRecurring,
       recurrencePattern: _isRecurring ? _recurrencePattern : null,
       subtasks: _subtasks,
@@ -137,9 +149,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       createdAt: now,
       updatedAt: now,
     );
-
-    context.read<TasksProvider>().addTask(task);
-    Navigator.pop(context);
+    final tasksProvider = context.read<TasksProvider>();
+    final navigator = Navigator.of(context);
+    unawaited(tasksProvider.addTask(task));
+    navigator.pop();
   }
 
   Color _getPriorityColor(String priority) {
@@ -150,7 +163,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final surfaceColor = isDark ? const Color(0xFF1E1E2E) : theme.colorScheme.surface;
+    final surfaceColor = isDark
+        ? const Color(0xFF1E1E2E)
+        : theme.colorScheme.surface;
     final cardColor = isDark
         ? Colors.white.withValues(alpha: 0.06)
         : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5);
@@ -158,10 +173,13 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         ? Colors.white.withValues(alpha: 0.12)
         : theme.colorScheme.outlineVariant.withValues(alpha: 0.4);
     final textColor = isDark ? Colors.white : theme.colorScheme.onSurface;
-    final hintColor = isDark ? Colors.white38 : theme.colorScheme.onSurface.withValues(alpha: 0.4);
-    final labelColor = isDark ? Colors.white70 : theme.colorScheme.onSurface.withValues(alpha: 0.7);
+    final hintColor = isDark
+        ? Colors.white38
+        : theme.colorScheme.onSurface.withValues(alpha: 0.4);
+    final labelColor = isDark
+        ? Colors.white70
+        : theme.colorScheme.onSurface.withValues(alpha: 0.7);
     final focusColor = ColorConstants.primary;
-
     return Scaffold(
       backgroundColor: surfaceColor,
       appBar: AppBar(
@@ -185,11 +203,29 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             children: [
-              _buildTitleField(textColor, hintColor, cardColor, borderColor, focusColor),
+              _buildTitleField(
+                textColor,
+                hintColor,
+                cardColor,
+                borderColor,
+                focusColor,
+              ),
               const SizedBox(height: 16),
-              _buildDescriptionField(textColor, hintColor, cardColor, borderColor, focusColor),
+              _buildDescriptionField(
+                textColor,
+                hintColor,
+                cardColor,
+                borderColor,
+                focusColor,
+              ),
               const SizedBox(height: 20),
-              _buildPrioritySection(isDark, textColor, labelColor, borderColor, cardColor),
+              _buildPrioritySection(
+                isDark,
+                textColor,
+                labelColor,
+                borderColor,
+                cardColor,
+              ),
               const SizedBox(height: 16),
               _buildDateRow(isDark, cardColor, borderColor, labelColor),
               const SizedBox(height: 12),
@@ -197,7 +233,13 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               const SizedBox(height: 12),
               _buildRecurrenceRow(isDark, cardColor, borderColor, labelColor),
               const SizedBox(height: 20),
-              _buildCategorySection(isDark, textColor, labelColor, borderColor, cardColor),
+              _buildCategorySection(
+                isDark,
+                textColor,
+                labelColor,
+                borderColor,
+                cardColor,
+              ),
               const SizedBox(height: 16),
               _buildSubtasksSection(isDark, labelColor, cardColor),
               const SizedBox(height: 24),
@@ -211,7 +253,11 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }
 
   Widget _buildTitleField(
-    Color textColor, Color hintColor, Color cardColor, Color borderColor, Color focusColor,
+    Color textColor,
+    Color hintColor,
+    Color cardColor,
+    Color borderColor,
+    Color focusColor,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,7 +279,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
             hintStyle: AppTextStyles.googleSans(color: hintColor),
             filled: true,
             fillColor: cardColor,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: borderColor),
@@ -257,7 +306,11 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }
 
   Widget _buildDescriptionField(
-    Color textColor, Color hintColor, Color cardColor, Color borderColor, Color focusColor,
+    Color textColor,
+    Color hintColor,
+    Color cardColor,
+    Color borderColor,
+    Color focusColor,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,7 +333,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
             hintStyle: AppTextStyles.googleSans(color: hintColor),
             filled: true,
             fillColor: cardColor,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: borderColor),
@@ -300,7 +356,11 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }
 
   Widget _buildPrioritySection(
-    bool isDark, Color textColor, Color labelColor, Color borderColor, Color cardColor,
+    bool isDark,
+    Color textColor,
+    Color labelColor,
+    Color borderColor,
+    Color cardColor,
   ) {
     final priorities = [
       ('low', 'Low', Icons.arrow_downward_rounded),
@@ -308,7 +368,6 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       ('high', 'High', Icons.arrow_upward_rounded),
       ('urgent', 'Urgent', Icons.priority_high_rounded),
     ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -333,7 +392,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: isSelected ? color.withValues(alpha: 0.15) : cardColor,
+                    color: isSelected
+                        ? color.withValues(alpha: 0.15)
+                        : cardColor,
                     border: Border.all(
                       color: isSelected ? color : borderColor,
                       width: isSelected ? 1.5 : 1,
@@ -349,7 +410,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                         style: AppTextStyles.googleSans(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: isSelected ? color : textColor.withValues(alpha: 0.5),
+                          color: isSelected
+                              ? color
+                              : textColor.withValues(alpha: 0.5),
                         ),
                       ),
                     ],
@@ -363,7 +426,12 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     );
   }
 
-  Widget _buildDateRow(bool isDark, Color cardColor, Color borderColor, Color labelColor) {
+  Widget _buildDateRow(
+    bool isDark,
+    Color cardColor,
+    Color borderColor,
+    Color labelColor,
+  ) {
     return _buildOptionRow(
       icon: Icons.calendar_today_rounded,
       label: _dueDate != null ? Helpers.formatDate(_dueDate!) : 'No due date',
@@ -375,7 +443,12 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     );
   }
 
-  Widget _buildTimeRow(bool isDark, Color cardColor, Color borderColor, Color labelColor) {
+  Widget _buildTimeRow(
+    bool isDark,
+    Color cardColor,
+    Color borderColor,
+    Color labelColor,
+  ) {
     return _buildOptionRow(
       icon: Icons.access_time_rounded,
       label: _dueTime != null ? _dueTime!.format(context) : 'Add time of day',
@@ -387,7 +460,12 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     );
   }
 
-  Widget _buildRecurrenceRow(bool isDark, Color cardColor, Color borderColor, Color labelColor) {
+  Widget _buildRecurrenceRow(
+    bool isDark,
+    Color cardColor,
+    Color borderColor,
+    Color labelColor,
+  ) {
     return _buildOptionRow(
       icon: Icons.repeat_rounded,
       label: _isRecurring
@@ -400,7 +478,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       onTap: () {
         showModalBottomSheet(
           context: context,
-          backgroundColor: isDark ? const Color(0xFF2A2A3E) : Theme.of(context).colorScheme.surface,
+          backgroundColor: isDark
+              ? const Color(0xFF2A2A3E)
+              : Theme.of(context).colorScheme.surface,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
           ),
@@ -418,9 +498,13 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text('Recurrence',
-                    style: AppTextStyles.googleSans(
-                        fontSize: 16, fontWeight: FontWeight.w600)),
+                Text(
+                  'Recurrence',
+                  style: AppTextStyles.googleSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 ListTile(
                   title: Text('None', style: AppTextStyles.googleSans()),
@@ -429,17 +513,21 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                     Navigator.pop(ctx);
                   },
                 ),
-                ...['daily', 'weekly', 'monthly'].map((pattern) => ListTile(
-                      title: Text(pattern[0].toUpperCase() + pattern.substring(1),
-                          style: AppTextStyles.googleSans()),
-                      onTap: () {
-                        setState(() {
-                          _isRecurring = true;
-                          _recurrencePattern = pattern;
-                        });
-                        Navigator.pop(ctx);
-                      },
-                    )),
+                ...['daily', 'weekly', 'monthly'].map(
+                  (pattern) => ListTile(
+                    title: Text(
+                      pattern[0].toUpperCase() + pattern.substring(1),
+                      style: AppTextStyles.googleSans(),
+                    ),
+                    onTap: () {
+                      setState(() {
+                        _isRecurring = true;
+                        _recurrencePattern = pattern;
+                      });
+                      Navigator.pop(ctx);
+                    },
+                  ),
+                ),
                 const SizedBox(height: 8),
               ],
             ),
@@ -469,7 +557,11 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: isSet ? ColorConstants.primary : labelColor),
+            Icon(
+              icon,
+              size: 20,
+              color: isSet ? ColorConstants.primary : labelColor,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -480,7 +572,11 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 ),
               ),
             ),
-            Icon(Icons.chevron_right_rounded, size: 20, color: labelColor.withValues(alpha: 0.4)),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: labelColor.withValues(alpha: 0.4),
+            ),
           ],
         ),
       ),
@@ -488,7 +584,11 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }
 
   Widget _buildCategorySection(
-    bool isDark, Color textColor, Color labelColor, Color borderColor, Color cardColor,
+    bool isDark,
+    Color textColor,
+    Color labelColor,
+    Color borderColor,
+    Color cardColor,
   ) {
     final categories = [
       ('none', 'None', isDark ? Colors.white24 : Colors.grey),
@@ -497,7 +597,6 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       ('personal', 'Personal', ColorConstants.warning),
       ('fitness', 'Fitness', ColorConstants.success),
     ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -514,7 +613,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: categories.map((cat) {
-              final isSelected = _categoryId == cat.$1 || (_categoryId == null && cat.$1 == 'none');
+              final isSelected =
+                  _categoryId == cat.$1 ||
+                  (_categoryId == null && cat.$1 == 'none');
               return GestureDetector(
                 onTap: () {
                   setState(() {
@@ -524,7 +625,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? cat.$3.withValues(alpha: 0.2)
@@ -541,7 +645,10 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                       Container(
                         width: 8,
                         height: 8,
-                        decoration: BoxDecoration(color: cat.$3, shape: BoxShape.circle),
+                        decoration: BoxDecoration(
+                          color: cat.$3,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -549,7 +656,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                         style: AppTextStyles.googleSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: isSelected ? textColor : textColor.withValues(alpha: 0.5),
+                          color: isSelected
+                              ? textColor
+                              : textColor.withValues(alpha: 0.5),
                         ),
                       ),
                     ],
@@ -579,17 +688,28 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.circle_outlined, size: 16, color: labelColor.withValues(alpha: 0.4)),
+                  Icon(
+                    Icons.circle_outlined,
+                    size: 16,
+                    color: labelColor.withValues(alpha: 0.4),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       subtask.title,
-                      style: AppTextStyles.googleSans(fontSize: 13, color: labelColor),
+                      style: AppTextStyles.googleSans(
+                        fontSize: 13,
+                        color: labelColor,
+                      ),
                     ),
                   ),
                   GestureDetector(
                     onTap: () => setState(() => _subtasks.removeAt(index)),
-                    child: Icon(Icons.close_rounded, size: 18, color: labelColor.withValues(alpha: 0.4)),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: labelColor.withValues(alpha: 0.4),
+                    ),
                   ),
                 ],
               ),
@@ -602,7 +722,11 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
               children: [
-                Icon(Icons.add_rounded, size: 20, color: ColorConstants.primary),
+                Icon(
+                  Icons.add_rounded,
+                  size: 20,
+                  color: ColorConstants.primary,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Add subtask',
@@ -629,7 +753,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
           backgroundColor: ColorConstants.primary,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           elevation: 0,
         ),
         child: Text(

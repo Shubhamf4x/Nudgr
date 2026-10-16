@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../../core/theme/app_text_styles.dart';
 import '../models/chat_message.dart';
 
 class MessageActionsSheet extends StatelessWidget {
   final ChatMessage message;
-
   const MessageActionsSheet({super.key, required this.message});
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -65,10 +64,7 @@ class MessageActionsSheet extends StatelessWidget {
       leading: Icon(icon, color: color, size: 22),
       title: Text(
         title,
-        style: AppTextStyles.googleSans(
-          fontSize: 15,
-          color: color,
-        ),
+        style: AppTextStyles.googleSans(fontSize: 15, color: color),
       ),
       onTap: onTap,
     );

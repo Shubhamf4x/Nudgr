@@ -1,5 +1,7 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
+
 import '../../core/constants/color_constants.dart';
 
 class EmptyState extends StatelessWidget {
@@ -8,7 +10,6 @@ class EmptyState extends StatelessWidget {
   final String? subtitle;
   final String? actionText;
   final VoidCallback? onAction;
-
   const EmptyState({
     super.key,
     required this.icon,
@@ -17,7 +18,6 @@ class EmptyState extends StatelessWidget {
     this.actionText,
     this.onAction,
   });
-
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -32,11 +32,7 @@ class EmptyState extends StatelessWidget {
                 color: ColorConstants.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 48,
-                color: ColorConstants.primary,
-              ),
+              child: Icon(icon, size: 48, color: ColorConstants.primary),
             ),
             const SizedBox(height: 24),
             Text(

@@ -11,7 +11,6 @@ class CategoryModel extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isSynced;
-
   const CategoryModel({
     required this.id,
     required this.name,
@@ -24,7 +23,6 @@ class CategoryModel extends Equatable {
     required this.updatedAt,
     this.isSynced = true,
   });
-
   factory CategoryModel.fromJson(Map<String, dynamic> json) => CategoryModel(
     id: json['id'] as String,
     name: json['name'] as String,
@@ -37,7 +35,6 @@ class CategoryModel extends Equatable {
     updatedAt: DateTime.parse(json['updatedAt'] as String),
     isSynced: json['isSynced'] as bool? ?? true,
   );
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
@@ -50,7 +47,6 @@ class CategoryModel extends Equatable {
     'updatedAt': updatedAt.toIso8601String(),
     'isSynced': isSynced,
   };
-
   CategoryModel copyWith({
     String? id,
     String? name,
@@ -74,7 +70,6 @@ class CategoryModel extends Equatable {
     updatedAt: updatedAt ?? this.updatedAt,
     isSynced: isSynced ?? this.isSynced,
   );
-
   @override
   List<Object?> get props => [id, name, colorIndex, type];
 }

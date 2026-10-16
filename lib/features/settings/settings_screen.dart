@@ -1,6 +1,8 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/constants/color_constants.dart';
 import '../../shared/providers/theme_provider.dart';
 import '../auth/auth_provider.dart';
@@ -9,7 +11,6 @@ import 'legal_screens.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
-
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
@@ -19,7 +20,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     final themeName = _getThemeName(themeProvider.themeType);
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -67,7 +67,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const PrivacyPolicyScreen(),
+                    ),
                   );
                 },
               ),
@@ -77,7 +79,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const TermsOfServiceScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const TermsOfServiceScreen(),
+                    ),
                   );
                 },
               ),
@@ -127,10 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       leading: Icon(icon, color: color ?? ColorConstants.primary, size: 22),
       title: Text(
         title,
-        style: AppTextStyles.googleSans(
-          fontSize: 15,
-          color: color,
-        ),
+        style: AppTextStyles.googleSans(fontSize: 15, color: color),
       ),
       subtitle: subtitle != null
           ? Text(
@@ -149,7 +150,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showEditProfileSheet() {
     final auth = context.read<AuthProvider>();
-    final nameController = TextEditingController(text: auth.user?.displayName ?? '');
+    final nameController = TextEditingController(
+      text: auth.user?.displayName ?? '',
+    );
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -160,7 +163,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          left: 20, right: 20, top: 20,
+          left: 20,
+          right: 20,
+          top: 20,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -168,7 +173,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Center(
               child: Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade600,
@@ -176,7 +182,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ),
-            Text('Edit Profile', style: AppTextStyles.googleSans(fontSize: 18, fontWeight: FontWeight.w600)),
+            Text(
+              'Edit Profile',
+              style: AppTextStyles.googleSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: nameController,
@@ -184,7 +196,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               decoration: InputDecoration(
                 labelText: 'Display Name',
                 labelStyle: AppTextStyles.googleSans(color: Colors.grey),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: ColorConstants.primary),
@@ -205,9 +219,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ColorConstants.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: Text('Save', style: AppTextStyles.googleSans(color: Colors.white, fontWeight: FontWeight.w600)),
+                child: Text(
+                  'Save',
+                  style: AppTextStyles.googleSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -227,7 +249,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(context).cardTheme.color,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Change Password', style: AppTextStyles.googleSans(fontSize: 18, fontWeight: FontWeight.w600)),
+        title: Text(
+          'Change Password',
+          style: AppTextStyles.googleSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -239,7 +267,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 decoration: InputDecoration(
                   labelText: 'Current Password',
                   labelStyle: AppTextStyles.googleSans(color: Colors.grey),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: ColorConstants.primary),
@@ -254,7 +284,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 decoration: InputDecoration(
                   labelText: 'New Password',
                   labelStyle: AppTextStyles.googleSans(color: Colors.grey),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: ColorConstants.primary),
@@ -269,7 +301,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 decoration: InputDecoration(
                   labelText: 'Confirm New Password',
                   labelStyle: AppTextStyles.googleSans(color: Colors.grey),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: ColorConstants.primary),
@@ -282,7 +316,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: AppTextStyles.googleSans(color: Colors.grey)),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.googleSans(color: Colors.grey),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -307,11 +344,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(success ? 'Password changed successfully' : 'Failed to change password')),
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Password changed successfully'
+                          : 'Failed to change password',
+                    ),
+                  ),
                 );
               }
             },
-            child: Text('Change', style: AppTextStyles.googleSans(color: ColorConstants.primary)),
+            child: Text(
+              'Change',
+              style: AppTextStyles.googleSans(color: ColorConstants.primary),
+            ),
           ),
         ],
       ),

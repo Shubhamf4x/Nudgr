@@ -5,7 +5,6 @@ class ChatChannel {
   final int memberCount;
   final bool isJoined;
   final String? description;
-
   const ChatChannel({
     required this.name,
     required this.displayName,
@@ -14,7 +13,6 @@ class ChatChannel {
     this.isJoined = false,
     this.description,
   });
-
   ChatChannel copyWith({
     String? name,
     String? displayName,
@@ -41,7 +39,6 @@ class ChatChannel {
     'isJoined': isJoined,
     'description': description,
   };
-
   factory ChatChannel.fromJson(Map<String, dynamic> json) => ChatChannel(
     name: json['name'],
     displayName: json['displayName'],

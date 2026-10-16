@@ -64,3 +64,12 @@ opencode.json
 opencode.jsonc
 .env
 .env.*
+
+# Node tooling for the Firestore rules tests
+node_modules/
+**/node_modules/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebase/
+firebase_tests/package-lock.json

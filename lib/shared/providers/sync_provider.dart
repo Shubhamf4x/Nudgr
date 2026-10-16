@@ -1,13 +1,13 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../../core/services/sync_service.dart';
 
 class SyncProvider extends ChangeNotifier {
   final SyncService _syncService = SyncService.getInstance();
   Timer? _pollTimer;
-
   String _lastSnapshot = '';
-
   SyncStatus get status => _syncService.status;
   DateTime? get lastSyncTime => _syncService.lastSyncTime;
   String? get lastSyncError => _syncService.lastSyncError;
@@ -15,7 +15,6 @@ class SyncProvider extends ChangeNotifier {
   bool get isOnline => _syncService.isOnline;
   bool get isSyncing => _syncService.isSyncing;
   bool get cloudEnabled => _syncService.cloudEnabled;
-
   String get statusLabel {
     if (!cloudEnabled) return 'On this device';
     if (!isOnline) return 'Offline';

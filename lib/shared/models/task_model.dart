@@ -5,28 +5,24 @@ class SubTaskModel extends Equatable {
   final String title;
   final bool isCompleted;
   final DateTime createdAt;
-
   const SubTaskModel({
     required this.id,
     required this.title,
     this.isCompleted = false,
     required this.createdAt,
   });
-
   factory SubTaskModel.fromJson(Map<String, dynamic> json) => SubTaskModel(
     id: json['id'] as String,
     title: json['title'] as String,
     isCompleted: json['isCompleted'] as bool? ?? false,
     createdAt: DateTime.parse(json['createdAt'] as String),
   );
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'title': title,
     'isCompleted': isCompleted,
     'createdAt': createdAt.toIso8601String(),
   };
-
   SubTaskModel copyWith({
     String? id,
     String? title,
@@ -38,7 +34,6 @@ class SubTaskModel extends Equatable {
     isCompleted: isCompleted ?? this.isCompleted,
     createdAt: createdAt ?? this.createdAt,
   );
-
   @override
   List<Object?> get props => [id, title, isCompleted];
 }
@@ -63,7 +58,6 @@ class TaskModel extends Equatable {
   final DateTime updatedAt;
   final DateTime? completedAt;
   final bool isSynced;
-
   const TaskModel({
     required this.id,
     required this.title,
@@ -85,7 +79,6 @@ class TaskModel extends Equatable {
     this.completedAt,
     this.isSynced = true,
   });
-
   factory TaskModel.fromJson(Map<String, dynamic> json) => TaskModel(
     id: json['id'] as String,
     title: json['title'] as String,
@@ -93,24 +86,34 @@ class TaskModel extends Equatable {
     categoryId: json['categoryId'] as String?,
     categoryName: json['categoryName'] as String?,
     priority: json['priority'] as String? ?? 'medium',
-    dueDate: json['dueDate'] != null ? DateTime.parse(json['dueDate'] as String) : null,
-    dueTime: json['dueTime'] != null ? DateTime.parse(json['dueTime'] as String) : null,
+    dueDate: json['dueDate'] != null
+        ? DateTime.parse(json['dueDate'] as String)
+        : null,
+    dueTime: json['dueTime'] != null
+        ? DateTime.parse(json['dueTime'] as String)
+        : null,
     isCompleted: json['isCompleted'] as bool? ?? false,
     isRecurring: json['isRecurring'] as bool? ?? false,
     recurrencePattern: json['recurrencePattern'] as String?,
-    tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
-    subtasks: (json['subtasks'] as List<dynamic>?)
+    tags:
+        (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+        [],
+    subtasks:
+        (json['subtasks'] as List<dynamic>?)
             ?.map((e) => SubTaskModel.fromJson(e as Map<String, dynamic>))
             .toList() ??
         [],
-    reminderTime: json['reminderTime'] != null ? DateTime.parse(json['reminderTime'] as String) : null,
+    reminderTime: json['reminderTime'] != null
+        ? DateTime.parse(json['reminderTime'] as String)
+        : null,
     userId: json['userId'] as String,
     createdAt: DateTime.parse(json['createdAt'] as String),
     updatedAt: DateTime.parse(json['updatedAt'] as String),
-    completedAt: json['completedAt'] != null ? DateTime.parse(json['completedAt'] as String) : null,
+    completedAt: json['completedAt'] != null
+        ? DateTime.parse(json['completedAt'] as String)
+        : null,
     isSynced: json['isSynced'] as bool? ?? true,
   );
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'title': title,
@@ -132,7 +135,6 @@ class TaskModel extends Equatable {
     'completedAt': completedAt?.toIso8601String(),
     'isSynced': isSynced,
   };
-
   TaskModel copyWith({
     String? id,
     String? title,
@@ -152,6 +154,7 @@ class TaskModel extends Equatable {
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? completedAt,
+    bool clearCompletedAt = false,
     bool? isSynced,
   }) => TaskModel(
     id: id ?? this.id,
@@ -171,10 +174,9 @@ class TaskModel extends Equatable {
     userId: userId ?? this.userId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
-    completedAt: completedAt ?? this.completedAt,
+    completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
     isSynced: isSynced ?? this.isSynced,
   );
-
   @override
   List<Object?> get props => [id, title, isCompleted, priority];
 }

@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Data extraction rules for Android 12+.
-     Preserves Nudgr's local data for cloud backup and device-to-device
-     transfer so progress survives reinstalling or switching devices. -->
 <data-extraction-rules>
     <cloud-backup>
         <include domain="sharedpref" path="."/>

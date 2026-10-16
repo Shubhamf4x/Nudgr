@@ -15,7 +15,6 @@ class FocusSessionModel extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isSynced;
-
   const FocusSessionModel({
     required this.id,
     this.taskId,
@@ -32,24 +31,27 @@ class FocusSessionModel extends Equatable {
     DateTime? updatedAt,
     this.isSynced = true,
   }) : updatedAt = updatedAt ?? createdAt;
-
-  factory FocusSessionModel.fromJson(Map<String, dynamic> json) => FocusSessionModel(
-    id: json['id'] as String,
-    taskId: json['taskId'] as String?,
-    taskTitle: json['taskTitle'] as String?,
-    userId: json['userId'] as String,
-    durationMinutes: json['durationMinutes'] as int,
-    actualDurationMinutes: json['actualDurationMinutes'] as int? ?? 0,
-    sessionType: json['sessionType'] as String? ?? 'focus',
-    sessionNumber: json['sessionNumber'] as int? ?? 1,
-    isCompleted: json['isCompleted'] as bool? ?? false,
-    startTime: DateTime.parse(json['startTime'] as String),
-    endTime: json['endTime'] != null ? DateTime.parse(json['endTime'] as String) : null,
-    createdAt: DateTime.parse(json['createdAt'] as String),
-    updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt'] as String) : null,
-    isSynced: json['isSynced'] as bool? ?? true,
-  );
-
+  factory FocusSessionModel.fromJson(Map<String, dynamic> json) =>
+      FocusSessionModel(
+        id: json['id'] as String,
+        taskId: json['taskId'] as String?,
+        taskTitle: json['taskTitle'] as String?,
+        userId: json['userId'] as String,
+        durationMinutes: json['durationMinutes'] as int,
+        actualDurationMinutes: json['actualDurationMinutes'] as int? ?? 0,
+        sessionType: json['sessionType'] as String? ?? 'focus',
+        sessionNumber: json['sessionNumber'] as int? ?? 1,
+        isCompleted: json['isCompleted'] as bool? ?? false,
+        startTime: DateTime.parse(json['startTime'] as String),
+        endTime: json['endTime'] != null
+            ? DateTime.parse(json['endTime'] as String)
+            : null,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        updatedAt: json['updatedAt'] != null
+            ? DateTime.parse(json['updatedAt'] as String)
+            : null,
+        isSynced: json['isSynced'] as bool? ?? true,
+      );
   Map<String, dynamic> toJson() => {
     'id': id,
     'taskId': taskId,
@@ -66,7 +68,6 @@ class FocusSessionModel extends Equatable {
     'updatedAt': updatedAt.toIso8601String(),
     'isSynced': isSynced,
   };
-
   FocusSessionModel copyWith({
     String? id,
     String? taskId,
@@ -98,7 +99,6 @@ class FocusSessionModel extends Equatable {
     updatedAt: updatedAt ?? this.updatedAt,
     isSynced: isSynced ?? this.isSynced,
   );
-
   @override
   List<Object?> get props => [id, isCompleted, actualDurationMinutes];
 }

@@ -25,17 +25,13 @@ class MainActivity : FlutterActivity(), SensorEventListener {
     private var stepSensor: Sensor? = null
     private var methodChannel: MethodChannel? = null
     private var isListening = false
-
     companion object {
         var stepChannel: MethodChannel? = null
     }
-
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         stepSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, STEP_CHANNEL)
         stepChannel = methodChannel
         methodChannel?.setMethodCallHandler { call, result ->
@@ -99,30 +95,25 @@ class MainActivity : FlutterActivity(), SensorEventListener {
             }
         }
     }
-
     private fun startStepListener() {
         if (stepSensor != null && !isListening) {
             sensorManager?.registerListener(this, stepSensor, SensorManager.SENSOR_DELAY_UI)
             isListening = true
         }
     }
-
     private fun stopStepListener() {
         if (isListening) {
             sensorManager?.unregisterListener(this)
             isListening = false
         }
     }
-
     override fun onSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
             val steps = event.values[0].toInt()
             methodChannel?.invokeMethod("onStepUpdate", steps)
         }
     }
-
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
-
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 1001) {
@@ -133,7 +124,6 @@ class MainActivity : FlutterActivity(), SensorEventListener {
             }
         }
     }
-
     private fun sendNotification(title: String, body: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -168,18 +158,16 @@ class MainActivity : FlutterActivity(), SensorEventListener {
         builder.setContentTitle(title)
             .setContentText(body)
             .setStyle(Notification.BigTextStyle().bigText(body))
-            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setSmallIcon(R.drawable.ic_stat_nudgr)
             .setAutoCancel(true)
         if (pending != null) {
             builder.setContentIntent(pending)
         }
         manager.notify(4343, builder.build())
     }
-
     override fun onPause() {
         super.onPause()
     }
-
     override fun onDestroy() {
         stopStepListener()
         super.onDestroy()

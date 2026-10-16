@@ -11,12 +11,9 @@ class StepsService {
   static const _channel = MethodChannel('com.nudgr.nudgr/step_counter');
   static void Function(int sensorValue)? _onStepUpdate;
   static void Function(bool granted)? _onPermissionResult;
-
   StepDayModel? _todayCache;
   String _cacheDate = '';
-
   StepsService._();
-
   static StepsService getInstance() {
     _instance ??= StepsService._();
     return _instance!;
@@ -103,7 +100,6 @@ class StepsService {
 
   bool get foregroundTrackingStopped =>
       _prefs?.getBool('step_fg_stopped') ?? false;
-
   Future<void> setForegroundTrackingStopped(bool stopped) async {
     await _prefs?.setBool('step_fg_stopped', stopped);
   }
@@ -188,7 +184,6 @@ class StepsService {
       lastSensorValue: lastSensorValue,
       lastUpdated: DateTime.now(),
     );
-
     final history = getStepHistory();
     final index = history.indexWhere((r) => r.date == todayKey);
     if (index >= 0) {
@@ -197,7 +192,6 @@ class StepsService {
       history.add(record);
     }
     await _saveStepHistory(history);
-
     _todayCache = record;
     _cacheDate = todayKey;
   }
@@ -205,7 +199,6 @@ class StepsService {
   Future<void> mergeCloudStepDay(String date, int stepCount) async {
     final history = getStepHistory();
     final index = history.indexWhere((r) => r.date == date);
-
     if (index >= 0) {
       final local = history[index];
       if (local.stepCount >= stepCount) return;
@@ -225,7 +218,6 @@ class StepsService {
         ),
       );
     }
-
     await _saveStepHistory(history);
     if (date == _todayKey()) {
       _todayCache = null;

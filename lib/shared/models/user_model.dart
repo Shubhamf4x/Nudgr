@@ -13,9 +13,7 @@ class UserModel extends Equatable {
   final DateTime updatedAt;
   final Map<String, dynamic> preferences;
   final Map<String, dynamic> statistics;
-
   final bool isGoogleAccount;
-
   const UserModel({
     required this.id,
     required this.email,
@@ -31,7 +29,6 @@ class UserModel extends Equatable {
     this.statistics = const {},
     this.isGoogleAccount = false,
   });
-
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
     id: json['id'] as String? ?? '',
     email: json['email'] as String? ?? '',
@@ -40,17 +37,17 @@ class UserModel extends Equatable {
     photoUrl: json['photoUrl'] as String?,
     bio: json['bio'] as String?,
     isOnline: json['isOnline'] as bool? ?? false,
-    lastSeen: DateTime.tryParse(json['lastSeen'] as String? ?? '') ??
+    lastSeen:
+        DateTime.tryParse(json['lastSeen'] as String? ?? '') ??
         DateTime.fromMillisecondsSinceEpoch(0),
-    createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
-        DateTime.now(),
-    updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? '') ??
-        DateTime.now(),
+    createdAt:
+        DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
+    updatedAt:
+        DateTime.tryParse(json['updatedAt'] as String? ?? '') ?? DateTime.now(),
     preferences: (json['preferences'] as Map<String, dynamic>?) ?? {},
     statistics: (json['statistics'] as Map<String, dynamic>?) ?? {},
     isGoogleAccount: json['isGoogleAccount'] as bool? ?? false,
   );
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'email': email,
@@ -66,7 +63,6 @@ class UserModel extends Equatable {
     'statistics': statistics,
     'isGoogleAccount': isGoogleAccount,
   };
-
   UserModel copyWith({
     String? id,
     String? email,
@@ -96,7 +92,6 @@ class UserModel extends Equatable {
     statistics: statistics ?? this.statistics,
     isGoogleAccount: isGoogleAccount ?? this.isGoogleAccount,
   );
-
   @override
   List<Object?> get props => [id, email, displayName];
 }

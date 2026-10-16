@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
+
 import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/color_constants.dart';
 import '../../shared/models/step_model.dart';
@@ -8,18 +9,17 @@ import 'steps_provider.dart';
 
 class StepsScreen extends StatefulWidget {
   const StepsScreen({super.key});
-
   @override
   State<StepsScreen> createState() => _StepsScreenState();
 }
 
-class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStateMixin {
+class _StepsScreenState extends State<StepsScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-
   @override
   void initState() {
     super.initState();
@@ -30,7 +30,6 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<StepsProvider>().initialize();
     });
@@ -45,7 +44,6 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
@@ -61,15 +59,12 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
             if (provider.state.isLoading) {
               return const Center(child: CircularProgressIndicator());
             }
-
             if (!provider.state.hasSensor) {
               return _buildNoSensorState(theme);
             }
-
             if (!provider.state.hasPermission) {
               return _buildNoPermissionState(provider, theme);
             }
-
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
@@ -107,7 +102,11 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.directions_walk_rounded, size: 64, color: Colors.grey.withValues(alpha: 0.5)),
+            Icon(
+              Icons.directions_walk_rounded,
+              size: 64,
+              color: Colors.grey.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 20),
             Text(
               'Step Counting',
@@ -136,7 +135,11 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.health_and_safety_rounded, size: 64, color: ColorConstants.primary.withValues(alpha: 0.5)),
+            Icon(
+              Icons.health_and_safety_rounded,
+              size: 64,
+              color: ColorConstants.primary.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 20),
             Text(
               'Step Tracking',
@@ -166,12 +169,17 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ColorConstants.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   elevation: 0,
                 ),
                 child: Text(
                   'Allow',
-                  style: AppTextStyles.googleSans(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: AppTextStyles.googleSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -186,7 +194,6 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
     final goal = provider.state.dailyGoal;
     final progress = provider.state.progress;
     final percentage = (progress * 100).toInt();
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(32),
@@ -226,7 +233,9 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
                       backgroundColor: theme.brightness == Brightness.dark
                           ? Colors.white.withValues(alpha: 0.08)
                           : Colors.grey.shade200,
-                      valueColor: AlwaysStoppedAnimation<Color>(ColorConstants.primary),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        ColorConstants.primary,
+                      ),
                       strokeCap: StrokeCap.round,
                     ),
                   ),
@@ -266,26 +275,29 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
           const SizedBox(height: 4),
           Text(
             '${_formatNumber(goal)} steps',
-            style: AppTextStyles.googleSans(
-              fontSize: 12,
-              color: Colors.grey,
-            ),
+            style: AppTextStyles.googleSans(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                provider.state.isTracking ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                provider.state.isTracking
+                    ? Icons.play_arrow_rounded
+                    : Icons.pause_rounded,
                 size: 16,
                 color: provider.state.isTracking ? Colors.green : Colors.orange,
               ),
               const SizedBox(width: 4),
               Text(
-                provider.state.isTracking ? 'Tracking active' : 'Tracking paused',
+                provider.state.isTracking
+                    ? 'Tracking active'
+                    : 'Tracking paused',
                 style: AppTextStyles.googleSans(
                   fontSize: 11,
-                  color: provider.state.isTracking ? Colors.green : Colors.orange,
+                  color: provider.state.isTracking
+                      ? Colors.green
+                      : Colors.orange,
                 ),
               ),
               const SizedBox(width: 12),
@@ -298,7 +310,10 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: ColorConstants.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
@@ -331,9 +346,7 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
   Widget _buildStepHistory(StepsProvider provider, ThemeData theme) {
     final history = List<StepDayModel>.from(provider.state.history)
       ..sort((a, b) => b.date.compareTo(a.date));
-
     if (history.isEmpty) return const SizedBox.shrink();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -356,7 +369,6 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final recordDate = DateTime(date.year, date.month, date.day);
-
     String label;
     if (recordDate == today) {
       label = 'Today';
@@ -365,7 +377,6 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
     } else {
       label = '${_monthName(date.month)} ${date.day}';
     }
-
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -458,7 +469,10 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
                 fontWeight: FontWeight.w600,
               ),
               leftChevronIcon: const Icon(Icons.chevron_left_rounded, size: 20),
-              rightChevronIcon: const Icon(Icons.chevron_right_rounded, size: 20),
+              rightChevronIcon: const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+              ),
             ),
             calendarBuilders: CalendarBuilders(
               defaultBuilder: (context, day, focusedDay) {
@@ -504,7 +518,6 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
     final record = provider.getRecordForDate(day);
     final steps = record?.stepCount ?? 0;
     final dateStr = '${_monthName(day.month)} ${day.day}, ${day.year}';
-
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -512,16 +525,26 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           dateStr,
-          style: AppTextStyles.googleSans(fontSize: 16, fontWeight: FontWeight.w600),
+          style: AppTextStyles.googleSans(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         content: Text(
           steps > 0 ? '${_formatNumber(steps)} steps' : 'No data',
-          style: AppTextStyles.googleSans(fontSize: 24, fontWeight: FontWeight.w700, color: ColorConstants.primary),
+          style: AppTextStyles.googleSans(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: ColorConstants.primary,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('OK', style: AppTextStyles.googleSans(color: ColorConstants.primary)),
+            child: Text(
+              'OK',
+              style: AppTextStyles.googleSans(color: ColorConstants.primary),
+            ),
           ),
         ],
       ),
@@ -543,8 +566,21 @@ class _StepsScreenState extends State<StepsScreen> with SingleTickerProviderStat
   }
 
   String _monthName(int month) {
-    const names = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const names = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return names[month];
   }
 }
-

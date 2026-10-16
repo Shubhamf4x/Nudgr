@@ -1,5 +1,7 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
+
 import '../../core/constants/color_constants.dart';
 
 class AvatarWidget extends StatelessWidget {
@@ -8,7 +10,6 @@ class AvatarWidget extends StatelessWidget {
   final double size;
   final bool showOnlineStatus;
   final bool isOnline;
-
   const AvatarWidget({
     super.key,
     this.photoUrl,
@@ -17,13 +18,17 @@ class AvatarWidget extends StatelessWidget {
     this.showOnlineStatus = false,
     this.isOnline = false,
   });
-
   String get _initials {
-    final parts = name.split(' ');
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '?';
     if (parts.length >= 2) {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
-    return name.substring(0, name.length.clamp(0, 2)).toUpperCase();
+    return parts[0].substring(0, parts[0].length.clamp(0, 2)).toUpperCase();
   }
 
   Color get _backgroundColor {

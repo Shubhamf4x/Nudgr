@@ -1,9 +1,4 @@
-enum PeerConnectionState {
-  disconnected,
-  connecting,
-  connected,
-  advertising,
-}
+enum PeerConnectionState { disconnected, connecting, connected, advertising }
 
 class ChatPeer {
   final String peerId;
@@ -13,7 +8,6 @@ class ChatPeer {
   final int signalStrength;
   final bool isRelay;
   final int hopCount;
-
   const ChatPeer({
     required this.peerId,
     this.nickname,
@@ -23,13 +17,10 @@ class ChatPeer {
     this.isRelay = false,
     this.hopCount = 0,
   });
-
   bool get isConnected => connectionState == PeerConnectionState.connected;
   bool get isActive => DateTime.now().difference(lastSeen).inSeconds < 30;
-
   String get displayId => peerId.length > 8 ? peerId.substring(0, 8) : peerId;
   String get displayName => nickname ?? displayId;
-
   ChatPeer copyWith({
     String? peerId,
     String? nickname,
@@ -59,7 +50,6 @@ class ChatPeer {
     'isRelay': isRelay,
     'hopCount': hopCount,
   };
-
   factory ChatPeer.fromJson(Map<String, dynamic> json) => ChatPeer(
     peerId: json['peerId'],
     nickname: json['nickname'],

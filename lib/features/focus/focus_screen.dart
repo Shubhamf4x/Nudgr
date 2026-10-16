@@ -1,6 +1,8 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/constants/color_constants.dart';
 import '../../core/utils/helpers.dart';
 import '../../shared/models/focus_session_model.dart';
@@ -8,7 +10,6 @@ import 'focus_provider.dart';
 
 class FocusScreen extends StatefulWidget {
   const FocusScreen({super.key});
-
   @override
   State<FocusScreen> createState() => _FocusScreenState();
 }
@@ -16,7 +17,6 @@ class FocusScreen extends StatefulWidget {
 class _FocusScreenState extends State<FocusScreen> {
   bool _isBreakMode = false;
   int? _savedFocusDuration;
-
   @override
   void initState() {
     super.initState();
@@ -46,10 +46,10 @@ class _FocusScreenState extends State<FocusScreen> {
   }
 
   void _showDurationPicker(FocusProvider provider) {
-    final currentDuration =
-        _isBreakMode ? provider.state.shortBreak : provider.state.focusDuration;
+    final currentDuration = _isBreakMode
+        ? provider.state.shortBreak
+        : provider.state.focusDuration;
     double sliderValue = currentDuration.toDouble();
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -66,7 +66,6 @@ class _FocusScreenState extends State<FocusScreen> {
             final displayText = h > 0
                 ? '$h hr${h > 1 ? 's' : ''}${m > 0 ? ' $m min' : ''}'
                 : '$m min';
-
             return Padding(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
               child: Column(
@@ -94,8 +93,9 @@ class _FocusScreenState extends State<FocusScreen> {
                       activeTrackColor: ColorConstants.primary,
                       inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
                       thumbColor: ColorConstants.primary,
-                      overlayColor:
-                          ColorConstants.primary.withValues(alpha: 0.15),
+                      overlayColor: ColorConstants.primary.withValues(
+                        alpha: 0.15,
+                      ),
                     ),
                     child: Slider(
                       value: sliderValue,
@@ -110,12 +110,20 @@ class _FocusScreenState extends State<FocusScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('1 min',
-                            style: AppTextStyles.googleSans(
-                                fontSize: 12, color: Colors.white38)),
-                        Text('6 hrs',
-                            style: AppTextStyles.googleSans(
-                                fontSize: 12, color: Colors.white38)),
+                        Text(
+                          '1 min',
+                          style: AppTextStyles.googleSans(
+                            fontSize: 12,
+                            color: Colors.white38,
+                          ),
+                        ),
+                        Text(
+                          '6 hrs',
+                          style: AppTextStyles.googleSans(
+                            fontSize: 12,
+                            color: Colors.white38,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -145,6 +153,63 @@ class _FocusScreenState extends State<FocusScreen> {
     );
   }
 
+  void _showFocusStats() {
+    final state = context.read<FocusProvider>().state;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Theme.of(dialogContext).cardTheme.color,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Focus statistics',
+          style: AppTextStyles.googleSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStatRow('Today', '${state.todayFocusMinutes} min'),
+            _buildStatRow('All time', '${state.totalFocusMinutes} min'),
+            _buildStatRow('Sessions completed', '${state.completedSessions}'),
+            _buildStatRow('Current streak', '${state.currentStreak} days'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: AppTextStyles.googleSans(fontSize: 14)),
+          const SizedBox(width: 16),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: AppTextStyles.googleSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -164,7 +229,8 @@ class _FocusScreenState extends State<FocusScreen> {
                     ),
                   ),
                   IconButton(
-                    onPressed: () {},
+                    onPressed: _showFocusStats,
+                    tooltip: 'Focus statistics',
                     icon: const Icon(Icons.bar_chart_rounded, size: 24),
                   ),
                 ],
@@ -196,47 +262,64 @@ class _FocusScreenState extends State<FocusScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade200),
+        border: Border.all(
+          color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade200,
+        ),
       ),
       child: SizedBox(
         height: 400,
-        child: Selector<FocusProvider, ({FocusStatus status, int remainingSeconds})>(
-          selector: (_, p) => (status: p.state.status, remainingSeconds: p.state.remainingSeconds),
-          builder: (context, data, _) {
-            final provider = context.read<FocusProvider>();
-            final status = data.status;
-            final isIdle = status == FocusStatus.idle;
-            final isRunning = status == FocusStatus.running;
-            final isPaused = status == FocusStatus.paused;
-            final isBreakTime = status == FocusStatus.breakTime;
-            final timerActive = isRunning || isPaused || isBreakTime;
-
-            return Column(
-              children: [
-                _buildToggleTabs(timerActive),
-                const SizedBox(height: 16),
-                if (isIdle) ...[
-                  _buildDurationChip(),
-                  const Spacer(flex: 2),
-                ] else
-                  const Spacer(flex: 1),
-                _buildTimerText(status: data.status, remainingSeconds: data.remainingSeconds),
-                const SizedBox(height: 8),
-                Text(
-                  _getStatusText(status),
-                  style: AppTextStyles.googleSans(
-                    fontSize: 15,
-                    color: Theme.of(context).textTheme.bodySmall?.color,
-                  ),
-                ),
-                const Spacer(flex: 3),
-                _buildControls(provider, isIdle, isRunning, isPaused, isBreakTime),
-                const SizedBox(height: 20),
-                _buildStatsLine(),
-              ],
-            );
-          },
-        ),
+        child:
+            Selector<
+              FocusProvider,
+              ({FocusStatus status, int remainingSeconds})
+            >(
+              selector: (_, p) => (
+                status: p.state.status,
+                remainingSeconds: p.state.remainingSeconds,
+              ),
+              builder: (context, data, _) {
+                final provider = context.read<FocusProvider>();
+                final status = data.status;
+                final isIdle = status == FocusStatus.idle;
+                final isRunning = status == FocusStatus.running;
+                final isPaused = status == FocusStatus.paused;
+                final isBreakTime = status == FocusStatus.breakTime;
+                final timerActive = isRunning || isPaused || isBreakTime;
+                return Column(
+                  children: [
+                    _buildToggleTabs(timerActive),
+                    const SizedBox(height: 16),
+                    if (isIdle) ...[
+                      _buildDurationChip(),
+                      const Spacer(flex: 2),
+                    ] else
+                      const Spacer(flex: 1),
+                    _buildTimerText(
+                      status: data.status,
+                      remainingSeconds: data.remainingSeconds,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _getStatusText(status),
+                      style: AppTextStyles.googleSans(
+                        fontSize: 15,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                    ),
+                    const Spacer(flex: 3),
+                    _buildControls(
+                      provider,
+                      isIdle,
+                      isRunning,
+                      isPaused,
+                      isBreakTime,
+                    ),
+                    const SizedBox(height: 20),
+                    _buildStatsLine(),
+                  ],
+                );
+              },
+            ),
       ),
     );
   }
@@ -277,7 +360,9 @@ class _FocusScreenState extends State<FocusScreen> {
           style: AppTextStyles.googleSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : Theme.of(context).textTheme.bodySmall?.color,
+            color: isSelected
+                ? Colors.white
+                : Theme.of(context).textTheme.bodySmall?.color,
           ),
         ),
       ),
@@ -286,8 +371,9 @@ class _FocusScreenState extends State<FocusScreen> {
 
   Widget _buildDurationChip() {
     final provider = context.read<FocusProvider>();
-    final duration =
-        _isBreakMode ? provider.state.shortBreak : provider.state.focusDuration;
+    final duration = _isBreakMode
+        ? provider.state.shortBreak
+        : provider.state.focusDuration;
     return GestureDetector(
       onTap: () => _showDurationPicker(provider),
       child: Container(
@@ -301,7 +387,11 @@ class _FocusScreenState extends State<FocusScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.access_time_rounded, size: 16, color: Theme.of(context).textTheme.bodySmall?.color),
+            Icon(
+              Icons.access_time_rounded,
+              size: 16,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
             const SizedBox(width: 8),
             Text(
               '$duration min',
@@ -312,19 +402,27 @@ class _FocusScreenState extends State<FocusScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            Icon(Icons.edit_outlined, size: 14, color: Theme.of(context).textTheme.bodySmall?.color),
+            Icon(
+              Icons.edit_outlined,
+              size: 14,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTimerText({required FocusStatus status, required int remainingSeconds}) {
+  Widget _buildTimerText({
+    required FocusStatus status,
+    required int remainingSeconds,
+  }) {
     String timerText;
     if (status == FocusStatus.idle) {
       final provider = context.read<FocusProvider>();
-      final duration =
-          _isBreakMode ? provider.state.shortBreak : provider.state.focusDuration;
+      final duration = _isBreakMode
+          ? provider.state.shortBreak
+          : provider.state.focusDuration;
       final totalSec = duration * 60;
       timerText =
           '${(totalSec ~/ 60).toString().padLeft(2, '0')}:${(totalSec % 60).toString().padLeft(2, '0')}';
@@ -332,7 +430,6 @@ class _FocusScreenState extends State<FocusScreen> {
       timerText =
           '${(remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(remainingSeconds % 60).toString().padLeft(2, '0')}';
     }
-
     return Text(
       timerText,
       style: AppTextStyles.googleSans(
@@ -410,10 +507,7 @@ class _FocusScreenState extends State<FocusScreen> {
     );
   }
 
-  Widget _buildIconButton({
-    required IconData icon,
-    VoidCallback? onTap,
-  }) {
+  Widget _buildIconButton({required IconData icon, VoidCallback? onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Icon(
@@ -421,7 +515,8 @@ class _FocusScreenState extends State<FocusScreen> {
         size: 28,
         color: onTap != null
             ? Theme.of(context).textTheme.bodyLarge?.color
-            : Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.3),
+            : Theme.of(context).textTheme.bodySmall?.color
+                  ?.withValues(alpha: 0.3),
       ),
     );
   }
@@ -433,10 +528,12 @@ class _FocusScreenState extends State<FocusScreen> {
     final m = totalMinutes % 60;
     final focusedTime =
         '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
-
     return Text(
       '${provider.state.completedSessions} focus sessions today \u00b7 $focusedTime focused',
-      style: AppTextStyles.googleSans(fontSize: 13, color: Theme.of(context).textTheme.bodySmall?.color),
+      style: AppTextStyles.googleSans(
+        fontSize: 13,
+        color: Theme.of(context).textTheme.bodySmall?.color,
+      ),
     );
   }
 
@@ -444,12 +541,10 @@ class _FocusScreenState extends State<FocusScreen> {
     return Selector<FocusProvider, List<FocusSessionModel>>(
       selector: (_, p) => p.state.sessions,
       builder: (context, sessions, _) {
-        final focusSessions = sessions
-            .where((s) => s.sessionType == 'focus')
-            .toList()
-          ..sort((a, b) => b.startTime.compareTo(a.startTime));
+        final focusSessions =
+            sessions.where((s) => s.sessionType == 'focus').toList()
+              ..sort((a, b) => b.startTime.compareTo(a.startTime));
         final recent = focusSessions.take(10).toList();
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -467,7 +562,10 @@ class _FocusScreenState extends State<FocusScreen> {
                 child: Center(
                   child: Text(
                     'Complete your first focus session to see history.',
-                    style: AppTextStyles.googleSans(fontSize: 14, color: Theme.of(context).textTheme.bodySmall?.color),
+                    style: AppTextStyles.googleSans(
+                      fontSize: 14,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -488,7 +586,9 @@ class _FocusScreenState extends State<FocusScreen> {
         decoration: BoxDecoration(
           color: Theme.of(context).cardTheme.color,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade200),
+          border: Border.all(
+            color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade200,
+          ),
         ),
         child: Row(
           children: [
@@ -502,9 +602,7 @@ class _FocusScreenState extends State<FocusScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                session.isCompleted
-                    ? Icons.check_rounded
-                    : Icons.close_rounded,
+                session.isCompleted ? Icons.check_rounded : Icons.close_rounded,
                 color: session.isCompleted
                     ? ColorConstants.success
                     : Colors.white38,

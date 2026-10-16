@@ -2,7 +2,7 @@
 
 # Nudgr
 
-**All-in-one productivity & communication app — tasks, notes, focus, steps, world time and offline-first Bluetooth chat, in one lightweight package.**
+**All-in-one productivity & communication app — tasks, notes, focus, steps and world time, in one lightweight package.**
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white)
@@ -18,7 +18,7 @@
 
 ## Overview
 
-Nudgr is a local-first productivity app for Android. Everything you create — tasks, notes, focus sessions, step history — lives on your device by default and keeps working fully offline. When you sign in with Google, your data is also privately synchronized through your own Firebase account so it follows you to any device or reinstall. Bluetooth chat lets two nearby devices talk directly, with no server in between.
+Nudgr is a local-first productivity app for Android. Everything you create — tasks, notes, focus sessions, step history — lives on your device by default and keeps working fully offline. When you sign in with Google, your data is also privately synchronized through your own Firebase account so it follows you to any device or reinstall.
 
 ## Features
 
@@ -50,8 +50,8 @@ Nudgr is a local-first productivity app for Android. Everything you create — t
 - Reorderable list, swipe to remove, 12/24-hour toggle and searchable city suggestions.
 
 ### Chat (Bluetooth Mesh)
-- Device-to-device messaging over Bluetooth LE — messages travel directly between nearby phones.
-- Works with no internet and stores conversations only on the participating devices. Chat logs never touch the cloud.
+- Channel and direct messaging, with conversations stored only on the participating devices — chat logs never touch the cloud.
+- > **Status: the radio link is not implemented yet.** The mesh logic — packet framing, TTL/hop accounting, de-duplication, relaying, channel and discovery payloads — is implemented and unit-tested in `lib/features/chat/services/mesh_protocol.dart`, but packets are never transmitted or received over the air. `flutter_blue_plus` 1.36.x only exposes the BLE *central* role, so the app cannot advertise a mesh service or host the GATT server that peers would connect to. `BleMeshService._transmit` is the single integration point for a peripheral-capable transport (a GATT-server plugin, or a small native `BluetoothLeAdvertiser` + `BluetoothGattServer` bridge). Until that is wired up, no peer can be discovered and no message leaves the device.
 
 ### Profile & Account
 - Google sign-in or email/password registration with optional custom username.
@@ -105,7 +105,7 @@ The Android host (`MainActivity`) exposes the hardware `TYPE_STEP_COUNTER` senso
 | Local storage | SharedPreferences |
 | Notifications | flutter_local_notifications + timezone |
 | Steps | Android `SensorManager` (`TYPE_STEP_COUNTER`) via MethodChannel |
-| Chat | Bluetooth LE mesh (flutter_blue_plus) |
+| Chat | Bluetooth LE mesh scaffolding (`mesh_protocol.dart`); **no radio transport yet** (flutter_blue_plus) |
 | Images | image_picker + image_cropper |
 | Networking | dart:io HTTP (GitHub Releases check), url_launcher |
 | Security | Firestore Security Rules, App Check (Play Integrity) |
@@ -133,7 +133,7 @@ lib/
     ├── steps/                 # Step counter & history
     ├── calendar/              # Task calendar
     ├── world_clock/           # World time screen
-    ├── chat/                  # Bluetooth mesh chat
+    ├── chat/                  # Bluetooth mesh chat (protocol + UI; transport pending)
     ├── profile/               # Profile & settings entry points
     └── settings/              # Settings, appearance, legal screens
 ```
@@ -152,14 +152,35 @@ flutter run
 ```
 
 ### Build a release APK
-```bash
-# Universal APK (all CPU architectures)
-flutter build apk --release
 
-# Smaller per-device APKs
-flutter build apk --release --split-per-abi
+Every release publishes **all** variants — the three per-ABI APKs *and* the universal one — so
+one command builds and verifies the whole set:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tool\build_apks.ps1          # split-per-abi + universal
+powershell -NoProfile -ExecutionPolicy Bypass -File tool\build_apks.ps1 -Debug   # also refresh the debug APK
 ```
-Output lands in `build/app/outputs/flutter-apk/`.
+
+(On PowerShell 7+, `pwsh -File tool/build_apks.ps1` works too.)
+
+Output lands in `build/app/outputs/flutter-apk/`:
+
+| Artifact | ABI | Notes |
+|---|---|---|
+| `app-arm64-v8a-release.apk` | arm64-v8a | most modern phones |
+| `app-armeabi-v7a-release.apk` | armeabi-v7a | older 32-bit devices |
+| `app-x86_64-release.apk` | x86_64 | emulators / x86 tablets |
+| `app-release.apk` | all three | universal fallback for sideloading |
+
+The equivalent raw commands, if you prefer to run them by hand:
+
+```bash
+flutter build apk --release --split-per-abi
+flutter build apk --release
+```
+
+> Attach all four to the GitHub Release. `UpdateService` picks the first `.apk` asset it finds,
+> so the universal APK is the safest one to list first — it installs on any device.
 
 ### Deploy the backend security rules
 ```bash
@@ -169,16 +190,17 @@ firebase deploy --only firestore:rules
 
 ### Publishing an update to users
 1. Bump `version:` in `pubspec.yaml`.
-2. `flutter build apk --release --split-per-abi`.
-3. On GitHub: **Releases → Draft a new release** → tag it (e.g. `v1.0.1`) → attach the APK → publish.
+2. `powershell -NoProfile -ExecutionPolicy Bypass -File tool\build_apks.ps1` — builds and verifies every ABI.
+3. On GitHub: **Releases → Draft a new release** → tag it (e.g. `v1.0.1`) → attach all four APKs → publish.
 4. Users tapping *Check for updates* in the app are offered the new version.
 
 ### Firestore rules tests
-A full authorization test matrix (Account A/B, ownership tampering, unauthenticated access) lives in [`firebase_tests/`](firebase_tests/) and runs against the Firebase Emulator Suite:
+A full authorization test matrix (Account A/B, ownership tampering, unauthenticated access) lives in [`firebase_tests/`](firebase_tests/) and runs against the Firebase Emulator Suite. The root `firebase.json` points the emulator and `firebase deploy` at `firestore.rules` / `storage.rules`:
 ```bash
-cd firebase_tests && npm install
-firebase emulators:exec --only firestore "npm test"
+cd firebase_tests && npm install && cd ..
+firebase emulators:exec --only firestore --project rules-test-nudgr "npm --prefix firebase_tests test"
 ```
+The Firestore emulator needs a Java 11+ runtime on `PATH` (or `JAVA_HOME`). Android Studio's bundled JBR works if it is a complete install.
 
 ## Data Safety Summary
 
@@ -187,7 +209,7 @@ firebase emulators:exec --only firestore "npm test"
 | Tasks, notes, categories | On device; cloud only for Google accounts | Only to your own private Firebase subtree |
 | Focus history & steps | On device; cloud only for Google accounts | Only to your own private Firebase subtree |
 | Profile photo | On device only | Never |
-| Bluetooth chat | Participating devices only | Never (no server involved) |
+| Bluetooth chat | Participating devices only | Never — and nothing is transmitted yet (see the Chat section) |
 | Credentials | Firebase Authentication | Managed by Google's auth infrastructure |
 
 No ads. No analytics trackers. No data selling. See the in-app **Privacy Policy** and **Terms of Service** (Settings → Privacy) for the complete documents.

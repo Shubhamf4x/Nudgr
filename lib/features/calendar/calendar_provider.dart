@@ -9,7 +9,6 @@ class CalendarState {
   final List<TaskModel> tasks;
   final bool isLoading;
   final Map<DateTime, List<TaskModel>> tasksByDate;
-
   CalendarState({
     required this.selectedDate,
     required this.focusedDate,
@@ -17,7 +16,6 @@ class CalendarState {
     this.isLoading = true,
     Map<DateTime, List<TaskModel>>? tasksByDate,
   }) : tasksByDate = tasksByDate ?? _groupByDate(tasks);
-
   static Map<DateTime, List<TaskModel>> _groupByDate(List<TaskModel> tasks) {
     final map = <DateTime, List<TaskModel>>{};
     for (final task in tasks) {
@@ -43,7 +41,6 @@ class CalendarState {
     tasksByDate:
         tasksByDate ?? (tasks == null ? this.tasksByDate : _groupByDate(tasks)),
   );
-
   List<TaskModel> get tasksForSelectedDate {
     return tasksByDate[DateTime(
           selectedDate.year,
@@ -57,16 +54,12 @@ class CalendarState {
 class CalendarProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService.getInstance();
   late CalendarState _state;
-
   CalendarProvider() {
     final now = DateTime.now();
     _state = CalendarState(selectedDate: now, focusedDate: now);
   }
-
   CalendarState get state => _state;
-
   bool _loadedOnce = false;
-
   Future<void> initialize() async {
     if (_loadedOnce) return;
     await loadData();
@@ -76,9 +69,7 @@ class CalendarProvider extends ChangeNotifier {
     _loadedOnce = true;
     _state = _state.copyWith(isLoading: true);
     notifyListeners();
-
     final tasks = _db.getTasks();
-
     _state = _state.copyWith(tasks: tasks, isLoading: false);
     notifyListeners();
   }

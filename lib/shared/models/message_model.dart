@@ -13,7 +13,6 @@ class MessageModel extends Equatable {
   final bool isRead;
   final bool isDelivered;
   final bool isPending;
-
   const MessageModel({
     required this.id,
     required this.conversationId,
@@ -28,7 +27,6 @@ class MessageModel extends Equatable {
     this.isDelivered = true,
     this.isPending = false,
   });
-
   factory MessageModel.fromJson(Map<String, dynamic> json) => MessageModel(
     id: json['id'] as String,
     conversationId: json['conversationId'] as String,
@@ -38,12 +36,13 @@ class MessageModel extends Equatable {
     content: json['content'] as String,
     type: json['type'] as String? ?? 'text',
     createdAt: DateTime.parse(json['createdAt'] as String),
-    updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt'] as String) : null,
+    updatedAt: json['updatedAt'] != null
+        ? DateTime.parse(json['updatedAt'] as String)
+        : null,
     isRead: json['isRead'] as bool? ?? false,
     isDelivered: json['isDelivered'] as bool? ?? true,
     isPending: json['isPending'] as bool? ?? false,
   );
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'conversationId': conversationId,
@@ -58,7 +57,6 @@ class MessageModel extends Equatable {
     'isDelivered': isDelivered,
     'isPending': isPending,
   };
-
   MessageModel copyWith({
     String? id,
     String? conversationId,
@@ -86,7 +84,6 @@ class MessageModel extends Equatable {
     isDelivered: isDelivered ?? this.isDelivered,
     isPending: isPending ?? this.isPending,
   );
-
   @override
   List<Object?> get props => [id, content, isRead, isPending];
 }

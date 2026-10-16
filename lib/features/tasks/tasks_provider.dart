@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../shared/models/task_model.dart';
 import '../../shared/models/category_model.dart';
 import '../../core/services/database_service.dart';
@@ -13,7 +14,6 @@ class TasksState {
   final bool showCompleted;
   final String searchQuery;
   final bool isLoading;
-
   const TasksState({
     this.tasks = const [],
     this.categories = const [],
@@ -23,7 +23,6 @@ class TasksState {
     this.searchQuery = '',
     this.isLoading = true,
   });
-
   TasksState copyWith({
     List<TaskModel>? tasks,
     List<CategoryModel>? categories,
@@ -32,20 +31,27 @@ class TasksState {
     bool? showCompleted,
     String? searchQuery,
     bool? isLoading,
+    bool clearCategory = false,
+    bool clearPriority = false,
   }) => TasksState(
     tasks: tasks ?? this.tasks,
     categories: categories ?? this.categories,
-    selectedCategoryId: selectedCategoryId,
-    selectedPriority: selectedPriority,
+    selectedCategoryId: clearCategory
+        ? null
+        : (selectedCategoryId ?? this.selectedCategoryId),
+    selectedPriority: clearPriority
+        ? null
+        : (selectedPriority ?? this.selectedPriority),
     showCompleted: showCompleted ?? this.showCompleted,
     searchQuery: searchQuery ?? this.searchQuery,
     isLoading: isLoading ?? this.isLoading,
   );
-
   List<TaskModel> get filteredTasks {
     var filtered = List<TaskModel>.from(tasks);
     if (selectedCategoryId != null) {
-      filtered = filtered.where((t) => t.categoryId == selectedCategoryId).toList();
+      filtered = filtered
+          .where((t) => t.categoryId == selectedCategoryId)
+          .toList();
     }
     if (selectedPriority != null) {
       filtered = filtered.where((t) => t.priority == selectedPriority).toList();
@@ -67,7 +73,9 @@ class TasksState {
       final aPriority = priorityOrder[a.priority] ?? 2;
       final bPriority = priorityOrder[b.priority] ?? 2;
       if (aPriority != bPriority) return aPriority.compareTo(bPriority);
-      if (a.dueDate != null && b.dueDate != null) return a.dueDate!.compareTo(b.dueDate!);
+      if (a.dueDate != null && b.dueDate != null) {
+        return a.dueDate!.compareTo(b.dueDate!);
+      }
       if (a.dueDate != null) return -1;
       if (b.dueDate != null) return 1;
       return b.createdAt.compareTo(a.createdAt);
@@ -80,11 +88,8 @@ class TasksProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService.getInstance();
   final SyncService _sync = SyncService.getInstance();
   TasksState _state = const TasksState();
-
   TasksState get state => _state;
-
   bool _loadedOnce = false;
-
   Future<void> initialize() async {
     if (_loadedOnce) return;
     await loadData();
@@ -94,10 +99,8 @@ class TasksProvider extends ChangeNotifier {
     _loadedOnce = true;
     _state = _state.copyWith(isLoading: true);
     notifyListeners();
-
     final tasks = _db.getTasks();
     final categories = _db.getCategories();
-
     _state = _state.copyWith(
       tasks: tasks,
       categories: categories,
@@ -108,9 +111,7 @@ class TasksProvider extends ChangeNotifier {
 
   Future<void> addTask(TaskModel task) async {
     await _db.saveTask(task);
-
     await loadData();
-
     if (task.dueTime != null && task.dueTime!.isAfter(DateTime.now())) {
       try {
         await NotificationService.getInstance().scheduleTaskNotification(
@@ -120,15 +121,12 @@ class TasksProvider extends ChangeNotifier {
         );
       } catch (_) {}
     }
-
     _sync.saveTaskToFirestore(task);
   }
 
   Future<void> updateTask(TaskModel task) async {
     await _db.saveTask(task);
-
     await loadData();
-
     try {
       await NotificationService.getInstance().cancelTaskNotification(task.id);
       if (task.dueTime != null &&
@@ -141,37 +139,34 @@ class TasksProvider extends ChangeNotifier {
         );
       }
     } catch (_) {}
-
     _sync.saveTaskToFirestore(task);
   }
 
   Future<void> deleteTask(String taskId) async {
     await _db.deleteTask(taskId);
-
     await loadData();
-
     try {
       await NotificationService.getInstance().cancelTaskNotification(taskId);
     } catch (_) {}
-
     _sync.deleteTaskFromFirestore(taskId);
   }
 
   Future<void> toggleTask(TaskModel task) async {
+    final completing = !task.isCompleted;
     final updated = task.copyWith(
-      isCompleted: !task.isCompleted,
-      completedAt: !task.isCompleted ? DateTime.now() : null,
+      isCompleted: completing,
+      completedAt: completing ? DateTime.now() : null,
+      clearCompletedAt: !completing,
       updatedAt: DateTime.now(),
       isSynced: false,
     );
     await _db.saveTask(updated);
-
     await loadData();
-
     try {
       if (updated.isCompleted) {
-        await NotificationService.getInstance()
-            .cancelTaskNotification(updated.id);
+        await NotificationService.getInstance().cancelTaskNotification(
+          updated.id,
+        );
       } else if (updated.dueTime != null &&
           updated.dueTime!.isAfter(DateTime.now())) {
         await NotificationService.getInstance().scheduleTaskNotification(
@@ -181,7 +176,6 @@ class TasksProvider extends ChangeNotifier {
         );
       }
     } catch (_) {}
-
     _sync.saveTaskToFirestore(updated);
   }
 
@@ -202,12 +196,16 @@ class TasksProvider extends ChangeNotifier {
     String? priority,
     bool? showCompleted,
     String? searchQuery,
+    bool clearCategory = false,
+    bool clearPriority = false,
   }) {
     _state = _state.copyWith(
       selectedCategoryId: categoryId,
       selectedPriority: priority,
       showCompleted: showCompleted,
       searchQuery: searchQuery,
+      clearCategory: clearCategory,
+      clearPriority: clearPriority,
     );
     notifyListeners();
   }

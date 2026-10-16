@@ -1,6 +1,8 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../core/constants/color_constants.dart';
 import '../../core/utils/smooth_transitions.dart';
 import '../../features/focus/focus_screen.dart';
@@ -12,13 +14,11 @@ import '../../features/world_clock/world_clock_screen.dart';
 class FloatingPillNavBar extends StatefulWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
-
   const FloatingPillNavBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
   });
-
   @override
   State<FloatingPillNavBar> createState() => _FloatingPillNavBarState();
 }
@@ -29,7 +29,6 @@ class _FloatingPillNavBarState extends State<FloatingPillNavBar>
   late AnimationController _fabController;
   late Animation<double> _fabAnimation;
   OverlayEntry? _radialOverlay;
-
   @override
   void initState() {
     super.initState();
@@ -120,17 +119,13 @@ class _FloatingPillNavBarState extends State<FloatingPillNavBar>
   Widget build(BuildContext context) {
     final bp = MediaQuery.of(context).padding.bottom;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return RepaintBoundary(
       child: SizedBox(
         height: 64 + bp,
         child: Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.bottomCenter,
-          children: [
-            _buildPill(isDark, bp),
-            _buildCenterFab(isDark, bp),
-          ],
+          children: [_buildPill(isDark, bp), _buildCenterFab(isDark, bp)],
         ),
       ),
     );
@@ -192,7 +187,6 @@ class _FloatingPillNavBarState extends State<FloatingPillNavBar>
 
   Widget _buildCenterFab(bool isDark, double bp) {
     final cx = MediaQuery.of(context).size.width / 2;
-
     return Positioned(
       left: cx - 24,
       bottom: bp + 26,
@@ -238,11 +232,16 @@ class _FloatingPillNavBarState extends State<FloatingPillNavBar>
 
   IconData _getItemIcon(int index) {
     switch (index) {
-      case 0: return Icons.home_rounded;
-      case 1: return Icons.check_circle_outline_rounded;
-      case 3: return Icons.chat_bubble_outline_rounded;
-      case 4: return Icons.person_outline_rounded;
-      default: return Icons.circle;
+      case 0:
+        return Icons.home_rounded;
+      case 1:
+        return Icons.check_circle_outline_rounded;
+      case 3:
+        return Icons.chat_bubble_outline_rounded;
+      case 4:
+        return Icons.person_outline_rounded;
+      default:
+        return Icons.circle;
     }
   }
 }
@@ -251,13 +250,11 @@ class _RadialMenuOverlay extends StatefulWidget {
   final Animation<double> animation;
   final VoidCallback onClose;
   final ValueChanged<String> onActionTap;
-
   const _RadialMenuOverlay({
     required this.animation,
     required this.onClose,
     required this.onActionTap,
   });
-
   @override
   State<_RadialMenuOverlay> createState() => _RadialMenuOverlayState();
 }
@@ -270,7 +267,6 @@ class _RadialMenuOverlayState extends State<_RadialMenuOverlay> {
     final bp = MediaQuery.of(context).padding.bottom;
     final centerX = sw / 2;
     final fabY = sh - bp - 64 + 26;
-
     final actions = [
       _FabData(icon: Icons.timer_rounded, screen: 'focus'),
       _FabData(icon: Icons.note_alt_rounded, screen: 'notes'),
@@ -278,12 +274,10 @@ class _RadialMenuOverlayState extends State<_RadialMenuOverlay> {
       _FabData(icon: Icons.directions_walk_rounded, screen: 'steps'),
       _FabData(icon: Icons.access_time_rounded, screen: 'clock'),
     ];
-
     return AnimatedBuilder(
       animation: widget.animation,
       builder: (context, _) {
         if (widget.animation.value == 0.0) return const SizedBox.shrink();
-
         return Stack(
           children: [
             Positioned.fill(
@@ -296,16 +290,17 @@ class _RadialMenuOverlayState extends State<_RadialMenuOverlay> {
               final action = actions[index];
               final startAngle = -pi * 0.08;
               final endAngle = -pi * 0.92;
-              final angle = startAngle +
+              final angle =
+                  startAngle +
                   (endAngle - startAngle) * (index / (actions.length - 1));
               final radius = 110.0;
-              final itemAnim =
-                  (widget.animation.value - index * 0.07).clamp(0.0, 1.0);
+              final itemAnim = (widget.animation.value - index * 0.07).clamp(
+                0.0,
+                1.0,
+              );
               final slide = Curves.easeOutBack.transform(itemAnim);
-
               final x = centerX + cos(angle) * radius * slide - 26;
               final y = fabY + sin(angle) * radius * slide - 26;
-
               return Positioned(
                 left: x,
                 top: y,
@@ -323,14 +318,19 @@ class _RadialMenuOverlayState extends State<_RadialMenuOverlay> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF7C4DFF).withValues(alpha: 0.4),
+                              color: const Color(0xFF7C4DFF)
+                                  .withValues(alpha: 0.4),
                               blurRadius: 10,
                               offset: const Offset(0, 3),
                             ),
                           ],
                         ),
                         child: Center(
-                          child: Icon(action.icon, size: 24, color: Colors.white),
+                          child: Icon(
+                            action.icon,
+                            size: 24,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -350,4 +350,3 @@ class _FabData {
   final String screen;
   const _FabData({required this.icon, required this.screen});
 }
-

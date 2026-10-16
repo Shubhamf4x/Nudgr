@@ -1,6 +1,8 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/constants/color_constants.dart';
 import '../../shared/widgets/nudgr_button.dart';
 import '../../shared/widgets/nudgr_text_field.dart';
@@ -8,7 +10,6 @@ import 'auth_provider.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
-
   @override
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
@@ -18,7 +19,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
   bool _isLoading = false;
   bool _isSuccess = false;
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -27,14 +27,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _handleResetPassword() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
-
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.resetPassword(
       email: _emailController.text.trim(),
     );
-
     setState(() {
       _isLoading = false;
       _isSuccess = success;
@@ -153,10 +150,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 8),
         Text(
           "We've sent a password reset link to",
-          style: AppTextStyles.googleSans(
-            fontSize: 15,
-            color: Colors.grey,
-          ),
+          style: AppTextStyles.googleSans(fontSize: 15, color: Colors.grey),
         ),
         const SizedBox(height: 4),
         Text(

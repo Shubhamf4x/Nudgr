@@ -1,16 +1,15 @@
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/providers/theme_provider.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class AppearanceScreen extends StatelessWidget {
   const AppearanceScreen({super.key});
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     final currentTheme = themeProvider.themeType;
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -79,7 +78,8 @@ class AppearanceScreen extends StatelessWidget {
                   subtitle: 'Dark navy with bright blue accents',
                   accentColor: const Color(0xFF64B5F6),
                   isSelected: currentTheme == AppThemeType.electricBlue,
-                  onTap: () => themeProvider.setTheme(AppThemeType.electricBlue),
+                  onTap: () =>
+                      themeProvider.setTheme(AppThemeType.electricBlue),
                 ),
                 _buildDivider(context),
                 _buildThemeTile(
@@ -158,18 +158,16 @@ class AppearanceScreen extends StatelessWidget {
                     subtitle,
                     style: AppTextStyles.googleSans(
                       fontSize: 12,
-                      color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey,
+                      color:
+                          Theme.of(context).textTheme.bodySmall?.color ??
+                          Colors.grey,
                     ),
                   ),
                 ],
               ),
             ),
             if (isSelected)
-              Icon(
-                Icons.check_circle_rounded,
-                color: accentColor,
-                size: 22,
-              )
+              Icon(Icons.check_circle_rounded, color: accentColor, size: 22)
             else
               Icon(
                 Icons.circle_outlined,

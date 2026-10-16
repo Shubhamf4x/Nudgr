@@ -1,6 +1,8 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../shared/models/user_model.dart';
 import '../../shared/widgets/nudgr_button.dart';
 import '../../shared/widgets/nudgr_text_field.dart';
@@ -8,15 +10,14 @@ import 'chat_provider.dart';
 
 class CreateConversationScreen extends StatefulWidget {
   const CreateConversationScreen({super.key});
-
   @override
-  State<CreateConversationScreen> createState() => _CreateConversationScreenState();
+  State<CreateConversationScreen> createState() =>
+      _CreateConversationScreenState();
 }
 
 class _CreateConversationScreenState extends State<CreateConversationScreen> {
   final _nameController = TextEditingController();
   bool _isGroup = false;
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -25,7 +26,6 @@ class _CreateConversationScreenState extends State<CreateConversationScreen> {
 
   Future<void> _createConversation() async {
     if (_nameController.text.trim().isEmpty) return;
-
     final creator = UserModel(
       id: 'current_user',
       email: 'user@nudgr.app',
@@ -34,13 +34,11 @@ class _CreateConversationScreenState extends State<CreateConversationScreen> {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
-
     await context.read<ChatProvider>().createConversation(
-          name: _nameController.text.trim(),
-          creator: creator,
-          isGroup: _isGroup,
-        );
-
+      name: _nameController.text.trim(),
+      creator: creator,
+      isGroup: _isGroup,
+    );
     if (mounted) Navigator.pop(context);
   }
 
@@ -85,10 +83,7 @@ class _CreateConversationScreenState extends State<CreateConversationScreen> {
               contentPadding: EdgeInsets.zero,
             ),
             const Spacer(),
-            NudgrButton(
-              text: 'Create',
-              onPressed: _createConversation,
-            ),
+            NudgrButton(text: 'Create', onPressed: _createConversation),
           ],
         ),
       ),

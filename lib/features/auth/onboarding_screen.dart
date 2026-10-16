@@ -1,12 +1,13 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../core/constants/color_constants.dart';
 import '../../core/services/notification_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
-
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
@@ -14,9 +15,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-
   static const int _totalPages = 4;
-
   static const List<_OnboardingPage> _pages = [
     _OnboardingPage(
       icon: Icons.check_circle_outline_rounded,
@@ -44,10 +43,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       iconColor: Color(0xFF3B82F6),
       iconBgColor: Color(0xFF1A2236),
       title: 'Stay connected',
-      description: 'Chat with teammates in groups or one-on-one, even without a signal.',
+      description:
+          'Chat with teammates in groups or one-on-one, even without a signal.',
     ),
   ];
-
   void _onNext() {
     if (_currentPage < _totalPages - 1) {
       _pageController.nextPage(
@@ -66,13 +65,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_complete', true);
-
     if (!mounted) return;
-
     await NotificationService.requestPermissionOnce(context);
-
     if (!mounted) return;
-
     Navigator.pushReplacementNamed(context, '/home');
   }
 
@@ -231,7 +226,6 @@ class _OnboardingPage {
   final Color iconBgColor;
   final String title;
   final String description;
-
   const _OnboardingPage({
     required this.icon,
     required this.iconColor,

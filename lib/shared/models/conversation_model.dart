@@ -17,7 +17,6 @@ class ConversationModel extends Equatable {
   final DateTime updatedAt;
   final bool isPinned;
   final bool isMuted;
-
   const ConversationModel({
     required this.id,
     this.name,
@@ -36,26 +35,39 @@ class ConversationModel extends Equatable {
     this.isPinned = false,
     this.isMuted = false,
   });
-
-  factory ConversationModel.fromJson(Map<String, dynamic> json) => ConversationModel(
-    id: json['id'] as String,
-    name: json['name'] as String?,
-    photoUrl: json['photoUrl'] as String?,
-    type: json['type'] as String? ?? 'direct',
-    memberIds: (json['memberIds'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
-    memberNames: (json['memberNames'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, v as String)) ?? {},
-    memberPhotos: (json['memberPhotos'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, v as String?)) ?? {},
-    lastMessage: json['lastMessage'] as String?,
-    lastMessageSenderId: json['lastMessageSenderId'] as String?,
-    lastMessageTime: json['lastMessageTime'] != null ? DateTime.parse(json['lastMessageTime'] as String) : null,
-    unreadCount: json['unreadCount'] as int? ?? 0,
-    createdBy: json['createdBy'] as String?,
-    createdAt: DateTime.parse(json['createdAt'] as String),
-    updatedAt: DateTime.parse(json['updatedAt'] as String),
-    isPinned: json['isPinned'] as bool? ?? false,
-    isMuted: json['isMuted'] as bool? ?? false,
-  );
-
+  factory ConversationModel.fromJson(Map<String, dynamic> json) =>
+      ConversationModel(
+        id: json['id'] as String,
+        name: json['name'] as String?,
+        photoUrl: json['photoUrl'] as String?,
+        type: json['type'] as String? ?? 'direct',
+        memberIds:
+            (json['memberIds'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
+        memberNames:
+            (json['memberNames'] as Map<String, dynamic>?)?.map(
+              (k, v) => MapEntry(k, v as String),
+            ) ??
+            {},
+        memberPhotos:
+            (json['memberPhotos'] as Map<String, dynamic>?)?.map(
+              (k, v) => MapEntry(k, v as String?),
+            ) ??
+            {},
+        lastMessage: json['lastMessage'] as String?,
+        lastMessageSenderId: json['lastMessageSenderId'] as String?,
+        lastMessageTime: json['lastMessageTime'] != null
+            ? DateTime.parse(json['lastMessageTime'] as String)
+            : null,
+        unreadCount: json['unreadCount'] as int? ?? 0,
+        createdBy: json['createdBy'] as String?,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        updatedAt: DateTime.parse(json['updatedAt'] as String),
+        isPinned: json['isPinned'] as bool? ?? false,
+        isMuted: json['isMuted'] as bool? ?? false,
+      );
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
@@ -74,7 +86,6 @@ class ConversationModel extends Equatable {
     'isPinned': isPinned,
     'isMuted': isMuted,
   };
-
   ConversationModel copyWith({
     String? id,
     String? name,
@@ -110,7 +121,6 @@ class ConversationModel extends Equatable {
     isPinned: isPinned ?? this.isPinned,
     isMuted: isMuted ?? this.isMuted,
   );
-
   @override
   List<Object?> get props => [id, name, type, lastMessage, unreadCount];
 }

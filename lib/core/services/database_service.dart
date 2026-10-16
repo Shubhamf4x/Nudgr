@@ -12,9 +12,7 @@ import '../../shared/models/message_model.dart';
 class DatabaseService {
   static DatabaseService? _instance;
   static SharedPreferences? _prefs;
-
   DatabaseService._();
-
   static DatabaseService getInstance() {
     _instance ??= DatabaseService._();
     return _instance!;
@@ -66,27 +64,37 @@ class DatabaseService {
   }
 
   SharedPreferences get prefs => _prefs!;
-
   static const String _tasksKey = 'tasks';
   static const String _notesKey = 'notes';
   static const String _categoriesKey = 'categories';
   static const String _focusSessionsKey = 'focus_sessions';
   static const String _conversationsKey = 'conversations';
   static const String _messagesKey = 'messages';
-
   List<T> _decodeList<T>(
     String jsonString,
-    T Function(Map<String, dynamic>) fromJson,
-  ) {
+    T Function(Map<String, dynamic>) fromJson, {
+    String? quarantineKey,
+  }) {
     try {
       final decoded = jsonDecode(jsonString);
       if (decoded is! List) return [];
       final result = <T>[];
+      final skipped = <String>[];
       for (final entry in decoded) {
         if (entry is! Map) continue;
+        final map = Map<String, dynamic>.from(entry);
         try {
-          result.add(fromJson(Map<String, dynamic>.from(entry)));
-        } catch (_) {}
+          result.add(fromJson(map));
+        } catch (_) {
+          if (quarantineKey != null) skipped.add(jsonEncode(map));
+        }
+      }
+      if (quarantineKey != null) {
+        if (skipped.isEmpty) {
+          _skippedRecords.remove(quarantineKey);
+        } else {
+          _skippedRecords[quarantineKey] = skipped;
+        }
       }
       return result;
     } catch (_) {
@@ -94,7 +102,29 @@ class DatabaseService {
     }
   }
 
+  final Map<String, List<String>> _skippedRecords = {};
+  Future<void> _quarantineSkipped(String key) async {
+    final skipped = _skippedRecords.remove(key);
+    if (skipped == null || skipped.isEmpty) return;
+    try {
+      final stored = _prefs!.getStringList(_quarantineKey) ?? <String>[];
+      final now = DateTime.now().toIso8601String();
+      stored.addAll(
+        skipped.map((raw) => jsonEncode({'key': key, 'at': now, 'raw': raw})),
+      );
+      if (stored.length > _maxQuarantinedRecords) {
+        stored.removeRange(0, stored.length - _maxQuarantinedRecords);
+      }
+      await _prefs!.setStringList(_quarantineKey, stored);
+    } catch (_) {}
+  }
+
+  static const String _quarantineKey = 'quarantined_records';
+  static const int _maxQuarantinedRecords = 200;
+  int get quarantinedRecordCount =>
+      _prefs?.getStringList(_quarantineKey)?.length ?? 0;
   Future<void> saveTasks(List<TaskModel> tasks) async {
+    await _quarantineSkipped(_tasksKey);
     final jsonList = tasks.map((t) => t.toJson()).toList();
     await _prefs!.setString(_tasksKey, jsonEncode(jsonList));
   }
@@ -102,7 +132,11 @@ class DatabaseService {
   List<TaskModel> getTasks() {
     final jsonString = _prefs!.getString(_tasksKey);
     if (jsonString == null || jsonString.isEmpty) return [];
-    return _decodeList(jsonString, (m) => TaskModel.fromJson(m));
+    return _decodeList(
+      jsonString,
+      (m) => TaskModel.fromJson(m),
+      quarantineKey: _tasksKey,
+    );
   }
 
   Future<void> saveTask(TaskModel task) async {
@@ -123,6 +157,7 @@ class DatabaseService {
   }
 
   Future<void> saveNotes(List<NoteModel> notes) async {
+    await _quarantineSkipped(_notesKey);
     final jsonList = notes.map((n) => n.toJson()).toList();
     await _prefs!.setString(_notesKey, jsonEncode(jsonList));
   }
@@ -130,7 +165,11 @@ class DatabaseService {
   List<NoteModel> getNotes() {
     final jsonString = _prefs!.getString(_notesKey);
     if (jsonString == null || jsonString.isEmpty) return [];
-    return _decodeList(jsonString, (m) => NoteModel.fromJson(m));
+    return _decodeList(
+      jsonString,
+      (m) => NoteModel.fromJson(m),
+      quarantineKey: _notesKey,
+    );
   }
 
   Future<void> saveNote(NoteModel note) async {
@@ -151,6 +190,7 @@ class DatabaseService {
   }
 
   Future<void> saveCategories(List<CategoryModel> categories) async {
+    await _quarantineSkipped(_categoriesKey);
     final jsonList = categories.map((c) => c.toJson()).toList();
     await _prefs!.setString(_categoriesKey, jsonEncode(jsonList));
   }
@@ -158,7 +198,11 @@ class DatabaseService {
   List<CategoryModel> getCategories() {
     final jsonString = _prefs!.getString(_categoriesKey);
     if (jsonString == null || jsonString.isEmpty) return [];
-    return _decodeList(jsonString, (m) => CategoryModel.fromJson(m));
+    return _decodeList(
+      jsonString,
+      (m) => CategoryModel.fromJson(m),
+      quarantineKey: _categoriesKey,
+    );
   }
 
   Future<void> saveCategory(CategoryModel category) async {
@@ -179,6 +223,7 @@ class DatabaseService {
   }
 
   Future<void> saveFocusSessions(List<FocusSessionModel> sessions) async {
+    await _quarantineSkipped(_focusSessionsKey);
     final jsonList = sessions.map((s) => s.toJson()).toList();
     await _prefs!.setString(_focusSessionsKey, jsonEncode(jsonList));
   }
@@ -186,7 +231,11 @@ class DatabaseService {
   List<FocusSessionModel> getFocusSessions() {
     final jsonString = _prefs!.getString(_focusSessionsKey);
     if (jsonString == null || jsonString.isEmpty) return [];
-    return _decodeList(jsonString, (m) => FocusSessionModel.fromJson(m));
+    return _decodeList(
+      jsonString,
+      (m) => FocusSessionModel.fromJson(m),
+      quarantineKey: _focusSessionsKey,
+    );
   }
 
   Future<void> saveFocusSession(FocusSessionModel session) async {
@@ -201,6 +250,7 @@ class DatabaseService {
   }
 
   Future<void> saveConversations(List<ConversationModel> conversations) async {
+    await _quarantineSkipped(_conversationsKey);
     final jsonList = conversations.map((c) => c.toJson()).toList();
     await _prefs!.setString(_conversationsKey, jsonEncode(jsonList));
   }
@@ -208,7 +258,11 @@ class DatabaseService {
   List<ConversationModel> getConversations() {
     final jsonString = _prefs!.getString(_conversationsKey);
     if (jsonString == null || jsonString.isEmpty) return [];
-    return _decodeList(jsonString, (m) => ConversationModel.fromJson(m));
+    return _decodeList(
+      jsonString,
+      (m) => ConversationModel.fromJson(m),
+      quarantineKey: _conversationsKey,
+    );
   }
 
   Future<void> saveConversation(ConversationModel conversation) async {
@@ -261,9 +315,7 @@ class DatabaseService {
   }
 
   static const String _dataOwnerKey = 'local_data_owner_uid';
-
   String? getDataOwnerUid() => _prefs!.getString(_dataOwnerKey);
-
   Future<void> setDataOwnerUid(String uid) async {
     await _prefs!.setString(_dataOwnerKey, uid);
   }

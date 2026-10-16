@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/color_constants.dart';
 import '../../core/services/update_service.dart';
@@ -16,7 +18,6 @@ import '../settings/settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
-
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -24,7 +25,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _localImagePath;
   final ImagePicker _picker = ImagePicker();
-
   @override
   void initState() {
     super.initState();
@@ -82,18 +82,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: Icon(Icons.camera_alt_rounded, color: ColorConstants.primary),
-                title: Text('Camera', style: AppTextStyles.googleSans(fontSize: 16)),
+                leading: Icon(
+                  Icons.camera_alt_rounded,
+                  color: ColorConstants.primary,
+                ),
+                title: Text(
+                  'Camera',
+                  style: AppTextStyles.googleSans(fontSize: 16),
+                ),
                 onTap: () => Navigator.pop(context, ImageSource.camera),
               ),
               ListTile(
-                leading: Icon(Icons.photo_library_rounded, color: ColorConstants.primary),
-                title: Text('Gallery', style: AppTextStyles.googleSans(fontSize: 16)),
+                leading: Icon(
+                  Icons.photo_library_rounded,
+                  color: ColorConstants.primary,
+                ),
+                title: Text(
+                  'Gallery',
+                  style: AppTextStyles.googleSans(fontSize: 16),
+                ),
                 onTap: () => Navigator.pop(context, ImageSource.gallery),
               ),
               if (_localImagePath != null)
                 ListTile(
-                  leading: const Icon(Icons.delete_rounded, color: ColorConstants.error),
+                  leading: const Icon(
+                    Icons.delete_rounded,
+                    color: ColorConstants.error,
+                  ),
                   title: Text(
                     'Remove Photo',
                     style: AppTextStyles.googleSans(
@@ -111,16 +126,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
-
     if (source == null) return;
-
-    final picked = await _picker.pickImage(source: source, maxWidth: 800, maxHeight: 800, imageQuality: 85);
+    final picked = await _picker.pickImage(
+      source: source,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 85,
+    );
     if (picked == null || !mounted) return;
-
     final cropped = await _cropImage(picked.path);
     if (cropped == null) return;
     if (!mounted) return;
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -128,7 +144,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Confirm Photo',
-          style: AppTextStyles.googleSans(fontSize: 18, fontWeight: FontWeight.w600),
+          style: AppTextStyles.googleSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         content: ClipOval(
           child: Image.file(
@@ -141,11 +160,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: AppTextStyles.googleSans(color: Colors.grey)),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.googleSans(color: Colors.grey),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Use Photo', style: AppTextStyles.googleSans(color: ColorConstants.primary)),
+            child: Text(
+              'Use Photo',
+              style: AppTextStyles.googleSans(color: ColorConstants.primary),
+            ),
           ),
         ],
       ),
@@ -220,8 +245,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildAvatar(dynamic user) {
     final hasImage = _localImagePath != null;
-    final initial = (user?.displayName ?? 'U')[0].toUpperCase();
-
+    final displayName = (user?.displayName as String?)?.trim() ?? '';
+    final initial = (displayName.isNotEmpty ? displayName : 'U')[0]
+        .toUpperCase();
     return Stack(
       alignment: Alignment.bottomRight,
       children: [
@@ -233,7 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             gradient: LinearGradient(
               colors: [
                 ColorConstants.primary,
-                ColorConstants.primary.withValues(alpha:0.7),
+                ColorConstants.primary.withValues(alpha: 0.7),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -295,10 +321,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildUserInfo(dynamic user) {
-    final username = user?.username ??
+    final username =
+        user?.username ??
         user?.displayName?.toLowerCase().replaceAll(' ', '') ??
         'user';
-
     return Column(
       children: [
         Text(
@@ -321,7 +347,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildSyncStatus(BuildContext context) {
-    return Selector<SyncProvider, ({bool isOnline, bool isSyncing, bool cloudEnabled, String statusLabel, String lastSyncLabel, int pendingCount, String? lastSyncError})>(
+    return Selector<
+      SyncProvider,
+      ({
+        bool isOnline,
+        bool isSyncing,
+        bool cloudEnabled,
+        String statusLabel,
+        String lastSyncLabel,
+        int pendingCount,
+        String? lastSyncError,
+      })
+    >(
       selector: (_, sync) => (
         isOnline: sync.isOnline,
         isSyncing: sync.isSyncing,
@@ -349,13 +386,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     !cloudEnabled
                         ? Icons.phone_android_rounded
                         : data.isOnline
-                            ? Icons.cloud_done_rounded
-                            : Icons.cloud_off_rounded,
+                        ? Icons.cloud_done_rounded
+                        : Icons.cloud_off_rounded,
                     color: !cloudEnabled
                         ? ColorConstants.primary
                         : data.isOnline
-                            ? const Color(0xFF4CAF50)
-                            : Colors.grey,
+                        ? const Color(0xFF4CAF50)
+                        : Colors.grey,
                     size: 20,
                   ),
                   const SizedBox(width: 10),
@@ -406,8 +443,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: !cloudEnabled
                           ? ColorConstants.primary
                           : data.isOnline
-                              ? const Color(0xFF4CAF50)
-                              : Colors.grey,
+                          ? const Color(0xFF4CAF50)
+                          : Colors.grey,
                     ),
                   ),
                 ],
@@ -521,7 +558,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onTap: () => _showAboutNudgr(),
       ),
     ];
-
     return Column(
       children: items.map((item) => _buildMenuItemCard(context, item)).toList(),
     );
@@ -544,7 +580,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: item.color.withValues(alpha:0.15),
+                    color: item.color.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: item.onTap == _checkForUpdates && _isCheckingUpdates
@@ -567,7 +603,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: Colors.grey.withValues(alpha:0.5),
+                  color: Colors.grey.withValues(alpha: 0.5),
                   size: 22,
                 ),
               ],
@@ -579,14 +615,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   bool _isCheckingUpdates = false;
-
   Future<void> _showAboutNudgr() async {
     String versionText = '';
     try {
       final info = await PackageInfo.fromPlatform();
       versionText = '  v${info.version}';
     } catch (_) {}
-
     if (!mounted) return;
     showDialog(
       context: context,
@@ -649,14 +683,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              _aboutPoint(Icons.check_circle_outline_rounded, 'Tasks with priorities, due dates, subtasks and reminders'),
-              _aboutPoint(Icons.sticky_note_2_outlined, 'Notes with rich text formatting and pinning'),
-              _aboutPoint(Icons.timer_outlined, 'Focus timer with session history'),
-              _aboutPoint(Icons.directions_walk_rounded, 'Automatic step tracking with daily goals'),
-              _aboutPoint(Icons.calendar_month_outlined, 'Calendar view of your scheduled tasks'),
-              _aboutPoint(Icons.public_outlined, 'World clock with real time zones'),
-              _aboutPoint(Icons.bluetooth_rounded, 'Offline chat with nearby devices over Bluetooth'),
-              _aboutPoint(Icons.cloud_done_outlined, 'Optional cloud sync with your Google account'),
+              _aboutPoint(
+                Icons.check_circle_outline_rounded,
+                'Tasks with priorities, due dates, subtasks and reminders',
+              ),
+              _aboutPoint(
+                Icons.sticky_note_2_outlined,
+                'Notes with rich text formatting and pinning',
+              ),
+              _aboutPoint(
+                Icons.timer_outlined,
+                'Focus timer with session history',
+              ),
+              _aboutPoint(
+                Icons.directions_walk_rounded,
+                'Automatic step tracking with daily goals',
+              ),
+              _aboutPoint(
+                Icons.calendar_month_outlined,
+                'Calendar view of your scheduled tasks',
+              ),
+              _aboutPoint(
+                Icons.public_outlined,
+                'World clock with real time zones',
+              ),
+              _aboutPoint(
+                Icons.bluetooth_rounded,
+                'Offline chat with nearby devices over Bluetooth',
+              ),
+              _aboutPoint(
+                Icons.cloud_done_outlined,
+                'Optional cloud sync with your Google account',
+              ),
               const SizedBox(height: 16),
               Text(
                 'No ads. No trackers. Your notes, tasks and history stay private.',
@@ -726,12 +784,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _checkForUpdates() async {
     if (_isCheckingUpdates) return;
     setState(() => _isCheckingUpdates = true);
-
     final result = await UpdateService.checkForUpdate();
-
     if (!mounted) return;
     setState(() => _isCheckingUpdates = false);
-
     if (result is UpdateAvailable) {
       _showUpdateDialog(result);
     } else if (result is UpdateUpToDate) {
@@ -763,7 +818,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final notes = update.releaseNotes.trim().isEmpty
         ? null
         : update.releaseNotes.trim();
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -775,7 +829,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: ColorConstants.primary.withValues(alpha:0.15),
+                color: ColorConstants.primary.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -905,7 +959,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             context: context,
             builder: (context) => AlertDialog(
               backgroundColor: Theme.of(context).cardTheme.color,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: Text(
                 'Sign Out',
                 style: AppTextStyles.googleSans(
@@ -929,7 +985,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: () => Navigator.pop(context, true),
                   child: Text(
                     'Sign Out',
-                    style: AppTextStyles.googleSans(color: ColorConstants.error),
+                    style: AppTextStyles.googleSans(
+                      color: ColorConstants.error,
+                    ),
                   ),
                 ),
               ],
@@ -971,7 +1029,6 @@ class _MenuItem {
   final String title;
   final Color color;
   final VoidCallback onTap;
-
   const _MenuItem({
     required this.icon,
     required this.title,

@@ -1,5 +1,7 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
+
 import '../../shared/models/note_model.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/constants/color_constants.dart';
@@ -7,19 +9,25 @@ import '../../core/constants/color_constants.dart';
 class NoteCard extends StatelessWidget {
   final NoteModel note;
   final VoidCallback? onTap;
-
   const NoteCard({super.key, required this.note, this.onTap});
-
   List<TextSpan> _parseContent(String text) {
     final spans = <TextSpan>[];
     final regex = RegExp(r'\[(/?)(b|i|u|s|code)\]');
     int lastEnd = 0;
     final stack = <String>[];
-    final baseStyle = const TextStyle(fontSize: 12, color: Colors.grey, height: 1.4);
-
+    final baseStyle = const TextStyle(
+      fontSize: 12,
+      color: Colors.grey,
+      height: 1.4,
+    );
     for (final match in regex.allMatches(text)) {
       if (match.start > lastEnd) {
-        spans.add(TextSpan(text: text.substring(lastEnd, match.start), style: _applyStack(stack, baseStyle)));
+        spans.add(
+          TextSpan(
+            text: text.substring(lastEnd, match.start),
+            style: _applyStack(stack, baseStyle),
+          ),
+        );
       }
       final close = match.group(1) == '/';
       final tag = match.group(2)!;
@@ -31,7 +39,12 @@ class NoteCard extends StatelessWidget {
       lastEnd = match.end;
     }
     if (lastEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastEnd), style: _applyStack(stack, baseStyle)));
+      spans.add(
+        TextSpan(
+          text: text.substring(lastEnd),
+          style: _applyStack(stack, baseStyle),
+        ),
+      );
     }
     return spans.isEmpty ? [TextSpan(text: text, style: baseStyle)] : spans;
   }
@@ -49,7 +62,10 @@ class NoteCard extends StatelessWidget {
         case 's':
           style = style.copyWith(decoration: TextDecoration.lineThrough);
         case 'code':
-          style = style.copyWith(fontFamily: 'monospace', backgroundColor: Colors.white.withValues(alpha: 0.1));
+          style = style.copyWith(
+            fontFamily: 'monospace',
+            backgroundColor: Colors.white.withValues(alpha: 0.1),
+          );
       }
     }
     return style;
@@ -65,17 +81,24 @@ class NoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasContent = note.content.trim().isNotEmpty;
     final previewLines = hasContent ? _countPreviewLines(note.content) : 0;
-    final maxLines = previewLines < 2 ? 3 : previewLines < 5 ? 5 : 7;
-
+    final maxLines = previewLines < 2
+        ? 3
+        : previewLines < 5
+        ? 5
+        : 7;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface,
+          color:
+              Theme.of(context).cardTheme.color ??
+              Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: Theme.of(context).dividerTheme.color ?? Colors.grey.withValues(alpha: 0.15),
+            color:
+                Theme.of(context).dividerTheme.color ??
+                Colors.grey.withValues(alpha: 0.15),
           ),
         ),
         child: Column(
@@ -87,7 +110,10 @@ class NoteCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     note.title,
-                    style: AppTextStyles.googleSans(fontSize: 14, fontWeight: FontWeight.w700),
+                    style: AppTextStyles.googleSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -95,7 +121,11 @@ class NoteCard extends StatelessWidget {
                 if (note.isPinned)
                   Padding(
                     padding: const EdgeInsets.only(left: 6),
-                    child: Icon(Icons.push_pin_rounded, size: 14, color: ColorConstants.primary),
+                    child: Icon(
+                      Icons.push_pin_rounded,
+                      size: 14,
+                      color: ColorConstants.primary,
+                    ),
                   ),
               ],
             ),
@@ -110,7 +140,10 @@ class NoteCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               Helpers.formatRelativeTime(note.updatedAt),
-              style: AppTextStyles.googleSans(fontSize: 10, color: Colors.grey.withValues(alpha: 0.6)),
+              style: AppTextStyles.googleSans(
+                fontSize: 10,
+                color: Colors.grey.withValues(alpha: 0.6),
+              ),
             ),
           ],
         ),

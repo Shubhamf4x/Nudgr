@@ -1,6 +1,8 @@
 import '../../core/theme/app_text_styles.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../shared/models/task_model.dart';
 import '../../shared/widgets/task_card.dart';
 import '../../shared/widgets/category_chip.dart';
@@ -10,7 +12,6 @@ import 'add_task_screen.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
-
   @override
   State<TasksScreen> createState() => _TasksScreenState();
 }
@@ -19,7 +20,6 @@ class _TasksScreenState extends State<TasksScreen> {
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
   final ValueNotifier<bool> _hasSearchText = ValueNotifier(false);
-
   @override
   void initState() {
     super.initState();
@@ -38,7 +38,10 @@ class _TasksScreenState extends State<TasksScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<TasksProvider, ({bool isLoading, List<dynamic> filteredTasks})>(
+    return Selector<
+      TasksProvider,
+      ({bool isLoading, List<dynamic> filteredTasks})
+    >(
       selector: (_, provider) => (
         isLoading: provider.state.isLoading,
         filteredTasks: provider.state.filteredTasks,
@@ -67,19 +70,17 @@ class _TasksScreenState extends State<TasksScreen> {
                     ],
                   ),
                 ),
-                Expanded(
-                  child: _buildTaskList(data),
-                ),
+                Expanded(child: _buildTaskList(data)),
               ],
             ),
           ),
           floatingActionButton:
               (!data.isLoading && data.filteredTasks.isNotEmpty)
-                  ? FloatingActionButton(
-                      onPressed: () => _navigateToAddTask(context),
-                      child: const Icon(Icons.add_rounded),
-                    )
-                  : null,
+              ? FloatingActionButton(
+                  onPressed: () => _navigateToAddTask(context),
+                  child: const Icon(Icons.add_rounded),
+                )
+              : null,
         );
       },
     );
@@ -133,7 +134,9 @@ class _TasksScreenState extends State<TasksScreen> {
                     onPressed: () {
                       _searchController.clear();
                       _hasSearchText.value = false;
-                      context.read<TasksProvider>().updateFilter(searchQuery: '');
+                      context.read<TasksProvider>().updateFilter(
+                        searchQuery: '',
+                      );
                     },
                   )
                 : null,
@@ -148,7 +151,10 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Widget _buildCategoryChips() {
-    return Selector<TasksProvider, ({List<dynamic> categories, String? selectedCategoryId})>(
+    return Selector<
+      TasksProvider,
+      ({List<dynamic> categories, String? selectedCategoryId})
+    >(
       selector: (_, provider) => (
         categories: provider.state.categories,
         selectedCategoryId: provider.state.selectedCategoryId,
@@ -166,7 +172,7 @@ class _TasksScreenState extends State<TasksScreen> {
                   label: 'All',
                   isSelected: data.selectedCategoryId == null,
                   monochrome: true,
-                  onTap: () => provider.updateFilter(categoryId: null),
+                  onTap: () => provider.updateFilter(clearCategory: true),
                 ),
               ),
               ...data.categories.asMap().entries.map((entry) {
@@ -177,7 +183,8 @@ class _TasksScreenState extends State<TasksScreen> {
                     colorIndex: entry.value.colorIndex,
                     isSelected: data.selectedCategoryId == entry.value.id,
                     monochrome: true,
-                    onTap: () => provider.updateFilter(categoryId: entry.value.id),
+                    onTap: () =>
+                        provider.updateFilter(categoryId: entry.value.id),
                   ),
                 );
               }),

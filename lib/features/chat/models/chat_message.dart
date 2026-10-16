@@ -9,14 +9,7 @@ enum ChatMessageType {
   channelLeave,
 }
 
-enum MessageDeliveryState {
-  pending,
-  sending,
-  sent,
-  delivered,
-  failed,
-  queued,
-}
+enum MessageDeliveryState { pending, sending, sent, delivered, failed, queued }
 
 class ChatMessage {
   final String id;
@@ -32,7 +25,6 @@ class ChatMessage {
   final Uint8List? signature;
   final MessageDeliveryState deliveryState;
   final bool isEncrypted;
-
   const ChatMessage({
     required this.id,
     required this.senderPeerId,
@@ -48,10 +40,6 @@ class ChatMessage {
     this.deliveryState = MessageDeliveryState.pending,
     this.isEncrypted = false,
   });
-
-  bool get isMine => false;
-  bool get isFromPeer => !isMine;
-
   ChatMessage copyWith({
     String? id,
     String? senderPeerId,
@@ -84,26 +72,6 @@ class ChatMessage {
     );
   }
 
-  Uint8List toBytes() {
-    final contentBytes = Uint8List.fromList(content.codeUnits);
-    final buffer = BytesBuilder();
-    buffer.addByte(type.index);
-    buffer.add(_uint32Bytes(timestamp.millisecondsSinceEpoch));
-    buffer.add(_uint16Bytes(contentBytes.length));
-    buffer.add(contentBytes);
-    return buffer.toBytes();
-  }
-
-  static Uint8List _uint32Bytes(int value) {
-    return Uint8List(4)
-      ..buffer.asByteData().setInt32(0, value, Endian.big);
-  }
-
-  static Uint8List _uint16Bytes(int value) {
-    return Uint8List(2)
-      ..buffer.asByteData().setInt16(0, value, Endian.big);
-  }
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'senderPeerId': senderPeerId,
@@ -118,7 +86,6 @@ class ChatMessage {
     'deliveryState': deliveryState.index,
     'isEncrypted': isEncrypted,
   };
-
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
     id: json['id'],
     senderPeerId: json['senderPeerId'],
