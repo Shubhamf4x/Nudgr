@@ -10,6 +10,7 @@ import 'auth_provider.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'onboarding_screen.dart';
+import '../main_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,6 +32,20 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _navigateAfterAuth() async {
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            onboardingComplete ? const MainShell() : const OnboardingScreen(),
+      ),
+      (route) => false,
+    );
+  }
+
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -39,18 +54,10 @@ class _LoginScreenState extends State<LoginScreen> {
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
-    setState(() => _isLoading = false);
     if (!mounted) return;
+    setState(() => _isLoading = false);
     if (success) {
-      final prefs = await SharedPreferences.getInstance();
-      final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
-      if (!mounted) return;
-      if (!onboardingComplete) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-        );
-      }
+      await _navigateAfterAuth();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -68,15 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     setState(() => _isGoogleLoading = false);
     if (success) {
-      final prefs = await SharedPreferences.getInstance();
-      final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
-      if (!mounted) return;
-      if (!onboardingComplete) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-        );
-      }
+      await _navigateAfterAuth();
     } else if (authProvider.error != null && authProvider.error!.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

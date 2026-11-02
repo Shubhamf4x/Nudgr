@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth_provider.dart';
 import 'onboarding_screen.dart';
+import '../main_shell.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -68,6 +69,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  Future<void> _navigateAfterAuth() async {
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            onboardingComplete ? const MainShell() : const OnboardingScreen(),
+      ),
+      (route) => false,
+    );
+  }
+
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isGoogleLoading = true);
     final authProvider = context.read<AuthProvider>();
@@ -75,15 +90,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
     setState(() => _isGoogleLoading = false);
     if (success) {
-      final prefs = await SharedPreferences.getInstance();
-      final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
-      if (!mounted) return;
-      if (!onboardingComplete) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-        );
-      }
+      await _navigateAfterAuth();
     } else if (authProvider.error != null && authProvider.error!.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

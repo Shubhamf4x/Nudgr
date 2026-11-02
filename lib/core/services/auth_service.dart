@@ -397,11 +397,27 @@ class AuthService {
         'Build with GOOGLE_WEB_CLIENT_ID.',
       );
     }
-    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+    final GoogleSignInAccount? googleUser;
+    try {
+      googleUser = await _googleSignIn.signIn();
+    } on Exception catch (e) {
+      throw Exception(_googleSignInErrorText(e));
+    }
     if (googleUser == null) {
       throw Exception('Google sign in was cancelled');
     }
-    GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+    GoogleSignInAuthentication googleAuth;
+    try {
+      googleAuth = await googleUser.authentication;
+    } on Exception catch (e) {
+      throw Exception(_googleSignInErrorText(e));
+    }
+    if (googleAuth.idToken == null && googleAuth.accessToken == null) {
+      throw Exception(
+        'Google sign-in tokens are unavailable. The app signing key is not '
+        'registered in the Firebase console yet.',
+      );
+    }
     fb.User? fbUser;
     Object? lastError;
     for (var attempt = 1; attempt <= 3; attempt++) {
@@ -424,7 +440,7 @@ class AuthService {
             text.contains('timeout') ||
             text.contains('network') ||
             text.contains('network_error') ||
-            text.contains('integerated');
+            text.contains('integrated');
         if (!isRetryable) rethrow;
       }
       if (attempt < 3) {
@@ -769,6 +785,27 @@ class AuthService {
       default:
         return e.message ?? 'Authentication failed';
     }
+  }
+
+  String _googleSignInErrorText(Object error) {
+    final text = error.toString().toLowerCase();
+    if (text.contains('12501') ||
+        text.contains('sign_in_canceled') ||
+        text.contains('cancelled')) {
+      return 'Google sign in was cancelled';
+    }
+    if (text.contains('apexception: 10') ||
+        text.contains('developer_error') ||
+        text.contains('sign_in_failed')) {
+      return 'Google sign-in failed because this build has no OAuth client '
+          'registered. Add the app signing SHA-1 to the Android app in the '
+          'Firebase console, re-download google-services.json and rebuild.';
+    }
+    if (text.contains('network')) {
+      return 'Network issue while signing in. Check your connection and try '
+          'again.';
+    }
+    return 'Google sign in failed. Please try again.';
   }
 
   List<Map<String, dynamic>> _getRegisteredUsers() {
