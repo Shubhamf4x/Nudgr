@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/responsive.dart';
+import '../../shared/widgets/platform_unavailable.dart';
 import '../../core/constants/color_constants.dart';
 import '../../shared/models/step_model.dart';
 import 'steps_provider.dart';
@@ -47,83 +50,101 @@ class _StepsScreenState extends State<StepsScreen>
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: Consumer<StepsProvider>(
-          builder: (context, provider, _) {
-            if (provider.state.isTracking) {
-              if (!_pulseController.isAnimating) {
-                _pulseController.repeat(reverse: true);
+        child: ResponsiveContent(
+          wide: true,
+          child: Consumer<StepsProvider>(
+            builder: (context, provider, _) {
+              if (provider.state.isTracking) {
+                if (!_pulseController.isAnimating) {
+                  _pulseController.repeat(reverse: true);
+                }
+              } else if (_pulseController.isAnimating) {
+                _pulseController.stop();
               }
-            } else if (_pulseController.isAnimating) {
-              _pulseController.stop();
-            }
-            if (provider.state.isLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (!provider.state.hasSensor) {
-              return _buildNoSensorState(theme);
-            }
-            if (!provider.state.hasPermission) {
-              return _buildNoPermissionState(provider, theme);
-            }
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  Text(
-                    'Steps',
-                    style: AppTextStyles.googleSans(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: theme.textTheme.titleLarge?.color,
+              if (provider.state.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (!provider.state.hasSensor) {
+                return _buildNoSensorState(theme);
+              }
+              if (!provider.state.hasPermission) {
+                return _buildNoPermissionState(provider, theme);
+              }
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    Text(
+                      'Steps',
+                      style: AppTextStyles.googleSans(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: theme.textTheme.titleLarge?.color,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  _buildStepCounter(provider, theme),
-                  const SizedBox(height: 24),
-                  _buildStepHistory(provider, theme),
-                  const SizedBox(height: 24),
-                  _buildCalendarSection(provider, theme),
-                  const SizedBox(height: 100),
-                ],
-              ),
-            );
-          },
+                    const SizedBox(height: 24),
+                    _buildStepCounter(provider, theme),
+                    const SizedBox(height: 24),
+                    _buildStepHistory(provider, theme),
+                    const SizedBox(height: 24),
+                    _buildCalendarSection(provider, theme),
+                    const SizedBox(height: 100),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
   Widget _buildNoSensorState(ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.directions_walk_rounded,
-              size: 64,
-              color: Colors.grey.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Step Counting',
-              style: AppTextStyles.googleSans(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: theme.textTheme.titleLarge?.color,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Step counting isn\'t available\non this device.',
-              style: AppTextStyles.googleSans(fontSize: 14, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
+    if (!PlatformCapabilities.hasStepSensor) {
+      return CenteredScrollable(
+        padding: const EdgeInsets.all(32),
+        child: PlatformUnavailable(
+          icon: Icons.directions_walk_rounded,
+          feature: 'Step counting',
+          detail:
+              'A hardware step counter is read through the Android sensor '
+              'APIs. Browsers and iOS do not expose it, so Nudgr cannot count '
+              'steps on ${PlatformCapabilities.platformName}.',
+          alternative:
+              'Any step history already synced to your account is still '
+              'available on Android, and the rest of the app works normally.',
         ),
+      );
+    }
+    return CenteredScrollable(
+      padding: const EdgeInsets.all(40),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.directions_walk_rounded,
+            size: 64,
+            color: Colors.grey.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Step Counting',
+            style: AppTextStyles.googleSans(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: theme.textTheme.titleLarge?.color,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'This device has no step counter sensor.',
+            style: AppTextStyles.googleSans(fontSize: 14, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -331,12 +352,26 @@ class _StepsScreenState extends State<StepsScreen>
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            'Shows a persistent notification with your progress',
-            style: AppTextStyles.googleSans(
-              fontSize: 10,
-              color: Colors.grey.withValues(alpha: 0.7),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                height: 24,
+                child: Switch(
+                  value: provider.notificationsEnabled,
+                  onChanged: (value) => provider.toggleNotifications(value),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Notify when the daily step goal is reached',
+                style: AppTextStyles.googleSans(
+                  fontSize: 10,
+                  color: Colors.grey.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/color_constants.dart';
+import '../../../core/platform/platform_capabilities.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/platform_unavailable.dart';
 import '../models/chat_peer.dart';
 import '../providers/mesh_chat_provider.dart';
 import '../services/mesh_chat_service.dart';
-import '../widgets/message_bubble.dart';
 import '../widgets/chat_composer.dart';
-import '../widgets/peer_tile.dart';
 import '../widgets/mesh_status_indicator.dart';
+import '../widgets/message_bubble.dart';
+import '../widgets/peer_tile.dart';
 
 class MeshChatScreen extends StatefulWidget {
   const MeshChatScreen({super.key});
@@ -25,9 +27,11 @@ class _MeshChatScreenState extends State<MeshChatScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MeshChatProvider>().initialize();
-    });
+    if (PlatformCapabilities.hasBluetoothMesh) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<MeshChatProvider>().initialize();
+      });
+    }
   }
 
   @override
@@ -60,6 +64,25 @@ class _MeshChatScreenState extends State<MeshChatScreen>
       ),
       builder: (context, data, _) {
         final provider = context.read<MeshChatProvider>();
+        if (!PlatformCapabilities.hasBluetoothMesh) {
+          return Scaffold(
+            body: SafeArea(
+              child: PlatformUnavailable(
+                icon: Icons.bluetooth_disabled_rounded,
+                feature: 'Nearby chat',
+                detail:
+                    'Nearby chat sends messages directly between devices over '
+                    'Bluetooth LE. The peer-to-peer transport is not implemented '
+                    'in this build, and browsers cannot advertise a Bluetooth '
+                    'service or host the connection peers need, so it cannot be '
+                    'offered on ${PlatformCapabilities.platformName}.',
+                alternative:
+                    'No messages are transmitted anywhere. Your tasks, notes, '
+                    'focus sessions and cloud sync are unaffected.',
+              ),
+            ),
+          );
+        }
         if (data.isInitializing) {
           return _buildLoadingScreen(theme);
         }

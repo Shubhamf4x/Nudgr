@@ -72,6 +72,9 @@ class SyncService {
   bool _isSyncing = false;
   bool _isOnline = true;
   final int _maxRetries = 6;
+  final List<Future<void> Function()> _pullListeners = [];
+  static const int _maxQueueSize = 500;
+  static const int _tombstoneMaxAgeDays = 90;
   static const String _syncQueueKey = 'sync_queue';
   static const String _lastSyncKey = 'last_sync_time';
   SyncService._();
@@ -89,6 +92,15 @@ class SyncService {
   String? get currentUserId => _currentUserId;
   bool get cloudEnabled => _cloudEnabled;
   bool get _canSync => _cloudEnabled && _currentUserId != null && _isOnline;
+  bool get _canQueue => _currentUserId != null;
+  void addPullListener(Future<void> Function() listener) {
+    _pullListeners.add(listener);
+  }
+
+  void removePullListener(Future<void> Function() listener) {
+    _pullListeners.remove(listener);
+  }
+
   Future<void> initialize() async {
     _prefs = await SharedPreferences.getInstance();
     _loadLastSyncTime();
@@ -148,7 +160,7 @@ class SyncService {
     required SyncOperation operation,
     Map<String, dynamic>? data,
   }) {
-    if (!_cloudEnabled) return;
+    if (!_canQueue) return;
     _enqueue(
       collection: collection,
       documentId: documentId,
@@ -178,6 +190,9 @@ class SyncService {
         data: data,
       ),
     );
+    if (_syncQueue.length > _maxQueueSize) {
+      _syncQueue.removeRange(0, _syncQueue.length - _maxQueueSize);
+    }
     _pendingCount = _syncQueue.length;
     unawaited(_saveSyncQueue());
   }
@@ -267,6 +282,25 @@ class SyncService {
     return stamped;
   }
 
+  Future<void> _markLocalSynced(String collection, String documentId) async {
+    switch (collection) {
+      case 'tasks':
+        await _db.markTaskSynced(documentId);
+        break;
+      case 'notes':
+        await _db.markNoteSynced(documentId);
+        break;
+      case 'categories':
+        await _db.markCategorySynced(documentId);
+        break;
+      case 'focus_sessions':
+        await _db.markFocusSessionSynced(documentId);
+        break;
+      default:
+        break;
+    }
+  }
+
   Future<void> _processQueueItem(SyncQueueItem item) async {
     final ref = _userCollection(item.collection).doc(item.documentId);
     switch (item.operation) {
@@ -277,12 +311,90 @@ class SyncService {
             _withOwnership(item.documentId, item.data!),
             SetOptions(merge: true),
           );
+          await _markLocalSynced(item.collection, item.documentId);
         }
         break;
       case SyncOperation.delete:
         await ref.delete();
+        await _writeCloudTombstone(item.collection, item.documentId);
         break;
     }
+  }
+
+  Future<void> _writeCloudTombstone(String type, String id) async {
+    if (_currentUserId == null) return;
+    try {
+      await _userCollection('tombstones')
+          .doc('$type~$id')
+          .set(
+            _withOwnership(
+              '$type~$id',
+              {
+                'type': type,
+                'id': id,
+                'at': DateTime.now().toIso8601String(),
+              },
+            ),
+          );
+    } catch (_) {
+      final tombstones = _db.getTombstones();
+      final missing = !tombstones.any(
+        (t) => t['type'] == type && t['id'] == id,
+      );
+      if (missing) await _db.addTombstone(type, id);
+      _enqueue(
+        collection: 'tombstones',
+        documentId: '$type~$id',
+        operation: SyncOperation.update,
+        data: {
+          'type': type,
+          'id': id,
+          'at': DateTime.now().toIso8601String(),
+        },
+      );
+    }
+  }
+
+  Set<String> _tombstonedIds(String type) {
+    return _db
+        .getTombstones()
+        .where((t) => t['type'] == type)
+        .map((t) => '${t['id']}')
+        .toSet();
+  }
+
+  Future<void> _applyTombstonesToLocal() async {
+    final tombstones = _db.getTombstones();
+    var queueChanged = false;
+    for (final tombstone in tombstones) {
+      final type = tombstone['type'] as String?;
+      final id = tombstone['id'] as String?;
+      if (type == null || id == null) continue;
+      try {
+        switch (type) {
+          case 'tasks':
+            await _db.deleteTask(id);
+            break;
+          case 'notes':
+            await _db.deleteNote(id);
+            break;
+          case 'categories':
+            await _db.deleteCategory(id);
+            break;
+          case 'focus_sessions':
+            await _db.deleteFocusSession(id);
+            break;
+          default:
+            break;
+        }
+      } catch (_) {}
+      final before = _syncQueue.length;
+      _syncQueue.removeWhere(
+        (q) => q.collection == type && q.documentId == id,
+      );
+      if (_syncQueue.length != before) queueChanged = true;
+    }
+    if (queueChanged) await _saveSyncQueue();
   }
 
   Future<void> pullFromCloud() async {
@@ -293,6 +405,7 @@ class SyncService {
     var anyFailure = false;
     try {
       for (final pull in [
+        _pullTombstones,
         _pullTasks,
         _pullNotes,
         _pullCategories,
@@ -319,11 +432,60 @@ class SyncService {
       } else {
         _status = SyncStatus.error;
       }
+      await _notifyPullListeners();
     } catch (e) {
       _lastSyncError = _describeError(e);
       _status = SyncStatus.error;
     } finally {
       _isSyncing = false;
+    }
+  }
+
+  Future<void> _notifyPullListeners() async {
+    if (_pullListeners.isEmpty) return;
+    for (final listener in List<Future<void> Function()>.of(_pullListeners)) {
+      try {
+        await listener();
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _pullTombstones() async {
+    final snapshot = await _userCollection('tombstones').get();
+    if (snapshot.docs.isEmpty) {
+      await _applyTombstonesToLocal();
+      await _db.pruneTombstones(maxAgeDays: _tombstoneMaxAgeDays);
+      return;
+    }
+    final records = <Map<String, dynamic>>[];
+    final staleDocIds = <String>[];
+    final cutoff = DateTime.now().subtract(
+      const Duration(days: _tombstoneMaxAgeDays),
+    );
+    for (final doc in snapshot.docs) {
+      final data = Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
+      final type = data['type'] as String?;
+      final id = data['id'] as String?;
+      if (type == null || id == null || type.isEmpty || id.isEmpty) {
+        staleDocIds.add(doc.id);
+        continue;
+      }
+      if (data['at'] is! String) {
+        data['at'] = DateTime.now().toIso8601String();
+      }
+      records.add(data);
+      final at = DateTime.tryParse('${data['at']}');
+      if (at == null || at.isBefore(cutoff)) staleDocIds.add(doc.id);
+    }
+    if (records.isNotEmpty) {
+      await _db.addTombstones(records);
+      await _applyTombstonesToLocal();
+    }
+    await _db.pruneTombstones(maxAgeDays: _tombstoneMaxAgeDays);
+    for (final docId in staleDocIds) {
+      try {
+        await _userCollection('tombstones').doc(docId).delete();
+      } catch (_) {}
     }
   }
 
@@ -352,10 +514,13 @@ class SyncService {
 
   Future<void> _pullTasks() async {
     final snapshot = await _userCollection('tasks').get();
+    final tombstoned = _tombstonedIds('tasks');
     final cloudTasks = <TaskModel>[];
     for (final doc in snapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
-      cloudTasks.add(TaskModel.fromJson(data));
+      final task = TaskModel.fromJson(data);
+      if (tombstoned.contains(task.id)) continue;
+      cloudTasks.add(task);
     }
     if (cloudTasks.isEmpty) return;
     final localTasks = _db.getTasks();
@@ -368,16 +533,16 @@ class SyncService {
       if (localTask == null) {
         merged.add(cloudTask);
       } else {
-        final resolved = _resolveConflictTask(localTask, cloudTask);
+        final resolved = resolveConflictTask(localTask, cloudTask);
         merged.add(resolved);
         if (!resolved.isSynced) needsUpload.add(resolved);
       }
     }
     for (final localTask in localTasks) {
-      if (!cloudMap.containsKey(localTask.id)) {
-        merged.add(localTask);
-        needsUpload.add(localTask);
-      }
+      if (cloudMap.containsKey(localTask.id)) continue;
+      if (tombstoned.contains(localTask.id)) continue;
+      merged.add(localTask);
+      needsUpload.add(localTask);
     }
     await _db.saveTasks(merged);
     _queueForUpload(
@@ -388,10 +553,13 @@ class SyncService {
 
   Future<void> _pullNotes() async {
     final snapshot = await _userCollection('notes').get();
+    final tombstoned = _tombstonedIds('notes');
     final cloudNotes = <NoteModel>[];
     for (final doc in snapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
-      cloudNotes.add(NoteModel.fromJson(data));
+      final note = NoteModel.fromJson(data);
+      if (tombstoned.contains(note.id)) continue;
+      cloudNotes.add(note);
     }
     if (cloudNotes.isEmpty) return;
     final localNotes = _db.getNotes();
@@ -404,16 +572,16 @@ class SyncService {
       if (localNote == null) {
         merged.add(cloudNote);
       } else {
-        final resolved = _resolveConflictNote(localNote, cloudNote);
+        final resolved = resolveConflictNote(localNote, cloudNote);
         merged.add(resolved);
         if (!resolved.isSynced) needsUpload.add(resolved);
       }
     }
     for (final localNote in localNotes) {
-      if (!cloudMap.containsKey(localNote.id)) {
-        merged.add(localNote);
-        needsUpload.add(localNote);
-      }
+      if (cloudMap.containsKey(localNote.id)) continue;
+      if (tombstoned.contains(localNote.id)) continue;
+      merged.add(localNote);
+      needsUpload.add(localNote);
     }
     await _db.saveNotes(merged);
     _queueForUpload(
@@ -424,10 +592,13 @@ class SyncService {
 
   Future<void> _pullCategories() async {
     final snapshot = await _userCollection('categories').get();
+    final tombstoned = _tombstonedIds('categories');
     final cloudCategories = <CategoryModel>[];
     for (final doc in snapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
-      cloudCategories.add(CategoryModel.fromJson(data));
+      final category = CategoryModel.fromJson(data);
+      if (tombstoned.contains(category.id)) continue;
+      cloudCategories.add(category);
     }
     if (cloudCategories.isEmpty) return;
     final localCategories = _db.getCategories();
@@ -440,16 +611,16 @@ class SyncService {
       if (localCat == null) {
         merged.add(cloudCat);
       } else {
-        final resolved = _resolveConflictCategory(localCat, cloudCat);
+        final resolved = resolveConflictCategory(localCat, cloudCat);
         merged.add(resolved);
         if (!resolved.isSynced) needsUpload.add(resolved);
       }
     }
     for (final localCat in localCategories) {
-      if (!cloudMap.containsKey(localCat.id)) {
-        merged.add(localCat);
-        needsUpload.add(localCat);
-      }
+      if (cloudMap.containsKey(localCat.id)) continue;
+      if (tombstoned.contains(localCat.id)) continue;
+      merged.add(localCat);
+      needsUpload.add(localCat);
     }
     await _db.saveCategories(merged);
     _queueForUpload(
@@ -460,10 +631,13 @@ class SyncService {
 
   Future<void> _pullFocusSessions() async {
     final snapshot = await _userCollection('focus_sessions').get();
+    final tombstoned = _tombstonedIds('focus_sessions');
     final cloudSessions = <FocusSessionModel>[];
     for (final doc in snapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
-      cloudSessions.add(FocusSessionModel.fromJson(data));
+      final session = FocusSessionModel.fromJson(data);
+      if (tombstoned.contains(session.id)) continue;
+      cloudSessions.add(session);
     }
     if (cloudSessions.isEmpty) return;
     final localSessions = _db.getFocusSessions();
@@ -476,7 +650,7 @@ class SyncService {
       if (localSession == null) {
         merged.add(cloudSession);
       } else {
-        final resolved = _resolveConflictFocusSession(
+        final resolved = resolveConflictFocusSession(
           localSession,
           cloudSession,
         );
@@ -485,10 +659,10 @@ class SyncService {
       }
     }
     for (final localSession in localSessions) {
-      if (!cloudMap.containsKey(localSession.id)) {
-        merged.add(localSession);
-        needsUpload.add(localSession);
-      }
+      if (cloudMap.containsKey(localSession.id)) continue;
+      if (tombstoned.contains(localSession.id)) continue;
+      merged.add(localSession);
+      needsUpload.add(localSession);
     }
     await _db.saveFocusSessions(merged);
     _queueForUpload(
@@ -511,19 +685,19 @@ class SyncService {
     }
   }
 
-  TaskModel _resolveConflictTask(TaskModel local, TaskModel cloud) {
+  static TaskModel resolveConflictTask(TaskModel local, TaskModel cloud) {
     if (!local.isSynced && cloud.isSynced) return local;
     if (local.isSynced && !cloud.isSynced) return cloud;
     return local.updatedAt.isAfter(cloud.updatedAt) ? local : cloud;
   }
 
-  NoteModel _resolveConflictNote(NoteModel local, NoteModel cloud) {
+  static NoteModel resolveConflictNote(NoteModel local, NoteModel cloud) {
     if (!local.isSynced && cloud.isSynced) return local;
     if (local.isSynced && !cloud.isSynced) return cloud;
     return local.updatedAt.isAfter(cloud.updatedAt) ? local : cloud;
   }
 
-  CategoryModel _resolveConflictCategory(
+  static CategoryModel resolveConflictCategory(
     CategoryModel local,
     CategoryModel cloud,
   ) {
@@ -532,7 +706,7 @@ class SyncService {
     return local.updatedAt.isAfter(cloud.updatedAt) ? local : cloud;
   }
 
-  FocusSessionModel _resolveConflictFocusSession(
+  static FocusSessionModel resolveConflictFocusSession(
     FocusSessionModel local,
     FocusSessionModel cloud,
   ) {
@@ -557,10 +731,12 @@ class SyncService {
       );
       return;
     }
+    if (_tombstonedIds('tasks').contains(task.id)) return;
     try {
       await _userCollection('tasks')
           .doc(task.id)
           .set(_withOwnership(task.id, task.toJson()), SetOptions(merge: true));
+      await _markLocalSynced('tasks', task.id);
       _lastSyncTime = DateTime.now();
       await _prefs!.setString(_lastSyncKey, _lastSyncTime!.toIso8601String());
     } catch (e) {
@@ -574,6 +750,7 @@ class SyncService {
   }
 
   Future<void> deleteTaskFromFirestore(String taskId) async {
+    await _db.addTombstone('tasks', taskId);
     if (!_canSync) {
       addToQueue(
         collection: 'tasks',
@@ -584,6 +761,7 @@ class SyncService {
     }
     try {
       await _userCollection('tasks').doc(taskId).delete();
+      await _writeCloudTombstone('tasks', taskId);
     } catch (e) {
       addToQueue(
         collection: 'tasks',
@@ -603,10 +781,12 @@ class SyncService {
       );
       return;
     }
+    if (_tombstonedIds('notes').contains(note.id)) return;
     try {
       await _userCollection('notes')
           .doc(note.id)
           .set(_withOwnership(note.id, note.toJson()), SetOptions(merge: true));
+      await _markLocalSynced('notes', note.id);
       _lastSyncTime = DateTime.now();
       await _prefs!.setString(_lastSyncKey, _lastSyncTime!.toIso8601String());
     } catch (e) {
@@ -620,6 +800,7 @@ class SyncService {
   }
 
   Future<void> deleteNoteFromFirestore(String noteId) async {
+    await _db.addTombstone('notes', noteId);
     if (!_canSync) {
       addToQueue(
         collection: 'notes',
@@ -630,6 +811,7 @@ class SyncService {
     }
     try {
       await _userCollection('notes').doc(noteId).delete();
+      await _writeCloudTombstone('notes', noteId);
     } catch (e) {
       addToQueue(
         collection: 'notes',
@@ -649,6 +831,7 @@ class SyncService {
       );
       return;
     }
+    if (_tombstonedIds('categories').contains(category.id)) return;
     try {
       await _userCollection('categories')
           .doc(category.id)
@@ -656,6 +839,7 @@ class SyncService {
             _withOwnership(category.id, category.toJson()),
             SetOptions(merge: true),
           );
+      await _markLocalSynced('categories', category.id);
     } catch (e) {
       addToQueue(
         collection: 'categories',
@@ -667,6 +851,7 @@ class SyncService {
   }
 
   Future<void> deleteCategoryFromFirestore(String categoryId) async {
+    await _db.addTombstone('categories', categoryId);
     if (!_canSync) {
       addToQueue(
         collection: 'categories',
@@ -677,6 +862,7 @@ class SyncService {
     }
     try {
       await _userCollection('categories').doc(categoryId).delete();
+      await _writeCloudTombstone('categories', categoryId);
     } catch (e) {
       addToQueue(
         collection: 'categories',
@@ -696,6 +882,7 @@ class SyncService {
       );
       return;
     }
+    if (_tombstonedIds('focus_sessions').contains(session.id)) return;
     try {
       await _userCollection('focus_sessions')
           .doc(session.id)
@@ -703,6 +890,7 @@ class SyncService {
             _withOwnership(session.id, session.toJson()),
             SetOptions(merge: true),
           );
+      await _markLocalSynced('focus_sessions', session.id);
     } catch (e) {
       addToQueue(
         collection: 'focus_sessions',
@@ -770,6 +958,7 @@ class SyncService {
     _cloudEnabled = false;
     await _prefs?.remove(_syncQueueKey);
     await _prefs?.remove(_lastSyncKey);
+    await _db.clearTombstones();
   }
 
   void dispose() {

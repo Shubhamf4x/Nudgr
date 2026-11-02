@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/color_constants.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/providers/theme_provider.dart';
 import '../auth/auth_provider.dart';
 import 'appearance_screen.dart';
@@ -32,62 +33,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSection('Account', [
-              _buildListTile(
-                icon: Icons.person_outline_rounded,
-                title: 'Edit Profile',
-                onTap: () => _showEditProfileSheet(),
-              ),
-              _buildListTile(
-                icon: Icons.lock_outline_rounded,
-                title: 'Change Password',
-                onTap: () => _showChangePasswordDialog(),
-              ),
-            ]),
-            _buildSection('Appearance', [
-              _buildListTile(
-                icon: Icons.dark_mode_outlined,
-                title: 'Theme',
-                subtitle: themeName,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AppearanceScreen()),
-                  );
-                },
-              ),
-            ]),
-            _buildSection('Privacy', [
-              _buildListTile(
-                icon: Icons.security_rounded,
-                title: 'Privacy Policy',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PrivacyPolicyScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildListTile(
-                icon: Icons.description_outlined,
-                title: 'Terms of Service',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const TermsOfServiceScreen(),
-                    ),
-                  );
-                },
-              ),
-            ]),
-            const SizedBox(height: 40),
-          ],
+        child: ResponsiveContent(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSection('Account', [
+                _buildListTile(
+                  icon: Icons.person_outline_rounded,
+                  title: 'Edit Profile',
+                  onTap: () => _showEditProfileSheet(),
+                ),
+                _buildListTile(
+                  icon: Icons.lock_outline_rounded,
+                  title: 'Change Password',
+                  onTap: () => _showChangePasswordDialog(),
+                ),
+              ]),
+              _buildSection('Appearance', [
+                _buildListTile(
+                  icon: Icons.dark_mode_outlined,
+                  title: 'Theme',
+                  subtitle: themeName,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AppearanceScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ]),
+              _buildSection('Privacy', [
+                _buildListTile(
+                  icon: Icons.security_rounded,
+                  title: 'Privacy Policy',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PrivacyPolicyScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildListTile(
+                  icon: Icons.description_outlined,
+                  title: 'Terms of Service',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const TermsOfServiceScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ]),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
@@ -211,9 +216,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: ElevatedButton(
                 onPressed: () async {
                   final newName = nameController.text.trim();
-                  if (newName.isNotEmpty) {
-                    await auth.updateProfile(displayName: newName);
-                    if (ctx.mounted) Navigator.pop(ctx);
+                  if (newName.isEmpty) return;
+                  final success = await auth.updateProfile(
+                    displayName: newName,
+                  );
+                  if (!ctx.mounted) return;
+                  if (success) {
+                    Navigator.pop(ctx);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Profile updated')),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          auth.error ?? 'Could not update your profile',
+                        ),
+                        backgroundColor: ColorConstants.error,
+                      ),
+                    );
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -348,8 +371,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     content: Text(
                       success
                           ? 'Password changed successfully'
-                          : 'Failed to change password',
+                          : (auth.error ?? 'Failed to change password'),
                     ),
+                    backgroundColor: success ? null : ColorConstants.error,
                   ),
                 );
               }

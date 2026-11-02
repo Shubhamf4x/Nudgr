@@ -1,12 +1,13 @@
 {
-    "name": "woods",
-    "short_name": "woods",
+    "name": "Nudgr",
+    "short_name": "Nudgr",
     "start_url": ".",
+    "scope": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#10101C",
+    "theme_color": "#6C63FF",
+    "description": "Nudgr - tasks, notes, focus sessions, step history and world time in one app.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

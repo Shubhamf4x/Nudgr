@@ -180,3 +180,71 @@ class TaskModel extends Equatable {
   @override
   List<Object?> get props => [id, title, isCompleted, priority];
 }
+
+extension TaskRecurrence on TaskModel {
+  DateTime? nextOccurrenceDate() {
+    if (!isRecurring) return null;
+    final base = dueDate ?? DateTime.now();
+    final dateOnly = DateTime(base.year, base.month, base.day);
+    switch (recurrencePattern) {
+      case 'daily':
+        return dateOnly.add(const Duration(days: 1));
+      case 'weekly':
+        return dateOnly.add(const Duration(days: 7));
+      case 'monthly':
+        final nextMonthAnchor = DateTime(base.year, base.month + 1);
+        final lastDay = DateTime(
+          nextMonthAnchor.year,
+          nextMonthAnchor.month + 1,
+          0,
+        ).day;
+        final day = dateOnly.day < 1
+            ? 1
+            : (dateOnly.day > lastDay ? lastDay : dateOnly.day);
+        return DateTime(nextMonthAnchor.year, nextMonthAnchor.month, day);
+      default:
+        return null;
+    }
+  }
+
+  TaskModel? nextOccurrence(String newId) {
+    final nextDate = nextOccurrenceDate();
+    if (nextDate == null) return null;
+    final now = DateTime.now();
+    final shift = dueDate == null
+        ? nextDate.difference(DateTime(now.year, now.month, now.day))
+        : nextDate.difference(
+            DateTime(dueDate!.year, dueDate!.month, dueDate!.day),
+          );
+    final nextReminder = reminderTime?.add(shift);
+    return TaskModel(
+      id: newId,
+      title: title,
+      description: description,
+      categoryId: categoryId,
+      categoryName: categoryName,
+      priority: priority,
+      dueDate: nextDate,
+      dueTime: dueTime,
+      isCompleted: false,
+      isRecurring: isRecurring,
+      recurrencePattern: recurrencePattern,
+      tags: tags,
+      subtasks: subtasks
+          .map(
+            (s) => SubTaskModel(
+              id: '${s.id}_${nextDate.millisecondsSinceEpoch}',
+              title: s.title,
+              isCompleted: false,
+              createdAt: now,
+            ),
+          )
+          .toList(),
+      reminderTime: nextReminder,
+      userId: userId,
+      createdAt: now,
+      updatedAt: now,
+      isSynced: false,
+    );
+  }
+}

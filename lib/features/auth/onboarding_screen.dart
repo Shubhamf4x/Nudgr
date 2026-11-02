@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/color_constants.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/utils/responsive.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -44,7 +45,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       iconBgColor: Color(0xFF1A2236),
       title: 'Stay connected',
       description:
-          'Chat with teammates in groups or one-on-one, even without a signal.',
+          'Message nearby friends over a direct Bluetooth mesh \u2014 no internet needed.',
     ),
   ];
   void _onNext() {
@@ -106,47 +107,71 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
                 itemBuilder: (context, index) {
                   final page = _pages[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 36),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 140,
-                          height: 140,
-                          decoration: BoxDecoration(
-                            color: page.iconBgColor,
-                            shape: BoxShape.circle,
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight.isFinite
+                                ? constraints.maxHeight
+                                : 0,
                           ),
                           child: Center(
-                            child: Icon(
-                              page.icon,
-                              size: 64,
-                              color: page.iconColor,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 36,
+                                vertical: 16,
+                              ),
+                              child: ResponsiveContent(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 140,
+                                      height: 140,
+                                      decoration: BoxDecoration(
+                                        color: page.iconBgColor,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          page.icon,
+                                          size: 64,
+                                          color: page.iconColor,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 40),
+                                    Text(
+                                      page.title,
+                                      style: AppTextStyles.googleSans(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Text(
+                                      page.description,
+                                      style: AppTextStyles.googleSans(
+                                        fontSize: 14,
+                                        color: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.color,
+                                        height: 1.5,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 40),
-                        Text(
-                          page.title,
-                          style: AppTextStyles.googleSans(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          page.description,
-                          style: AppTextStyles.googleSans(
-                            fontSize: 14,
-                            color: Theme.of(context).textTheme.bodySmall?.color,
-                            height: 1.5,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
               ),
@@ -166,7 +191,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         decoration: BoxDecoration(
                           color: _currentPage == index
                               ? ColorConstants.primary
-                              : Colors.white24,
+                              : Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.color
+                                    ?.withValues(alpha: 0.25),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       );

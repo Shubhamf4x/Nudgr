@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/color_constants.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/widgets/nudgr_button.dart';
 import '../../shared/widgets/nudgr_text_field.dart';
 import 'auth_provider.dart';
@@ -50,7 +51,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: _isSuccess ? _buildSuccessView() : _buildFormView(),
+          child: ResponsiveContent(
+            child: _isSuccess ? _buildSuccessView() : _buildFormView(),
+          ),
         ),
       ),
     );

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -6,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/responsive.dart';
+import '../../shared/widgets/profile_image.dart';
 import 'home_provider.dart';
 import '../auth/auth_provider.dart';
 
@@ -114,19 +115,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           physics: const AlwaysScrollableScrollPhysics(
                             parent: BouncingScrollPhysics(),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 8),
-                              _buildHeader(),
-                              const SizedBox(height: 20),
-                              _buildProfileAndStats(),
-                              const SizedBox(height: 28),
-                              _buildActivityGraphSection(),
-                              const SizedBox(height: 28),
-                              _buildDailyActivitySection(),
-                              const SizedBox(height: 100),
-                            ],
+                          child: ResponsiveContent(
+                            wide: true,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 8),
+                                _buildHeader(),
+                                const SizedBox(height: 20),
+                                _buildProfileAndStats(),
+                                const SizedBox(height: 28),
+                                _buildActivityGraphSection(),
+                                const SizedBox(height: 28),
+                                _buildDailyActivitySection(),
+                                const SizedBox(height: 100),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -159,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildProfileSection(provider),
+          Flexible(child: _buildProfileSection(provider)),
           const SizedBox(width: 24),
           Expanded(child: _buildStatsSection(provider)),
         ],
@@ -201,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               backgroundColor: Colors.transparent,
               backgroundImage: hasImage
                   ? ResizeImage(
-                      FileImage(File(_profileImagePath!)),
+                      profileImageProvider(_profileImagePath)!,
                       width: 112,
                       height: 112,
                       policy: ResizeImagePolicy.exact,
@@ -223,6 +227,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         const SizedBox(height: 10),
         Text(
           provider.state.userName,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: AppTextStyles.googleSans(
             fontSize: 18,
             fontWeight: FontWeight.w700,

@@ -11,7 +11,6 @@ class AppTextStyles {
     double? letterSpacing,
   }) {
     return TextStyle(
-      fontFamily: 'GoogleSans',
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,
@@ -22,6 +21,6 @@ class AppTextStyles {
   }
 
   static TextStyle googleSansTextTheme() {
-    return const TextStyle(fontFamily: 'GoogleSans');
+    return const TextStyle();
   }
 }

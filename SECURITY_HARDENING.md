@@ -34,9 +34,9 @@ Enforced security properties:
 
 > Note: the client writes full model JSON via `set(merge: true)`, so rules validate the *resulting merged document*. The rules were written to match exactly this write pattern so the existing sync architecture keeps working unchanged.
 
-### storage.rules (new)
+### Storage
 
-The app currently does **not** use Firebase Storage (profile photos are stored on-device), so all client Storage access is denied by default. A ready-to-enable owner-scoped template (`users/{uid}/profile/*`, images only, < 5 MiB) is included for future use.
+The app does **not** use Firebase Storage (profile photos are stored on-device) and `storage.rules` was removed from the repo. Storage is not configured in `firebase.json`, and no client code references it, so all Storage access is denied by the platform default.
 
 ### App Check (Android)
 
@@ -67,14 +67,12 @@ The rules files are in the repo root; deploy them to the Firebase project (`nudg
 ```bash
 # one-time, if not configured yet
 firebase init firestore   # select existing project, keep existing firestore.rules
-firebase init storage     # optional, selects storage.rules
 
 # deploy
 firebase deploy --only firestore:rules
-firebase deploy --only storage
 ```
 
-Or paste `firestore.rules` / `storage.rules` into the Firebase console → Firestore / Storage → Rules → Publish. Deploying rules requires no app update and applies immediately to existing and new clients.
+Or paste `firestore.rules` into the Firebase console → Firestore → Rules → Publish. Deploying rules requires no app update and applies immediately to existing and new clients.
 
 ### Enabling App Check (recommended sequence)
 

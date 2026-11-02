@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../shared/models/task_model.dart';
 import '../../shared/models/note_model.dart';
 import '../../core/services/database_service.dart';
+import '../../core/services/notification_service.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/utils/helpers.dart';
 
 class HomeState {
@@ -71,6 +73,7 @@ class HomeState {
 
 class HomeProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService.getInstance();
+  final SyncService _sync = SyncService.getInstance();
   HomeState _state = const HomeState();
   HomeState get state => _state;
   Future<void> loadData(String userName) async {
@@ -100,6 +103,17 @@ class HomeProvider extends ChangeNotifier {
     final completionRate = recent30Tasks.isNotEmpty
         ? completed30Days / recent30Tasks.length
         : 0.0;
+    double totalFocusHours = 0.0;
+    final sessions = _db.getFocusSessions();
+    for (final session in sessions) {
+      if (!session.isCompleted) continue;
+      final completedOn = session.endTime ?? session.createdAt;
+      if (completedOn.isBefore(thirtyDaysAgo)) continue;
+      final minutes = session.actualDurationMinutes > 0
+          ? session.actualDurationMinutes
+          : session.durationMinutes;
+      totalFocusHours += minutes / 60;
+    }
     final weeklyActivity = _calculateWeeklyActivity(tasks);
     final dailyActivity = _calculateDailyActivity(tasks, now);
     final sortedNotes = List<NoteModel>.from(notes)
@@ -117,7 +131,7 @@ class HomeProvider extends ChangeNotifier {
       completionRate: completionRate,
       weeklyActivity: weeklyActivity,
       dailyActivity: dailyActivity,
-      totalFocusHours: completed30Days * 0.8,
+      totalFocusHours: totalFocusHours,
     );
     notifyListeners();
   }
@@ -171,10 +185,33 @@ class HomeProvider extends ChangeNotifier {
     );
     await _db.saveTask(updated);
     await loadData(_state.userName);
+    try {
+      if (updated.isCompleted) {
+        await NotificationService.getInstance().cancelTaskNotification(
+          updated.id,
+        );
+        await NotificationService.getInstance().cancelTaskReminder(updated.id);
+      } else {
+        final due = updated.dueTime;
+        if (due != null && due.isAfter(DateTime.now())) {
+          await NotificationService.getInstance().scheduleTaskNotification(
+            updated.id,
+            updated.title,
+            due,
+          );
+        }
+      }
+    } catch (_) {}
+    _sync.saveTaskToFirestore(updated);
   }
 
   Future<void> deleteTask(String taskId) async {
     await _db.deleteTask(taskId);
     await loadData(_state.userName);
+    try {
+      await NotificationService.getInstance().cancelTaskNotification(taskId);
+      await NotificationService.getInstance().cancelTaskReminder(taskId);
+    } catch (_) {}
+    _sync.deleteTaskFromFirestore(taskId);
   }
 }

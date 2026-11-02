@@ -107,11 +107,17 @@ describe('user profile docs users/{uid}', () => {
   test('unauthenticated cannot read profiles', async () => {
     await assertFails(authedDb(null).doc('users/uid-a-111111').get());
   });
-  test('user cannot delete own profile doc from client', async () => {
+  test('user can delete own profile doc from client', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await ctx.firestore().doc('users/uid-a-111111').set(profileData(UID_A, 'a@example.com'));
     });
-    await assertFails(authedDb(UID_A).doc('users/uid-a-111111').delete());
+    await assertSucceeds(authedDb(UID_A).doc('users/uid-a-111111').delete());
+  });
+  test("user B cannot delete user A's profile doc", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc('users/uid-a-111111').set(profileData(UID_A, 'a@example.com'));
+    });
+    await assertFails(authedDb(UID_B).doc('users/uid-a-111111').delete());
   });
   test('profile id field cannot be changed on update', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
@@ -235,7 +241,7 @@ describe('steps users/{uid}/steps/{date}', () => {
   });
 });
 
-describe('focus sessions, categories, conversations', () => {
+describe('focus sessions and categories', () => {
   test('owner can create focus session', async () => {
     const data = {
       id: 'fs-1',
@@ -266,7 +272,7 @@ describe('focus sessions, categories, conversations', () => {
     };
     await assertFails(authedDb(UID_A).doc('users/uid-a-111111/focus_sessions/fs-1').set(data));
   });
-  test('owner can manage categories and conversations', async () => {
+  test('owner can manage categories but conversations are denied', async () => {
     const db = authedDb(UID_A);
     await assertSucceeds(
       db.doc('users/uid-a-111111/categories/cat-1').set({
@@ -275,8 +281,71 @@ describe('focus sessions, categories, conversations', () => {
         createdAt: '2026-01-01T00:00:00.000', updatedAt: '2026-01-01T00:00:00.000', isSynced: true,
       })
     );
-    await assertSucceeds(
+    await assertFails(
       db.doc('users/uid-a-111111/conversations/conv-1').set({ id: 'conv-1', userId: UID_A })
+    );
+    await assertFails(db.doc('users/uid-a-111111/conversations/conv-1').get());
+  });
+});
+
+describe('tombstones users/{uid}/tombstones/{tombstoneId}', () => {
+  const tombstoneData = (uid) => ({
+    id: 'task-1',
+    type: 'tasks',
+    at: '2026-01-01T00:00:00.000',
+    userId: uid,
+  });
+  test('google user can create, read and delete own tombstone', async () => {
+    const db = authedDb(UID_A);
+    const ref = db.doc('users/uid-a-111111/tombstones/tasks~task-1');
+    await assertSucceeds(ref.set(tombstoneData(UID_A)));
+    await assertSucceeds(ref.get());
+    await assertSucceeds(db.doc('users/uid-a-111111/tombstones').get());
+    await assertSucceeds(ref.delete());
+  });
+  test('tombstone without type or timestamp is rejected', async () => {
+    const db = authedDb(UID_A);
+    await assertFails(
+      db.doc('users/uid-a-111111/tombstones/tasks~task-2').set({
+        id: 'task-2',
+        userId: UID_A,
+        at: '2026-01-01T00:00:00.000',
+      })
+    );
+    await assertFails(
+      db.doc('users/uid-a-111111/tombstones/tasks~task-2').set({
+        id: 'task-2',
+        type: 'tasks',
+        userId: UID_A,
+      })
+    );
+  });
+  test("user A cannot read user B's tombstones", async () => {
+    await assertFails(
+      authedDb(UID_A)
+        .doc('users/uid-b-222222/tombstones/tasks~task-1')
+        .set(tombstoneData(UID_B))
+    );
+  });
+  test('unauthenticated cannot write tombstones', async () => {
+    await assertFails(
+      authedDb(null)
+        .doc('users/uid-a-111111/tombstones/tasks~task-1')
+        .set(tombstoneData(UID_A))
+    );
+  });
+  test('email/password users cannot write tombstones', async () => {
+    await assertFails(
+      authedDb(UID_A, 'password')
+        .doc('users/uid-a-111111/tombstones/tasks~task-1')
+        .set(tombstoneData(UID_A))
+    );
+  });
+  test('stale tombstone at field type mismatch is rejected', async () => {
+    await assertFails(
+      authedDb(UID_A)
+        .doc('users/uid-a-111111/tombstones/tasks~task-3')
+        .set({ id: 'task-3', type: 'tasks', at: 17, userId: UID_A })
     );
   });
 });
@@ -289,6 +358,12 @@ describe('username mapping usernames/{username}', () => {
       });
     });
     await assertSucceeds(authedDb(null).doc('usernames/alice').get());
+  });
+  test('unauthenticated cannot list or enumerate usernames', async () => {
+    await assertFails(authedDb(null).collection('usernames').get());
+    await assertFails(
+      authedDb(null).collection('usernames').where('uid', '==', UID_A).get()
+    );
   });
   test('authenticated user can claim a username mapped to own uid', async () => {
     await assertSucceeds(

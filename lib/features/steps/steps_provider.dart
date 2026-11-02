@@ -285,6 +285,7 @@ class StepsProvider extends ChangeNotifier {
 
   void _checkGoalNotification(int todaySteps) {
     if (todaySteps >= _state.dailyGoal &&
+        _stepsService.areNotificationsEnabled() &&
         !_state.goalNotificationShown &&
         !_stepsService.hasGoalNotificationBeenSentToday()) {
       _state = _state.copyWith(goalNotificationShown: true);

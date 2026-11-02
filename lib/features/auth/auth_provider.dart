@@ -91,6 +91,13 @@ class AuthProvider extends ChangeNotifier {
         (owner == null && hasLocalData)) {
       await _db.clearAll();
       await StepsService.getInstance().clearStepHistory();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('profile_image_path');
+        await prefs.remove('world_clock_cities');
+        await prefs.remove('world_clock_24h');
+      } catch (_) {}
+      await _db.clearQuarantine();
     }
     await _db.setDataOwnerUid(user.id);
     _syncService.setUser(user.id, cloudEnabled: cloudSyncEnabled);

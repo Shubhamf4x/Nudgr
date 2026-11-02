@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../shared/models/task_model.dart';
 import '../../shared/models/category_model.dart';
@@ -87,16 +88,14 @@ class TasksState {
 class TasksProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService.getInstance();
   final SyncService _sync = SyncService.getInstance();
+  final Uuid _uuid = const Uuid();
   TasksState _state = const TasksState();
   TasksState get state => _state;
-  bool _loadedOnce = false;
   Future<void> initialize() async {
-    if (_loadedOnce) return;
     await loadData();
   }
 
   Future<void> loadData() async {
-    _loadedOnce = true;
     _state = _state.copyWith(isLoading: true);
     notifyListeners();
     final tasks = _db.getTasks();
@@ -109,36 +108,40 @@ class TasksProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addTask(TaskModel task) async {
-    await _db.saveTask(task);
-    await loadData();
-    if (task.dueTime != null && task.dueTime!.isAfter(DateTime.now())) {
-      try {
+  Future<void> _scheduleTaskAlerts(TaskModel task) async {
+    try {
+      await NotificationService.getInstance().cancelTaskNotification(task.id);
+      await NotificationService.getInstance().cancelTaskReminder(task.id);
+      final due = task.dueTime;
+      if (due != null && due.isAfter(DateTime.now())) {
         await NotificationService.getInstance().scheduleTaskNotification(
           task.id,
           task.title,
-          task.dueTime!,
+          due,
         );
-      } catch (_) {}
-    }
+      }
+      final reminder = task.reminderTime;
+      if (reminder != null && reminder.isAfter(DateTime.now())) {
+        await NotificationService.getInstance().scheduleTaskReminder(
+          task.id,
+          task.title,
+          reminder,
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> addTask(TaskModel task) async {
+    await _db.saveTask(task);
+    await loadData();
+    await _scheduleTaskAlerts(task);
     _sync.saveTaskToFirestore(task);
   }
 
   Future<void> updateTask(TaskModel task) async {
     await _db.saveTask(task);
     await loadData();
-    try {
-      await NotificationService.getInstance().cancelTaskNotification(task.id);
-      if (task.dueTime != null &&
-          task.dueTime!.isAfter(DateTime.now()) &&
-          !task.isCompleted) {
-        await NotificationService.getInstance().scheduleTaskNotification(
-          task.id,
-          task.title,
-          task.dueTime!,
-        );
-      }
-    } catch (_) {}
+    await _scheduleTaskAlerts(task);
     _sync.saveTaskToFirestore(task);
   }
 
@@ -147,6 +150,7 @@ class TasksProvider extends ChangeNotifier {
     await loadData();
     try {
       await NotificationService.getInstance().cancelTaskNotification(taskId);
+      await NotificationService.getInstance().cancelTaskReminder(taskId);
     } catch (_) {}
     _sync.deleteTaskFromFirestore(taskId);
   }
@@ -161,21 +165,57 @@ class TasksProvider extends ChangeNotifier {
       isSynced: false,
     );
     await _db.saveTask(updated);
+    TaskModel? nextTask;
+    if (completing && task.isRecurring) {
+      nextTask = task.nextOccurrence(_uuid.v4());
+      if (nextTask != null) {
+        await _db.saveTask(nextTask);
+      }
+    }
     await loadData();
     try {
       if (updated.isCompleted) {
         await NotificationService.getInstance().cancelTaskNotification(
           updated.id,
         );
-      } else if (updated.dueTime != null &&
-          updated.dueTime!.isAfter(DateTime.now())) {
-        await NotificationService.getInstance().scheduleTaskNotification(
-          updated.id,
-          updated.title,
-          updated.dueTime!,
-        );
+        await NotificationService.getInstance().cancelTaskReminder(updated.id);
+      } else {
+        await _scheduleTaskAlerts(updated);
       }
     } catch (_) {}
+    if (nextTask != null) {
+      await _scheduleTaskAlerts(nextTask);
+      _sync.saveTaskToFirestore(nextTask);
+    }
+    _sync.saveTaskToFirestore(updated);
+  }
+
+  Future<void> toggleSubtask(String taskId, String subtaskId) async {
+    final task = _state.tasks.firstWhere(
+      (t) => t.id == taskId,
+      orElse: () => TaskModel(
+        id: '',
+        title: '',
+        userId: '',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+    if (task.id.isEmpty) return;
+    final subtaskIndex = task.subtasks.indexWhere((s) => s.id == subtaskId);
+    if (subtaskIndex < 0) return;
+    final updated = task.copyWith(
+      subtasks: [
+        for (var i = 0; i < task.subtasks.length; i++)
+          i == subtaskIndex
+              ? task.subtasks[i].copyWith(isCompleted: !task.subtasks[i].isCompleted)
+              : task.subtasks[i],
+      ],
+      updatedAt: DateTime.now(),
+      isSynced: false,
+    );
+    await _db.saveTask(updated);
+    await loadData();
     _sync.saveTaskToFirestore(updated);
   }
 

@@ -59,6 +59,9 @@ key.properties
 # Gradle build artifacts (android/build)
 android/build/
 
+# Node dependencies for the firebase_tests suite
+node_modules/
+
 # Local editor/tool config (may contain credentials)
 opencode.json
 opencode.jsonc

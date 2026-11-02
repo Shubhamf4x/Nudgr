@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../core/platform/platform_capabilities.dart';
 import '../models/chat_identity.dart';
 import '../models/chat_peer.dart';
 import 'mesh_protocol.dart';
@@ -78,7 +78,7 @@ class BleMeshService {
     final bluetoothGranted = bluetoothStatuses.values.every(
       (status) => status.isGranted || status.isLimited,
     );
-    if (!kIsWeb && Platform.isAndroid && await _isLegacyAndroidScan()) {
+    if (PlatformCapabilities.isAndroid && await _isLegacyAndroidScan()) {
       final location = await Permission.locationWhenInUse.request();
       return bluetoothGranted && (location.isGranted || location.isLimited);
     }
@@ -95,7 +95,7 @@ class BleMeshService {
   }
 
   Future<bool> requestBluetoothOn() async {
-    if (!kIsWeb && Platform.isAndroid) {
+    if (PlatformCapabilities.isAndroid) {
       try {
         await FlutterBluePlus.turnOn();
       } catch (e) {

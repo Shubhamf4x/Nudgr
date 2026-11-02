@@ -11,12 +11,14 @@ class TaskCard extends StatelessWidget {
   final VoidCallback? onToggle;
   final VoidCallback? onDelete;
   final VoidCallback? onTap;
+  final void Function(String subtaskId)? onToggleSubtask;
   const TaskCard({
     super.key,
     required this.task,
     this.onToggle,
     this.onDelete,
     this.onTap,
+    this.onToggleSubtask,
   });
   @override
   Widget build(BuildContext context) {
@@ -27,6 +29,10 @@ class TaskCard extends StatelessWidget {
       direction: onDelete != null
           ? DismissDirection.endToStart
           : DismissDirection.none,
+      confirmDismiss: (direction) async =>
+          direction == DismissDirection.endToStart &&
+          onDelete != null &&
+          (await _showDeleteDialog(context)) == true,
       onDismissed: (_) => onDelete?.call(),
       background: Container(
         alignment: Alignment.centerRight,
@@ -41,7 +47,11 @@ class TaskCard extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         onLongPress: onDelete != null
-            ? () => _showDeleteDialog(context, onDelete!)
+            ? () async {
+                if (await _showDeleteDialog(context) == true) {
+                  onDelete?.call();
+                }
+              }
             : null,
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -133,23 +143,27 @@ class TaskCard extends StatelessWidget {
                         ),
                         if (task.categoryName != null) ...[
                           const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: ColorConstants.primary.withValues(
-                                alpha: 0.1,
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
                               ),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              task.categoryName!,
-                              style: AppTextStyles.googleSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: ColorConstants.primary,
+                              decoration: BoxDecoration(
+                                color: ColorConstants.primary.withValues(
+                                  alpha: 0.1,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                task.categoryName!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.googleSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: ColorConstants.primary,
+                                ),
                               ),
                             ),
                           ),
@@ -162,11 +176,15 @@ class TaskCard extends StatelessWidget {
                             color: Colors.grey,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            Helpers.formatDate(task.dueDate!),
-                            style: AppTextStyles.googleSans(
-                              fontSize: 11,
-                              color: Colors.grey,
+                          Flexible(
+                            child: Text(
+                              Helpers.formatDate(task.dueDate!),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.googleSans(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
                             ),
                           ),
                         ],
@@ -201,6 +219,56 @@ class TaskCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 4),
+                      ...task.subtasks.map(
+                        (subtask) => InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap:
+                              task.isCompleted || onToggleSubtask == null
+                                  ? null
+                                  : () => onToggleSubtask!(subtask.id),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: Checkbox(
+                                    value: subtask.isCompleted,
+                                    onChanged:
+                                        task.isCompleted ||
+                                            onToggleSubtask == null
+                                        ? null
+                                        : (_) => onToggleSubtask!(subtask.id),
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                    activeColor: ColorConstants.success,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    subtask.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTextStyles.googleSans(
+                                      fontSize: 12,
+                                      color: subtask.isCompleted
+                                          ? Colors.grey
+                                          : null,
+                                      decoration: subtask.isCompleted
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -212,8 +280,8 @@ class TaskCard extends StatelessWidget {
     );
   }
 
-  void _showDeleteDialog(BuildContext context, VoidCallback onDelete) {
-    showDialog(
+  Future<bool?> _showDeleteDialog(BuildContext context) {
+    return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(context).cardTheme.color,
@@ -234,17 +302,14 @@ class TaskCard extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(ctx, false),
             child: Text(
               'Cancel',
               style: AppTextStyles.googleSans(color: Colors.grey),
             ),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              onDelete();
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             child: Text(
               'Delete',
               style: AppTextStyles.googleSans(

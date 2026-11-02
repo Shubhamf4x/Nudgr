@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/responsive.dart';
 import '../../core/constants/color_constants.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
@@ -316,61 +317,63 @@ class _LegalScreen extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Last updated: $lastUpdated',
-              style: AppTextStyles.googleSans(
-                fontSize: 12,
-                color: subtextColor,
-              ),
-            ),
-            const SizedBox(height: 20),
-            ...sections.map(
-              (section) => Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      section.$1,
-                      style: AppTextStyles.googleSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: ColorConstants.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (var i = 0; i < section.$2.length; i++) ...[
-                            if (i > 0) const SizedBox(height: 8),
-                            Text(
-                              section.$2[i],
-                              style: AppTextStyles.googleSans(
-                                fontSize: 13.5,
-                                height: 1.5,
-                                color: textColor,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
+        child: ResponsiveContent(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Last updated: $lastUpdated',
+                style: AppTextStyles.googleSans(
+                  fontSize: 12,
+                  color: subtextColor,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              ...sections.map(
+                (section) => Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        section.$1,
+                        style: AppTextStyles.googleSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: ColorConstants.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var i = 0; i < section.$2.length; i++) ...[
+                              if (i > 0) const SizedBox(height: 8),
+                              Text(
+                                section.$2[i],
+                                style: AppTextStyles.googleSans(
+                                  fontSize: 13.5,
+                                  height: 1.5,
+                                  color: textColor,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -7,6 +7,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../shared/models/user_model.dart';
+import '../config/firebase_configuration.dart';
+import '../platform/platform_capabilities.dart';
 import '../utils/validators.dart';
 
 class AuthService {
@@ -15,7 +17,13 @@ class AuthService {
   fb.FirebaseAuth get _firebaseAuth => fb.FirebaseAuth.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   UserModel? _currentUser;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId:
+        PlatformCapabilities.isWeb &&
+            FirebaseConfiguration.googleWebClientId.isNotEmpty
+        ? FirebaseConfiguration.googleWebClientId
+        : null,
+  );
   static const String _authVersionKey = 'auth_version';
   static const String _currentAuthVersion = '2.0';
   static const String _explicitLogoutKey = 'session_ended';
@@ -110,11 +118,20 @@ class AuthService {
     final email = fbUser.email ?? '';
     final displayName = fbUser.displayName ?? email.split('@').first;
     final now = DateTime.now().toIso8601String();
+    final users = _getRegisteredUsers();
+    final uid = fbUser.uid;
+    final index = users.indexWhere((u) => u['id'] == uid);
+    final storedUsername = index >= 0
+        ? users[index]['username'] as String?
+        : null;
+    final username = storedUsername != null && storedUsername.isNotEmpty
+        ? storedUsername
+        : await _uniqueUsername(displayName);
     final userData = <String, dynamic>{
       'id': fbUser.uid,
       'email': email,
       'displayName': displayName,
-      'username': InputValidators.sanitizeUsername(displayName),
+      'username': username,
       'photoUrl': fbUser.photoURL,
       'bio': null,
       'isOnline': true,
@@ -125,20 +142,6 @@ class AuthService {
       'statistics': <String, dynamic>{},
       'isGoogleAccount': _detectGoogleAccount(fbUser),
     };
-    final users = _getRegisteredUsers();
-    final index = users.indexWhere((u) => u['id'] == fbUser?.uid);
-    if (index >= 0) {
-      final stored = Map<String, dynamic>.from(users[index]);
-      stored.forEach((k, v) {
-        if (v != null && (userData[k] == null || userData[k] == '')) {
-          userData[k] = v;
-        }
-      });
-      userData['id'] = fbUser.uid;
-      userData['email'] = userData['email'] == ''
-          ? (stored['email'] ?? email)
-          : userData['email'];
-    }
     final restored = UserModel.fromJson(userData);
     _currentUser = restored;
     _prefs!.setBool(_explicitLogoutKey, false);
@@ -209,7 +212,7 @@ class AuthService {
           .timeout(const Duration(seconds: 15));
       final fbUser = userCredential.user;
       if (fbUser == null) throw Exception('Firebase sign in failed');
-      return _handleFirebaseLogin(fbUser, resolvedEmail);
+      return await _handleFirebaseLogin(fbUser, resolvedEmail);
     } on TimeoutException {
       throw Exception(
         'Network timeout. Please check your connection and try again.',
@@ -227,7 +230,7 @@ class AuthService {
     }
   }
 
-  UserModel _handleFirebaseLogin(fb.User fbUser, String email) {
+  Future<UserModel> _handleFirebaseLogin(fb.User fbUser, String email) async {
     final users = _getRegisteredUsers();
     int existingIndex = -1;
     for (int i = 0; i < users.length; i++) {
@@ -249,7 +252,7 @@ class AuthService {
     } else {
       final now = DateTime.now().toIso8601String();
       final displayName = fbUser.displayName ?? email.split('@').first;
-      final username = InputValidators.sanitizeUsername(displayName);
+      final username = await _uniqueUsername(displayName);
       userData = <String, dynamic>{
         'id': fbUser.uid,
         'email': fbUser.email ?? email,
@@ -341,12 +344,24 @@ class AuthService {
       throw Exception('Registration failed. Please try again.');
     }
     if (fbUser == null) throw Exception('Firebase registration failed');
+    String claimedUsername = finalUsername;
+    try {
+      await _claimUsernameMapping(
+        claimedUsername,
+        normalizedEmail,
+        fbUser.uid,
+      );
+    } catch (e) {
+      if (!e.toString().contains('Username already taken')) rethrow;
+      claimedUsername = await _uniqueUsername(claimedUsername);
+      await _claimUsernameMapping(claimedUsername, normalizedEmail, fbUser.uid);
+    }
     final now = DateTime.now().toIso8601String();
     final userData = <String, dynamic>{
       'id': fbUser.uid,
       'email': normalizedEmail,
       'displayName': displayName,
-      'username': finalUsername,
+      'username': claimedUsername,
       'photoUrl': fbUser.photoURL,
       'bio': null,
       'isOnline': true,
@@ -370,12 +385,18 @@ class AuthService {
     _prefs!.setBool(_explicitLogoutKey, false);
     _explicitLogout = false;
     _prefs!.setString('current_user', jsonEncode(userModel.toJson()));
-    _syncUsernameMapping(finalUsername, normalizedEmail, fbUser.uid);
     _syncUserToFirestore(userData);
     return userModel;
   }
 
   Future<UserModel> signInWithGoogle() async {
+    if (PlatformCapabilities.isWeb &&
+        FirebaseConfiguration.googleWebClientId.isEmpty) {
+      throw Exception(
+        'Google sign-in is not configured for this web build. '
+        'Build with GOOGLE_WEB_CLIENT_ID.',
+      );
+    }
     final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
     if (googleUser == null) {
       throw Exception('Google sign in was cancelled');
@@ -449,7 +470,7 @@ class AuthService {
       _saveRegisteredUsers(users);
     } else {
       final now = DateTime.now().toIso8601String();
-      final username = InputValidators.sanitizeUsername(displayName);
+      final username = await _uniqueUsername(displayName);
       userData = <String, dynamic>{
         'id': fbUser.uid,
         'email': normalizedEmail,
@@ -519,31 +540,62 @@ class AuthService {
     }
   }
 
-  void _syncUsernameMapping(String username, String email, String uid) {
-    try {
-      if (username.isEmpty || uid.isEmpty) return;
-      _usernamesRef.doc(username).set({
+  Future<void> _claimUsernameMapping(
+    String username,
+    String email,
+    String uid,
+  ) async {
+    if (username.isEmpty || uid.isEmpty) return;
+    final ref = _usernamesRef.doc(username);
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(ref);
+      if (snapshot.exists) {
+        final data = snapshot.data() as Map<String, dynamic>?;
+        if (data != null && data['uid'] != uid) {
+          throw Exception('Username already taken');
+        }
+      }
+      transaction.set(ref, {
         'email': email,
         'uid': uid,
         'createdAt': DateTime.now().toIso8601String(),
       });
+    });
+  }
+
+  Future<void> _releaseUsernameMapping(String username, String uid) async {
+    try {
+      final ref = _usernamesRef.doc(username);
+      final doc = await ref.get().timeout(const Duration(seconds: 3));
+      if (!doc.exists) return;
+      final data = doc.data() as Map<String, dynamic>?;
+      if (data != null && data['uid'] == uid) {
+        await ref.delete();
+      }
     } catch (_) {}
   }
 
-  void _releaseUsernameMapping(String username, String uid) {
-    try {
-      final ref = _usernamesRef.doc(username);
-      ref
-          .get()
-          .then((doc) {
-            if (!doc.exists) return;
-            final data = doc.data() as Map<String, dynamic>?;
-            if (data != null && data['uid'] == uid) {
-              ref.delete();
-            }
-          })
-          .catchError((_) {});
-    } catch (_) {}
+  Future<String> _uniqueUsername(String base) async {
+    var candidate = InputValidators.sanitizeUsername(base);
+    if (candidate.isEmpty) candidate = 'user';
+    for (var n = 0; n <= 50; n++) {
+      final proposed = n == 0 ? candidate : '$candidate$n';
+      try {
+        final doc = await _usernamesRef
+            .doc(proposed)
+            .get()
+            .timeout(const Duration(seconds: 3));
+        if (!doc.exists) {
+          final existsLocally = _getRegisteredUsers().any(
+            (u) => u['username'] == proposed,
+          );
+          if (!existsLocally) return proposed;
+        }
+      } catch (_) {
+        return proposed;
+      }
+    }
+    return '$candidate${DateTime.now().millisecondsSinceEpoch % 100000}';
   }
 
   Future<void> logout() async {
@@ -599,11 +651,15 @@ class AuthService {
     if (normalizedUsername != null &&
         normalizedUsername != previousUsername &&
         updated.email.isNotEmpty) {
-      _syncUsernameMapping(normalizedUsername, updated.email, updated.id);
+      await _claimUsernameMapping(
+        normalizedUsername,
+        updated.email,
+        updated.id,
+      );
       if (previousUsername != null &&
           previousUsername.isNotEmpty &&
           previousUsername != normalizedUsername) {
-        _releaseUsernameMapping(previousUsername, updated.id);
+        await _releaseUsernameMapping(previousUsername, updated.id);
       }
     }
     final users = _getRegisteredUsers();
@@ -674,15 +730,14 @@ class AuthService {
     final users = _getRegisteredUsers();
     users.removeWhere((u) => u['id'] == uid);
     await _saveRegisteredUsers(users);
+    await _usersRef.doc(uid).delete();
     if (username != null && username.isNotEmpty) {
-      _releaseUsernameMapping(username, uid);
+      await _releaseUsernameMapping(username, uid);
     }
-    try {
-      await _usersRef.doc(uid).delete();
-    } catch (_) {}
-    try {
-      await _firebaseAuth.currentUser?.delete();
-    } catch (_) {}
+    final fbCurrentUser = _firebaseAuth.currentUser;
+    if (fbCurrentUser != null) {
+      await fbCurrentUser.delete();
+    }
     _currentUser = null;
     await _prefs!.remove('current_user');
     await _prefs!.setBool(_explicitLogoutKey, true);

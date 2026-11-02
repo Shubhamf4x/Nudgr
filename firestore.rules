@@ -70,8 +70,7 @@ service cloud.firestore {
         && request.resource.data.get('preferences', {}) is map
         && request.resource.data.get('statistics', {}) is map;
 
-      allow delete: if false;
-
+      allow delete: if isOwner(uid);
 
       match /tasks/{taskId} {
         allow get, list: if isSyncOwner(uid);
@@ -216,12 +215,18 @@ service cloud.firestore {
         allow delete: if isSyncOwner(uid);
       }
 
-      match /conversations/{conversationId} {
+      match /tombstones/{tombstoneId} {
         allow get, list: if isSyncOwner(uid);
 
         allow create, update: if isSyncOwner(uid)
           && ownershipFieldValid()
-          && request.resource.data.get('id', conversationId) == conversationId;
+          && request.resource.data.get('id', '') is string
+          && request.resource.data.id.size() > 0
+          && request.resource.data.id.size() <= 128
+          && request.resource.data.get('type', '') is string
+          && request.resource.data.type.size() > 0
+          && request.resource.data.type.size() <= 128
+          && isIsoTimestamp(request.resource.data.get('at', ''));
 
         allow delete: if isSyncOwner(uid);
       }
@@ -232,7 +237,9 @@ service cloud.firestore {
     }
 
     match /usernames/{username} {
-      allow get, list: if true;
+      allow get: if true;
+
+      allow list: if isSignedIn();
 
       allow create: if isSignedIn()
         && username.matches('^[a-zA-Z0-9._-]{1,64}$')

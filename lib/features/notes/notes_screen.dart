@@ -1,4 +1,5 @@
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/responsive.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -49,29 +50,32 @@ class _NotesScreenState extends State<NotesScreen> {
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Notes',
-                        style: AppTextStyles.googleSans(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
+            child: ResponsiveContent(
+              wide: true,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Notes',
+                          style: AppTextStyles.googleSans(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildSearchBar(),
-                      const SizedBox(height: 12),
-                      _buildCategoryChips(),
-                    ],
+                        const SizedBox(height: 16),
+                        _buildSearchBar(),
+                        const SizedBox(height: 12),
+                        _buildCategoryChips(),
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(child: _buildNotesArea(data)),
-              ],
+                  Expanded(child: _buildNotesArea(data)),
+                ],
+              ),
             ),
           ),
           floatingActionButton:

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/color_constants.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/models/focus_session_model.dart';
 import 'focus_provider.dart';
 
@@ -214,42 +215,44 @@ class _FocusScreenState extends State<FocusScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Focus',
-                    style: AppTextStyles.googleSans(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _showFocusStats,
-                    tooltip: 'Focus statistics',
-                    icon: const Icon(Icons.bar_chart_rounded, size: 24),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
+        child: ResponsiveContent(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildMainCard(),
-                    const SizedBox(height: 24),
-                    _buildRecentSessions(),
-                    const SizedBox(height: 20),
+                    Text(
+                      'Focus',
+                      style: AppTextStyles.googleSans(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _showFocusStats,
+                      tooltip: 'Focus statistics',
+                      icon: const Icon(Icons.bar_chart_rounded, size: 24),
+                    ),
                   ],
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      _buildMainCard(),
+                      const SizedBox(height: 24),
+                      _buildRecentSessions(),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

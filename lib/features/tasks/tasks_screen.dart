@@ -1,4 +1,5 @@
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/responsive.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -49,29 +50,31 @@ class _TasksScreenState extends State<TasksScreen> {
       builder: (context, data, _) {
         return Scaffold(
           body: SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Tasks',
-                        style: AppTextStyles.googleSans(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
+            child: ResponsiveContent(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tasks',
+                          style: AppTextStyles.googleSans(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildSearchBar(),
-                      const SizedBox(height: 12),
-                      _buildCategoryChips(),
-                    ],
+                        const SizedBox(height: 16),
+                        _buildSearchBar(),
+                        const SizedBox(height: 12),
+                        _buildCategoryChips(),
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(child: _buildTaskList(data)),
-              ],
+                  Expanded(child: _buildTaskList(data)),
+                ],
+              ),
             ),
           ),
           floatingActionButton:
@@ -111,10 +114,57 @@ class _TasksScreenState extends State<TasksScreen> {
           child: TaskCard(
             task: task,
             onToggle: () => provider.toggleTask(task),
-            onDelete: () => provider.deleteTask(task.id),
+            onDelete: () => _deleteWithUndo(provider, task),
+            onToggleSubtask: (subtaskId) =>
+                provider.toggleSubtask(task.id, subtaskId),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AddTaskScreen(existingTask: task),
+                ),
+              );
+            },
           ),
         );
       },
+    );
+  }
+
+  void _deleteWithUndo(TasksProvider provider, TaskModel task) {
+    final wasRecurring = task.isRecurring;
+    provider.deleteTask(task.id);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Deleted "${task.title}"'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () {
+            final restored = TaskModel(
+              id: task.id,
+              title: task.title,
+              description: task.description,
+              categoryId: task.categoryId,
+              categoryName: task.categoryName,
+              priority: task.priority,
+              dueDate: task.dueDate,
+              dueTime: task.dueTime,
+              isCompleted: task.isCompleted,
+              isRecurring: wasRecurring,
+              recurrencePattern: task.recurrencePattern,
+              tags: task.tags,
+              subtasks: task.subtasks,
+              reminderTime: task.reminderTime,
+              userId: task.userId,
+              createdAt: task.createdAt,
+              updatedAt: DateTime.now(),
+              completedAt: task.completedAt,
+              isSynced: false,
+            );
+            provider.updateTask(restored);
+          },
+        ),
+      ),
     );
   }
 

@@ -6,8 +6,6 @@ import '../../shared/models/task_model.dart';
 import '../../shared/models/note_model.dart';
 import '../../shared/models/category_model.dart';
 import '../../shared/models/focus_session_model.dart';
-import '../../shared/models/conversation_model.dart';
-import '../../shared/models/message_model.dart';
 
 class DatabaseService {
   static DatabaseService? _instance;
@@ -70,6 +68,7 @@ class DatabaseService {
   static const String _focusSessionsKey = 'focus_sessions';
   static const String _conversationsKey = 'conversations';
   static const String _messagesKey = 'messages';
+  static const String _tombstonesKey = 'tombstones';
   List<T> _decodeList<T>(
     String jsonString,
     T Function(Map<String, dynamic>) fromJson, {
@@ -123,6 +122,11 @@ class DatabaseService {
   static const int _maxQuarantinedRecords = 200;
   int get quarantinedRecordCount =>
       _prefs?.getStringList(_quarantineKey)?.length ?? 0;
+  Future<void> clearQuarantine() async {
+    _skippedRecords.clear();
+    await _prefs?.remove(_quarantineKey);
+  }
+
   Future<void> saveTasks(List<TaskModel> tasks) async {
     await _quarantineSkipped(_tasksKey);
     final jsonList = tasks.map((t) => t.toJson()).toList();
@@ -153,6 +157,14 @@ class DatabaseService {
   Future<void> deleteTask(String taskId) async {
     final tasks = getTasks();
     tasks.removeWhere((t) => t.id == taskId);
+    await saveTasks(tasks);
+  }
+
+  Future<void> markTaskSynced(String taskId) async {
+    final tasks = getTasks();
+    final index = tasks.indexWhere((t) => t.id == taskId);
+    if (index < 0 || tasks[index].isSynced) return;
+    tasks[index] = tasks[index].copyWith(isSynced: true);
     await saveTasks(tasks);
   }
 
@@ -189,6 +201,14 @@ class DatabaseService {
     await saveNotes(notes);
   }
 
+  Future<void> markNoteSynced(String noteId) async {
+    final notes = getNotes();
+    final index = notes.indexWhere((n) => n.id == noteId);
+    if (index < 0 || notes[index].isSynced) return;
+    notes[index] = notes[index].copyWith(isSynced: true);
+    await saveNotes(notes);
+  }
+
   Future<void> saveCategories(List<CategoryModel> categories) async {
     await _quarantineSkipped(_categoriesKey);
     final jsonList = categories.map((c) => c.toJson()).toList();
@@ -222,6 +242,14 @@ class DatabaseService {
     await saveCategories(categories);
   }
 
+  Future<void> markCategorySynced(String categoryId) async {
+    final categories = getCategories();
+    final index = categories.indexWhere((c) => c.id == categoryId);
+    if (index < 0 || categories[index].isSynced) return;
+    categories[index] = categories[index].copyWith(isSynced: true);
+    await saveCategories(categories);
+  }
+
   Future<void> saveFocusSessions(List<FocusSessionModel> sessions) async {
     await _quarantineSkipped(_focusSessionsKey);
     final jsonList = sessions.map((s) => s.toJson()).toList();
@@ -249,52 +277,101 @@ class DatabaseService {
     await saveFocusSessions(sessions);
   }
 
-  Future<void> saveConversations(List<ConversationModel> conversations) async {
-    await _quarantineSkipped(_conversationsKey);
-    final jsonList = conversations.map((c) => c.toJson()).toList();
-    await _prefs!.setString(_conversationsKey, jsonEncode(jsonList));
+  Future<void> deleteFocusSession(String sessionId) async {
+    final sessions = getFocusSessions();
+    sessions.removeWhere((s) => s.id == sessionId);
+    await saveFocusSessions(sessions);
   }
 
-  List<ConversationModel> getConversations() {
-    final jsonString = _prefs!.getString(_conversationsKey);
+  Future<void> markFocusSessionSynced(String sessionId) async {
+    final sessions = getFocusSessions();
+    final index = sessions.indexWhere((s) => s.id == sessionId);
+    if (index < 0 || sessions[index].isSynced) return;
+    sessions[index] = sessions[index].copyWith(isSynced: true);
+    await saveFocusSessions(sessions);
+  }
+
+  List<Map<String, dynamic>> getTombstones() {
+    final jsonString = _prefs!.getString(_tombstonesKey);
     if (jsonString == null || jsonString.isEmpty) return [];
-    return _decodeList(
-      jsonString,
-      (m) => ConversationModel.fromJson(m),
-      quarantineKey: _conversationsKey,
-    );
-  }
-
-  Future<void> saveConversation(ConversationModel conversation) async {
-    final conversations = getConversations();
-    final index = conversations.indexWhere((c) => c.id == conversation.id);
-    if (index >= 0) {
-      conversations[index] = conversation;
-    } else {
-      conversations.add(conversation);
+    try {
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! List) return [];
+      final result = <Map<String, dynamic>>[];
+      for (final entry in decoded) {
+        if (entry is! Map) continue;
+        final map = Map<String, dynamic>.from(entry);
+        final id = map['id'];
+        final type = map['type'];
+        if (id is! String || id.isEmpty) continue;
+        if (type is! String || type.isEmpty) continue;
+        result.add(map);
+      }
+      return result;
+    } catch (_) {
+      return [];
     }
-    await saveConversations(conversations);
   }
 
-  List<MessageModel> getMessages(String conversationId) {
-    final jsonString = _prefs!.getString('${_messagesKey}_$conversationId');
-    if (jsonString == null || jsonString.isEmpty) return [];
-    return _decodeList(jsonString, (m) => MessageModel.fromJson(m));
-  }
-
-  Future<void> saveMessage(MessageModel message) async {
-    final messages = getMessages(message.conversationId);
-    final index = messages.indexWhere((m) => m.id == message.id);
-    if (index >= 0) {
-      messages[index] = message;
-    } else {
-      messages.add(message);
+  Future<void> addTombstones(List<Map<String, dynamic>> records) async {
+    final existing = getTombstones();
+    final index = <String, int>{};
+    for (var i = 0; i < existing.length; i++) {
+      final t = existing[i];
+      index['${t['type']}|${t['id']}'] = i;
     }
-    final jsonList = messages.map((m) => m.toJson()).toList();
-    await _prefs!.setString(
-      '${_messagesKey}_${message.conversationId}',
-      jsonEncode(jsonList),
-    );
+    for (final record in records) {
+      final id = record['id'];
+      final type = record['type'];
+      if (id is! String || id.isEmpty || type is! String || type.isEmpty) {
+        continue;
+      }
+      final key = '$type|$id';
+      if (index.containsKey(key)) {
+        final current = existing[index[key]!];
+        final candidateAt = DateTime.tryParse('${record['at']}');
+        final currentAt = DateTime.tryParse('${current['at']}');
+        if (candidateAt != null &&
+            (currentAt == null || candidateAt.isAfter(currentAt))) {
+          existing[index[key]!] = record;
+        }
+      } else {
+        index[key] = existing.length;
+        existing.add(record);
+      }
+    }
+    await _prefs!.setString(_tombstonesKey, jsonEncode(existing));
+  }
+
+  Future<void> addTombstone(String type, String id) async {
+    await addTombstones([
+      {
+        'id': id,
+        'type': type,
+        'at': DateTime.now().toIso8601String(),
+      },
+    ]);
+  }
+
+  Future<void> removeTombstone(String type, String id) async {
+    final existing = getTombstones();
+    existing.removeWhere((t) => t['type'] == type && t['id'] == id);
+    await _prefs!.setString(_tombstonesKey, jsonEncode(existing));
+  }
+
+  Future<void> clearTombstones() async {
+    await _prefs?.remove(_tombstonesKey);
+  }
+
+  Future<void> pruneTombstones({int maxAgeDays = 90}) async {
+    final cutoff = DateTime.now().subtract(Duration(days: maxAgeDays));
+    final existing = getTombstones();
+    final kept = existing.where((t) {
+      final at = DateTime.tryParse('${t['at']}');
+      return at == null || at.isAfter(cutoff);
+    }).toList();
+    if (kept.length == existing.length) return;
+    await _prefs!.setString(_tombstonesKey, jsonEncode(kept));
   }
 
   Future<void> clearAll() async {
@@ -303,8 +380,9 @@ class DatabaseService {
     await _prefs!.remove(_categoriesKey);
     await _prefs!.remove(_focusSessionsKey);
     await _prefs!.remove(_conversationsKey);
+    await _prefs!.remove(_tombstonesKey);
     final keys = _prefs!.getKeys().where((k) => k.startsWith(_messagesKey));
-    for (final key in keys) {
+    for (final key in keys.toList()) {
       await _prefs!.remove(key);
     }
     await _prefs!.remove(_dataOwnerKey);

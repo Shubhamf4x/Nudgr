@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../shared/models/step_model.dart';
+import '../platform/platform_capabilities.dart';
 
 class StepsService {
   static StepsService? _instance;
@@ -24,6 +25,7 @@ class StepsService {
   }
 
   Future<bool> isSensorAvailable() async {
+    if (!PlatformCapabilities.hasStepSensor) return false;
     try {
       final result = await _channel.invokeMethod<bool>('isSensorAvailable');
       return result ?? false;
@@ -33,6 +35,7 @@ class StepsService {
   }
 
   Future<bool> requestActivityPermission() async {
+    if (!PlatformCapabilities.hasStepSensor) return false;
     try {
       final result = await _channel.invokeMethod<bool>(
         'requestActivityPermission',
@@ -44,6 +47,7 @@ class StepsService {
   }
 
   Future<bool> isActivityPermissionGranted() async {
+    if (!PlatformCapabilities.hasStepSensor) return false;
     try {
       final result = await _channel.invokeMethod<bool>(
         'isActivityPermissionGranted',
@@ -55,12 +59,14 @@ class StepsService {
   }
 
   void startListening(void Function(int sensorValue) onStepUpdate) {
+    if (!PlatformCapabilities.hasStepSensor) return;
     _onStepUpdate = onStepUpdate;
     _installHandler();
     _channel.invokeMethod('startListening').catchError((_) {});
   }
 
   void stopListening() {
+    if (!PlatformCapabilities.hasStepSensor) return;
     _channel.invokeMethod('stopListening').catchError((_) {});
   }
 
@@ -69,6 +75,7 @@ class StepsService {
     required int goal,
     int steps = 0,
   }) async {
+    if (!PlatformCapabilities.hasStepSensor) return;
     try {
       await _channel.invokeMethod('startForegroundTracking', {
         'baseline': baseline,
@@ -79,12 +86,14 @@ class StepsService {
   }
 
   Future<void> stopForegroundTracking() async {
+    if (!PlatformCapabilities.hasStepSensor) return;
     try {
       await _channel.invokeMethod('stopForegroundTracking');
     } catch (_) {}
   }
 
   int? getForegroundSteps() {
+    if (!PlatformCapabilities.hasStepSensor) return null;
     if (_prefs == null) return null;
     if (_prefs!.getBool('step_fg_stopped') ?? false) return null;
     final date = _prefs!.getString('step_fg_date');
@@ -93,6 +102,7 @@ class StepsService {
   }
 
   int getForegroundBaseline() {
+    if (!PlatformCapabilities.hasStepSensor) return 0;
     if (_prefs == null) return 0;
     if (_prefs!.getString('step_fg_date') != _todayKey()) return 0;
     return _prefs!.getInt('step_fg_baseline') ?? 0;
@@ -106,6 +116,7 @@ class StepsService {
 
   void setPermissionResultHandler(void Function(bool granted)? handler) {
     _onPermissionResult = handler;
+    if (!PlatformCapabilities.hasStepSensor) return;
     _installHandler();
   }
 
@@ -127,6 +138,7 @@ class StepsService {
   }
 
   Future<void> sendNotification(String title, String body) async {
+    if (!PlatformCapabilities.hasStepSensor) return;
     try {
       await _channel.invokeMethod('sendNotification', {
         'title': title,
@@ -154,6 +166,10 @@ class StepsService {
   }
 
   Future<void> _saveStepHistory(List<StepDayModel> history) async {
+    history.sort((a, b) => a.date.compareTo(b.date));
+    if (history.length > 90) {
+      history.removeRange(0, history.length - 90);
+    }
     final jsonList = history.map((e) => e.toJson()).toList();
     await _prefs!.setString('step_history', jsonEncode(jsonList));
   }

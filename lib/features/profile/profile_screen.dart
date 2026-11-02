@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -8,10 +8,13 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/color_constants.dart';
+import '../../core/platform/platform_capabilities.dart';
 import '../../core/services/update_service.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/providers/sync_provider.dart';
+import '../../shared/widgets/profile_image.dart';
 import '../auth/auth_provider.dart';
 import '../auth/login_screen.dart';
 import '../settings/settings_screen.dart';
@@ -34,9 +37,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadSavedImage() async {
     final prefs = await SharedPreferences.getInstance();
     final savedPath = prefs.getString('profile_image_path');
-    if (savedPath != null && mounted) {
+    if (savedPath == null) return;
+    if (PlatformCapabilities.isWeb && savedPath.startsWith('blob:')) {
+      await prefs.remove('profile_image_path');
+      return;
+    }
+    if (mounted) {
       setState(() => _localImagePath = savedPath);
     }
+  }
+
+  Future<String> _toPersistableImage(String cropped) async {
+    if (!PlatformCapabilities.isWeb || cropped.startsWith('data:')) {
+      return cropped;
+    }
+    final bytes = await XFile(cropped).readAsBytes();
+    return 'data:image/jpeg;base64,${base64Encode(bytes)}';
   }
 
   Future<void> _saveImagePath(String path) async {
@@ -134,8 +150,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       imageQuality: 85,
     );
     if (picked == null || !mounted) return;
-    final cropped = await _cropImage(picked.path);
-    if (cropped == null) return;
+    final croppedRaw = await _cropImage(picked.path);
+    if (croppedRaw == null) return;
+    if (!mounted) return;
+    final String cropped;
+    try {
+      cropped = await _toPersistableImage(croppedRaw);
+    } catch (_) {
+      return;
+    }
     if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -150,8 +173,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         content: ClipOval(
-          child: Image.file(
-            File(cropped),
+          child: Image(
+            image: profileImageProvider(cropped)!,
             width: 150,
             height: 150,
             fit: BoxFit.cover,
@@ -220,21 +243,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Selector<AuthProvider, dynamic>(
           selector: (_, auth) => auth.user,
           builder: (context, user, _) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Column(
-                children: [
-                  _buildAvatar(user),
-                  const SizedBox(height: 20),
-                  _buildUserInfo(user),
-                  const SizedBox(height: 20),
-                  _buildSyncStatus(context),
-                  const SizedBox(height: 28),
-                  _buildMenuItems(context),
-                  const SizedBox(height: 16),
-                  _buildSignOutButton(context, context.read<AuthProvider>()),
-                  const SizedBox(height: 24),
-                ],
+            return ResponsiveContent(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
+                child: Column(
+                  children: [
+                    _buildAvatar(user),
+                    const SizedBox(height: 20),
+                    _buildUserInfo(user),
+                    const SizedBox(height: 20),
+                    _buildSyncStatus(context),
+                    const SizedBox(height: 28),
+                    _buildMenuItems(context),
+                    const SizedBox(height: 16),
+                    _buildSignOutButton(context, context.read<AuthProvider>()),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
             );
           },
@@ -271,7 +299,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             backgroundColor: Colors.grey.shade800,
             backgroundImage: hasImage
                 ? ResizeImage(
-                    FileImage(File(_localImagePath!)),
+                    profileImageProvider(_localImagePath)!,
                     width: 220,
                     height: 220,
                     policy: ResizeImagePolicy.exact,
@@ -557,6 +585,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: const Color(0xFF2196F3),
         onTap: () => _showAboutNudgr(),
       ),
+      _MenuItem(
+        icon: Icons.delete_forever_rounded,
+        title: 'Delete account',
+        color: ColorConstants.error,
+        onTap: () => _confirmDeleteAccount(context),
+      ),
     ];
     return Column(
       children: items.map((item) => _buildMenuItemCard(context, item)).toList(),
@@ -778,6 +812,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final auth = context.read<AuthProvider>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardTheme.color,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Delete Account',
+          style: AppTextStyles.googleSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'This permanently removes your account and cloud data. '
+          'Notes, tasks, focus history and steps on this device are '
+          'erased too. This cannot be undone.',
+          style: AppTextStyles.googleSans(fontSize: 15, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.googleSans(color: Colors.grey),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Delete',
+              style: AppTextStyles.googleSans(color: ColorConstants.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final success = await auth.deleteAccount();
+    if (!success) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            auth.error ?? 'Could not delete your account. Try again later.',
+          ),
+          backgroundColor: ColorConstants.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    if (!context.mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
     );
   }
 

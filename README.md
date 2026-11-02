@@ -7,7 +7,7 @@
 ![Flutter](https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart&logoColor=white)
 ![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore-FFCA28?logo=firebase&logoColor=black)
-![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web-3DDC84?logo=android&logoColor=white)
 ![APK](https://img.shields.io/badge/APK-arm64%20~22MB-brightgreen)
 
 *made by woods*
@@ -18,16 +18,20 @@
 
 ## Overview
 
-Nudgr is a local-first productivity app for Android. Everything you create — tasks, notes, focus sessions, step history — lives on your device by default and keeps working fully offline. When you sign in with Google, your data is also privately synchronized through your own Firebase account so it follows you to any device or reinstall.
+Nudgr is a local-first productivity app for Android, iOS and the web. Everything you create — tasks, notes, focus sessions, step history — lives on your device by default and keeps working fully offline. When you sign in with Google, your data is also privately synchronized through your own Firebase account so it follows you to any device or reinstall.
+
+Platform availability differs per feature (step counting and in-app updates are Android-only; local notifications are unavailable on the web): see [`CROSS_PLATFORM_SETUP.md`](CROSS_PLATFORM_SETUP.md) for the support matrix and the one-time setup steps for web and iOS.
 
 ## Features
 
 ### Tasks
 - Create tasks with title, description, priority (low / medium / high / urgent), due date & time, recurrence and subtasks with progress tracking.
+- Tap a task to edit it in place; swipe-to-delete asks for confirmation and you get an **Undo** snack bar in case you change your mind.
+- Completing a recurring task automatically creates its next occurrence with a fresh reminder schedule.
 - Categorize tasks (Work, Study, Personal, Fitness) — the category shows directly on the task card and syncs with the filter chips.
 - Search across titles, descriptions and tags; filter by category and priority.
-- Swipe-to-delete with confirmation, tap-to-complete, smart sorting (incomplete first, then priority, then due date).
-- Local notifications remind you at the exact due time.
+- Tap-to-complete, smart sorting (incomplete first, then priority, then due date).
+- Local notifications fire at the exact due time and at any optional reminder lead you set — stable notification IDs mean re-edits don't stack up duplicates.
 
 ### Notes
 - Distraction-free note editor with inline text formatting: **bold**, *italic*, underline, ~~strikethrough~~ and `code` styling rendered live.
@@ -90,7 +94,7 @@ Flutter app ⇄ local storage ⇄ SyncService ⇄ Cloud Firestore ⇄ users/{uid
 Task due-time reminders and step-goal alerts are scheduled locally via `flutter_local_notifications` with exact-alarm support. The device's IANA time zone is resolved at startup so reminders fire at the correct local time, even across DST changes.
 
 ### Step counting
-The Android host (`MainActivity`) exposes the hardware `TYPE_STEP_COUNTER` sensor over a method channel. A baseline strategy converts the sensor's cumulative boot counter into accurate daily counts that survive device reboots and app restarts, and only changed values are written or synced.
+The Android host (`MainActivity`) exposes the hardware `TYPE_STEP_COUNTER` sensor over a method channel. A baseline strategy converts the sensor's cumulative boot counter into accurate daily counts that survive device reboots and app restarts, and only changed values are written or synced. An optional foreground service (`StepTrackingService`, notification brand icon `ic_stat_nudgr`) keeps counting while the app is closed.
 
 ### Update system
 `UpdateService` queries the GitHub Releases API for the repository configured in `AppConstants.githubRepo`, performs a semantic version comparison against the installed build and — when a newer tagged release with an APK asset exists — presents the release notes and a direct download link. Publishing an update is free: tag a release on GitHub, attach the APK, done.
@@ -143,7 +147,13 @@ lib/
 ### Prerequisites
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) 3.24+ (built with 3.47)
 - Android SDK with a JDK 17 toolchain
-- A Firebase project (the bundled `android/app/google-services.json` targets the `nudgr-d0911` demo project — replace it with your own for production)
+- A Firebase project. `android/app/google-services.json` in the repo is a **placeholder** for the `nudgr-d0911` demo project — replace it with a real one before running with Firebase:
+  1. Firebase console → **Project settings → Your apps → Add app → Android**.
+  2. Package name `com.nudgr.nudgr`.
+  3. Download `google-services.json` and save it over `android/app/google-services.json`.
+  4. Enable Google as a sign-in provider and register the debug SHA-1 under the Android app for Google sign-in to work.
+  5. Publish the Firestore rules (see below).
+- iOS builds need macOS + Xcode; web builds need the Firebase web defines — both are covered in [`CROSS_PLATFORM_SETUP.md`](CROSS_PLATFORM_SETUP.md)
 
 ### Run
 ```bash
@@ -195,7 +205,7 @@ firebase deploy --only firestore:rules
 4. Users tapping *Check for updates* in the app are offered the new version.
 
 ### Firestore rules tests
-A full authorization test matrix (Account A/B, ownership tampering, unauthenticated access) lives in [`firebase_tests/`](firebase_tests/) and runs against the Firebase Emulator Suite. The root `firebase.json` points the emulator and `firebase deploy` at `firestore.rules` / `storage.rules`:
+A full authorization test matrix (Account A/B, ownership tampering, unauthenticated access) lives in [`firebase_tests/`](firebase_tests/) and runs against the Firebase Emulator Suite. The root `firebase.json` points the emulator and `firebase deploy` at `firestore.rules`:
 ```bash
 cd firebase_tests && npm install && cd ..
 firebase emulators:exec --only firestore --project rules-test-nudgr "npm --prefix firebase_tests test"

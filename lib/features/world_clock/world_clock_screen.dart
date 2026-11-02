@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../core/constants/color_constants.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/responsive.dart';
 import 'world_clock_city.dart';
 
 class WorldClockScreen extends StatefulWidget {
@@ -190,9 +192,12 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
 
   Future<void> _loadCities() async {
     final prefs = await SharedPreferences.getInstance();
+    final saved24h = prefs.getBool('world_clock_24h');
     final saved = prefs.getStringList('world_clock_cities');
-    if (saved != null && saved.isNotEmpty) {
-      setState(() {
+    if (!mounted) return;
+    setState(() {
+      if (saved24h != null) _is24Hour = saved24h;
+      if (saved != null && saved.isNotEmpty) {
         _cities = saved.map((s) {
           final p = s.split('|');
           return WorldClockCity(
@@ -201,11 +206,16 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
             offset: double.parse(p[2]),
           );
         }).toList();
-      });
-    } else {
-      setState(() => _cities = List.from(_defaultCities));
-      _saveCities();
-    }
+      } else {
+        _cities = List.from(_defaultCities);
+      }
+    });
+    if (saved == null || saved.isEmpty) _saveCities();
+  }
+
+  Future<void> _save24hPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('world_clock_24h', _is24Hour);
   }
 
   Future<void> _saveCities() async {
@@ -226,10 +236,12 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
   }
 
   String _getUtcLabel(double offset) {
-    final sign = offset >= 0 ? '+' : '';
-    if (offset % 1 == 0) return 'UTC$sign${offset.toInt()}';
-    final h = offset.toInt();
-    final m = ((offset - h) * 60).toInt();
+    final totalMinutes = (offset * 60).round();
+    final sign = totalMinutes < 0 ? '-' : '+';
+    final abs = totalMinutes.abs();
+    final h = abs ~/ 60;
+    final m = abs % 60;
+    if (m == 0) return 'UTC$sign$h';
     return 'UTC$sign$h:${m.toString().padLeft(2, '0')}';
   }
 
@@ -265,7 +277,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     final off = now.timeZoneOffset;
     final total = off.inHours + off.inMinutes % 60 / 60.0;
     for (final c in _allCities) {
-      if ((c.offset - total).abs() < 0.01) return c;
+      if ((_getCurrentOffset(c, now) - total).abs() < 0.01) return c;
     }
     return WorldClockCity(
       name: now.timeZoneName,
@@ -321,17 +333,20 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
     final deviceCity = _getDeviceCity();
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(isDark),
-            const SizedBox(height: 20),
-            Expanded(
-              child: _isSearching
-                  ? _buildSearchResults(isDark)
-                  : _buildClockList(isDark, deviceCity),
-            ),
-          ],
+        child: ResponsiveContent(
+          wide: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(isDark),
+              const SizedBox(height: 20),
+              Expanded(
+                child: _isSearching
+                    ? _buildSearchResults(isDark)
+                    : _buildClockList(isDark, deviceCity),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -362,21 +377,24 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                     color: isDark ? const Color(0xFF1A1A28) : Colors.white,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFF6C63FF).withValues(alpha: 0.4),
+                      color: ColorConstants.primary.withValues(alpha: 0.4),
                     ),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Icon(
                       Icons.add_rounded,
                       size: 20,
-                      color: Color(0xFF6C63FF),
+                      color: ColorConstants.primary,
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => setState(() => _is24Hour = !_is24Hour),
+                onTap: () {
+                  setState(() => _is24Hour = !_is24Hour);
+                  _save24hPreference();
+                },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -386,7 +404,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                     color: isDark ? const Color(0xFF1A1A28) : Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+                      color: ColorConstants.primary.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Text(
@@ -394,7 +412,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                     style: AppTextStyles.googleSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF6C63FF),
+                      color: ColorConstants.primary,
                     ),
                   ),
                 ),
@@ -453,7 +471,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+            color: ColorConstants.primary.withValues(alpha: 0.3),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -523,7 +541,7 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
         decoration: BoxDecoration(
-          color: const Color(0xFFFF6B6B),
+          color: ColorConstants.error,
           borderRadius: BorderRadius.circular(16),
         ),
         child: const Icon(Icons.delete_rounded, color: Colors.white, size: 24),
@@ -693,9 +711,9 @@ class _WorldClockScreenState extends State<WorldClockScreen> {
                                     color: Colors.grey.shade400,
                                     size: 20,
                                   )
-                                : const Icon(
+                                : Icon(
                                     Icons.add_circle_outline_rounded,
-                                    color: Color(0xFF6C63FF),
+                                    color: ColorConstants.primary,
                                     size: 22,
                                   ),
                             onTap: alreadyAdded ? null : () => _addCity(city),

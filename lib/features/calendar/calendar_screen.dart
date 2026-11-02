@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../core/constants/color_constants.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/widgets/task_card.dart';
 import 'calendar_provider.dart';
 
@@ -49,61 +50,64 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context, isDark),
-            _buildViewSelector(context, isDark),
-            Selector<CalendarProvider, DateTime>(
-              selector: (_, p) => p.state.focusedDate,
-              builder: (context, focusedDay, _) {
-                return _buildMonthNavigation(context, focusedDay, isDark);
-              },
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Selector<
-                      CalendarProvider,
-                      ({DateTime focusedDate, List<dynamic> tasks})
-                    >(
-                      selector: (_, p) => (
-                        focusedDate: p.state.focusedDate,
-                        tasks: p.state.tasks,
+        child: ResponsiveContent(
+          wide: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context, isDark),
+              _buildViewSelector(context, isDark),
+              Selector<CalendarProvider, DateTime>(
+                selector: (_, p) => p.state.focusedDate,
+                builder: (context, focusedDay, _) {
+                  return _buildMonthNavigation(context, focusedDay, isDark);
+                },
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Selector<
+                        CalendarProvider,
+                        ({DateTime focusedDate, List<dynamic> tasks})
+                      >(
+                        selector: (_, p) => (
+                          focusedDate: p.state.focusedDate,
+                          tasks: p.state.tasks,
+                        ),
+                        builder: (context, data, _) {
+                          return _buildCalendar(
+                            context,
+                            data.focusedDate,
+                            data.tasks,
+                            isDark,
+                          );
+                        },
                       ),
-                      builder: (context, data, _) {
-                        return _buildCalendar(
-                          context,
-                          data.focusedDate,
-                          data.tasks,
-                          isDark,
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    Selector<
-                      CalendarProvider,
-                      ({DateTime selectedDate, List<dynamic> tasks})
-                    >(
-                      selector: (_, p) => (
-                        selectedDate: p.state.selectedDate,
-                        tasks: p.state.tasks,
+                      const SizedBox(height: 8),
+                      Selector<
+                        CalendarProvider,
+                        ({DateTime selectedDate, List<dynamic> tasks})
+                      >(
+                        selector: (_, p) => (
+                          selectedDate: p.state.selectedDate,
+                          tasks: p.state.tasks,
+                        ),
+                        builder: (context, data, _) {
+                          return _buildSelectedDayTasks(
+                            context,
+                            data.selectedDate,
+                            data.tasks,
+                            isDark,
+                          );
+                        },
                       ),
-                      builder: (context, data, _) {
-                        return _buildSelectedDayTasks(
-                          context,
-                          data.selectedDate,
-                          data.tasks,
-                          isDark,
-                        );
-                      },
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

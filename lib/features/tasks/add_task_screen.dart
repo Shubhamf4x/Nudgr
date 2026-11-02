@@ -8,12 +8,14 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/constants/color_constants.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/utils/responsive.dart';
 import '../../core/utils/validators.dart';
 import '../../shared/models/task_model.dart';
 import 'tasks_provider.dart';
 
 class AddTaskScreen extends StatefulWidget {
-  const AddTaskScreen({super.key});
+  final TaskModel? existingTask;
+  const AddTaskScreen({super.key, this.existingTask});
   @override
   State<AddTaskScreen> createState() => _AddTaskScreenState();
 }
@@ -26,10 +28,36 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   DateTime? _dueDate;
   TimeOfDay? _dueTime;
   String? _categoryId;
+  String? _categoryName;
   bool _isRecurring = false;
   String _recurrencePattern = 'daily';
   final List<SubTaskModel> _subtasks = [];
   bool _isSaving = false;
+  bool _isSavingCompleted = false;
+  DateTime? _completedAt;
+  bool get _isEditing => widget.existingTask != null;
+  @override
+  void initState() {
+    super.initState();
+    final task = widget.existingTask;
+    if (task != null) {
+      _titleController.text = task.title;
+      _descriptionController.text = task.description ?? '';
+      _priority = task.priority;
+      _dueDate = task.dueDate;
+      _dueTime = task.dueTime == null
+          ? null
+          : TimeOfDay.fromDateTime(task.dueTime!);
+      _categoryId = task.categoryId;
+      _categoryName = task.categoryName;
+      _isRecurring = task.isRecurring;
+      _recurrencePattern = task.recurrencePattern ?? 'daily';
+      _subtasks.addAll(task.subtasks);
+      _isSavingCompleted = task.isCompleted;
+      _completedAt = task.completedAt;
+    }
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -38,11 +66,15 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }
 
   Future<void> _selectDate() async {
+    final now = DateTime.now();
+    final firstDate = _dueDate != null && _dueDate!.isBefore(now)
+        ? _dueDate!
+        : now;
     final date = await showDatePicker(
       context: context,
-      initialDate: _dueDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: _dueDate ?? now,
+      firstDate: firstDate,
+      lastDate: now.add(const Duration(days: 365)),
     );
     if (date != null) setState(() => _dueDate = date);
   }
@@ -52,7 +84,11 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       context: context,
       initialTime: _dueTime ?? TimeOfDay.now(),
     );
-    if (time != null) setState(() => _dueTime = time);
+    if (time == null) return;
+    setState(() {
+      _dueTime = time;
+      _dueDate ??= DateTime.now();
+    });
   }
 
   void _addSubtask() {
@@ -110,48 +146,96 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
     final now = DateTime.now();
-    final task = TaskModel(
-      id: const Uuid().v4(),
-      title: InputValidators.clampLength(
-        _titleController.text.trim(),
-        InputValidators.maxTaskTitleLength,
-      ),
-      description: _descriptionController.text.trim().isNotEmpty
-          ? InputValidators.clampLength(
-              _descriptionController.text.trim(),
-              InputValidators.maxTaskDescriptionLength,
-            )
-          : null,
-      priority: _priority,
-      dueDate: _dueDate,
-      dueTime: _dueTime != null
-          ? DateTime(
-              _dueDate?.year ?? now.year,
-              _dueDate?.month ?? now.month,
-              _dueDate?.day ?? now.day,
-              _dueTime!.hour,
-              _dueTime!.minute,
-            )
-          : null,
-      categoryId: _categoryId,
-      categoryName: _categoryId == null
-          ? null
-          : _categoryLabels
-                .firstWhere(
-                  (c) => c.$1 == _categoryId,
-                  orElse: () => ('', _categoryId!),
-                )
-                .$2,
-      isRecurring: _isRecurring,
-      recurrencePattern: _isRecurring ? _recurrencePattern : null,
-      subtasks: _subtasks,
-      userId: '',
-      createdAt: now,
-      updatedAt: now,
-    );
+    final existing = widget.existingTask;
+    final task = existing != null
+        ? existing.copyWith(
+            title: InputValidators.clampLength(
+              _titleController.text.trim(),
+              InputValidators.maxTaskTitleLength,
+            ),
+            description: _descriptionController.text.trim().isNotEmpty
+                ? InputValidators.clampLength(
+                    _descriptionController.text.trim(),
+                    InputValidators.maxTaskDescriptionLength,
+                  )
+                : null,
+            priority: _priority,
+            dueDate: _dueDate,
+            dueTime: _dueTime != null
+                ? DateTime(
+                    _dueDate?.year ?? now.year,
+                    _dueDate?.month ?? now.month,
+                    _dueDate?.day ?? now.day,
+                    _dueTime!.hour,
+                    _dueTime!.minute,
+                  )
+                : null,
+            categoryId: _categoryId,
+            categoryName: _categoryId == null
+                ? null
+                : (_categoryName ??
+                      _categoryLabels
+                          .firstWhere(
+                            (c) => c.$1 == _categoryId,
+                            orElse: () => ('', _categoryId!),
+                          )
+                          .$2),
+            isRecurring: _isRecurring,
+            recurrencePattern: _isRecurring ? _recurrencePattern : null,
+            subtasks: List<SubTaskModel>.from(_subtasks),
+            isCompleted: _isSavingCompleted,
+            completedAt: _completedAt,
+            clearCompletedAt: _completedAt == null,
+            updatedAt: now,
+            isSynced: false,
+          )
+        : TaskModel(
+            id: const Uuid().v4(),
+            title: InputValidators.clampLength(
+              _titleController.text.trim(),
+              InputValidators.maxTaskTitleLength,
+            ),
+            description: _descriptionController.text.trim().isNotEmpty
+                ? InputValidators.clampLength(
+                    _descriptionController.text.trim(),
+                    InputValidators.maxTaskDescriptionLength,
+                  )
+                : null,
+            priority: _priority,
+            dueDate: _dueDate,
+            dueTime: _dueTime != null
+                ? DateTime(
+                    _dueDate?.year ?? now.year,
+                    _dueDate?.month ?? now.month,
+                    _dueDate?.day ?? now.day,
+                    _dueTime!.hour,
+                    _dueTime!.minute,
+                  )
+                : null,
+            categoryId: _categoryId,
+            categoryName: _categoryId == null
+                ? null
+                : (_categoryName ??
+                      _categoryLabels
+                          .firstWhere(
+                            (c) => c.$1 == _categoryId,
+                            orElse: () => ('', _categoryId!),
+                          )
+                          .$2),
+            isRecurring: _isRecurring,
+            recurrencePattern: _isRecurring ? _recurrencePattern : null,
+            subtasks: List<SubTaskModel>.from(_subtasks),
+            userId: '',
+            createdAt: now,
+            updatedAt: now,
+          );
     final tasksProvider = context.read<TasksProvider>();
     final navigator = Navigator.of(context);
-    unawaited(tasksProvider.addTask(task));
+    if (existing != null) {
+      unawaited(tasksProvider.updateTask(task));
+    } else {
+      unawaited(tasksProvider.addTask(task));
+    }
     navigator.pop();
   }
 
@@ -184,7 +268,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       backgroundColor: surfaceColor,
       appBar: AppBar(
         title: Text(
-          'New Task',
+          _isEditing ? 'Edit Task' : 'New Task',
           style: AppTextStyles.googleSans(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -198,54 +282,56 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         ),
       ),
       body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            children: [
-              _buildTitleField(
-                textColor,
-                hintColor,
-                cardColor,
-                borderColor,
-                focusColor,
-              ),
-              const SizedBox(height: 16),
-              _buildDescriptionField(
-                textColor,
-                hintColor,
-                cardColor,
-                borderColor,
-                focusColor,
-              ),
-              const SizedBox(height: 20),
-              _buildPrioritySection(
-                isDark,
-                textColor,
-                labelColor,
-                borderColor,
-                cardColor,
-              ),
-              const SizedBox(height: 16),
-              _buildDateRow(isDark, cardColor, borderColor, labelColor),
-              const SizedBox(height: 12),
-              _buildTimeRow(isDark, cardColor, borderColor, labelColor),
-              const SizedBox(height: 12),
-              _buildRecurrenceRow(isDark, cardColor, borderColor, labelColor),
-              const SizedBox(height: 20),
-              _buildCategorySection(
-                isDark,
-                textColor,
-                labelColor,
-                borderColor,
-                cardColor,
-              ),
-              const SizedBox(height: 16),
-              _buildSubtasksSection(isDark, labelColor, cardColor),
-              const SizedBox(height: 24),
-              _buildSaveButton(),
-              const SizedBox(height: 16),
-            ],
+        child: ResponsiveContent(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              children: [
+                _buildTitleField(
+                  textColor,
+                  hintColor,
+                  cardColor,
+                  borderColor,
+                  focusColor,
+                ),
+                const SizedBox(height: 16),
+                _buildDescriptionField(
+                  textColor,
+                  hintColor,
+                  cardColor,
+                  borderColor,
+                  focusColor,
+                ),
+                const SizedBox(height: 20),
+                _buildPrioritySection(
+                  isDark,
+                  textColor,
+                  labelColor,
+                  borderColor,
+                  cardColor,
+                ),
+                const SizedBox(height: 16),
+                _buildDateRow(isDark, cardColor, borderColor, labelColor),
+                const SizedBox(height: 12),
+                _buildTimeRow(isDark, cardColor, borderColor, labelColor),
+                const SizedBox(height: 12),
+                _buildRecurrenceRow(isDark, cardColor, borderColor, labelColor),
+                const SizedBox(height: 20),
+                _buildCategorySection(
+                  isDark,
+                  textColor,
+                  labelColor,
+                  borderColor,
+                  cardColor,
+                ),
+                const SizedBox(height: 16),
+                _buildSubtasksSection(isDark, labelColor, cardColor),
+                const SizedBox(height: 24),
+                _buildSaveButton(),
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         ),
       ),
@@ -478,6 +564,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       onTap: () {
         showModalBottomSheet(
           context: context,
+          isScrollControlled: true,
           backgroundColor: isDark
               ? const Color(0xFF2A2A3E)
               : Theme.of(context).colorScheme.surface,
@@ -485,51 +572,58 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
           ),
           builder: (ctx) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white24 : Colors.black26,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Recurrence',
-                  style: AppTextStyles.googleSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ListTile(
-                  title: Text('None', style: AppTextStyles.googleSans()),
-                  onTap: () {
-                    setState(() => _isRecurring = false);
-                    Navigator.pop(ctx);
-                  },
-                ),
-                ...['daily', 'weekly', 'monthly'].map(
-                  (pattern) => ListTile(
-                    title: Text(
-                      pattern[0].toUpperCase() + pattern.substring(1),
-                      style: AppTextStyles.googleSans(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(ctx).height * 0.8,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.black26,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                    onTap: () {
-                      setState(() {
-                        _isRecurring = true;
-                        _recurrencePattern = pattern;
-                      });
-                      Navigator.pop(ctx);
-                    },
-                  ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Recurrence',
+                      style: AppTextStyles.googleSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ListTile(
+                      title: Text('None', style: AppTextStyles.googleSans()),
+                      onTap: () {
+                        setState(() => _isRecurring = false);
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                    ...['daily', 'weekly', 'monthly'].map(
+                      (pattern) => ListTile(
+                        title: Text(
+                          pattern[0].toUpperCase() + pattern.substring(1),
+                          style: AppTextStyles.googleSans(),
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _isRecurring = true;
+                            _recurrencePattern = pattern;
+                          });
+                          Navigator.pop(ctx);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 ),
-                const SizedBox(height: 8),
-              ],
+              ),
             ),
           ),
         );

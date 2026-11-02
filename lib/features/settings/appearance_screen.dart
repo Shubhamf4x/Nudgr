@@ -1,4 +1,5 @@
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/providers/theme_provider.dart';
 
 import 'package:flutter/material.dart';
@@ -21,91 +22,94 @@ class AppearanceScreen extends StatelessWidget {
           style: AppTextStyles.googleSans(fontWeight: FontWeight.w600),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardTheme.color,
-              borderRadius: BorderRadius.circular(16),
+      body: ResponsiveContent(
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardTheme.color,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  _buildThemeTile(
+                    context: context,
+                    theme: AppThemeType.light,
+                    title: 'Light',
+                    subtitle: 'White background, dark text',
+                    accentColor: const Color(0xFF6C63FF),
+                    isSelected: currentTheme == AppThemeType.light,
+                    onTap: () => themeProvider.setTheme(AppThemeType.light),
+                  ),
+                  _buildDivider(context),
+                  _buildThemeTile(
+                    context: context,
+                    theme: AppThemeType.dark,
+                    title: 'Dark',
+                    subtitle: 'Near-black, gray surfaces',
+                    accentColor: const Color(0xFF8B85FF),
+                    isSelected: currentTheme == AppThemeType.dark,
+                    onTap: () => themeProvider.setTheme(AppThemeType.dark),
+                  ),
+                  _buildDivider(context),
+                  _buildThemeTile(
+                    context: context,
+                    theme: AppThemeType.midnight,
+                    title: 'Midnight',
+                    subtitle: 'Near-black, dark gray surfaces',
+                    accentColor: const Color(0xFFBB86FC),
+                    isSelected: currentTheme == AppThemeType.midnight,
+                    onTap: () => themeProvider.setTheme(AppThemeType.midnight),
+                  ),
+                  _buildDivider(context),
+                  _buildThemeTile(
+                    context: context,
+                    theme: AppThemeType.neonPurple,
+                    title: 'Neon Purple',
+                    subtitle: 'Dark with glowing purple accents',
+                    accentColor: const Color(0xFFCE93D8),
+                    isSelected: currentTheme == AppThemeType.neonPurple,
+                    onTap: () =>
+                        themeProvider.setTheme(AppThemeType.neonPurple),
+                  ),
+                  _buildDivider(context),
+                  _buildThemeTile(
+                    context: context,
+                    theme: AppThemeType.electricBlue,
+                    title: 'Electric Blue',
+                    subtitle: 'Dark navy with bright blue accents',
+                    accentColor: const Color(0xFF64B5F6),
+                    isSelected: currentTheme == AppThemeType.electricBlue,
+                    onTap: () =>
+                        themeProvider.setTheme(AppThemeType.electricBlue),
+                  ),
+                  _buildDivider(context),
+                  _buildThemeTile(
+                    context: context,
+                    theme: AppThemeType.emerald,
+                    title: 'Emerald',
+                    subtitle: 'Very dark with green glow accents',
+                    accentColor: const Color(0xFF69F0AE),
+                    isSelected: currentTheme == AppThemeType.emerald,
+                    onTap: () => themeProvider.setTheme(AppThemeType.emerald),
+                  ),
+                  _buildDivider(context),
+                  _buildThemeTile(
+                    context: context,
+                    theme: AppThemeType.ocean,
+                    title: 'Ocean',
+                    subtitle: 'Deep blue with cyan/teal accents',
+                    accentColor: const Color(0xFF4DD0E1),
+                    isSelected: currentTheme == AppThemeType.ocean,
+                    onTap: () => themeProvider.setTheme(AppThemeType.ocean),
+                  ),
+                ],
+              ),
             ),
-            child: Column(
-              children: [
-                _buildThemeTile(
-                  context: context,
-                  theme: AppThemeType.light,
-                  title: 'Light',
-                  subtitle: 'White background, dark text',
-                  accentColor: const Color(0xFF6C63FF),
-                  isSelected: currentTheme == AppThemeType.light,
-                  onTap: () => themeProvider.setTheme(AppThemeType.light),
-                ),
-                _buildDivider(context),
-                _buildThemeTile(
-                  context: context,
-                  theme: AppThemeType.dark,
-                  title: 'Dark',
-                  subtitle: 'Near-black, gray surfaces',
-                  accentColor: const Color(0xFF8B85FF),
-                  isSelected: currentTheme == AppThemeType.dark,
-                  onTap: () => themeProvider.setTheme(AppThemeType.dark),
-                ),
-                _buildDivider(context),
-                _buildThemeTile(
-                  context: context,
-                  theme: AppThemeType.midnight,
-                  title: 'Midnight',
-                  subtitle: 'Near-black, dark gray surfaces',
-                  accentColor: const Color(0xFFBB86FC),
-                  isSelected: currentTheme == AppThemeType.midnight,
-                  onTap: () => themeProvider.setTheme(AppThemeType.midnight),
-                ),
-                _buildDivider(context),
-                _buildThemeTile(
-                  context: context,
-                  theme: AppThemeType.neonPurple,
-                  title: 'Neon Purple',
-                  subtitle: 'Dark with glowing purple accents',
-                  accentColor: const Color(0xFFCE93D8),
-                  isSelected: currentTheme == AppThemeType.neonPurple,
-                  onTap: () => themeProvider.setTheme(AppThemeType.neonPurple),
-                ),
-                _buildDivider(context),
-                _buildThemeTile(
-                  context: context,
-                  theme: AppThemeType.electricBlue,
-                  title: 'Electric Blue',
-                  subtitle: 'Dark navy with bright blue accents',
-                  accentColor: const Color(0xFF64B5F6),
-                  isSelected: currentTheme == AppThemeType.electricBlue,
-                  onTap: () =>
-                      themeProvider.setTheme(AppThemeType.electricBlue),
-                ),
-                _buildDivider(context),
-                _buildThemeTile(
-                  context: context,
-                  theme: AppThemeType.emerald,
-                  title: 'Emerald',
-                  subtitle: 'Very dark with green glow accents',
-                  accentColor: const Color(0xFF69F0AE),
-                  isSelected: currentTheme == AppThemeType.emerald,
-                  onTap: () => themeProvider.setTheme(AppThemeType.emerald),
-                ),
-                _buildDivider(context),
-                _buildThemeTile(
-                  context: context,
-                  theme: AppThemeType.ocean,
-                  title: 'Ocean',
-                  subtitle: 'Deep blue with cyan/teal accents',
-                  accentColor: const Color(0xFF4DD0E1),
-                  isSelected: currentTheme == AppThemeType.ocean,
-                  onTap: () => themeProvider.setTheme(AppThemeType.ocean),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 40),
-        ],
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }

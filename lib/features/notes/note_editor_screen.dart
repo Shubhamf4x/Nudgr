@@ -1,5 +1,6 @@
 import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/color_constants.dart';
+import '../../core/utils/responsive.dart';
 import '../../core/utils/validators.dart';
 
 import 'package:flutter/material.dart';
@@ -109,7 +110,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   void _toggleFormatting(String tag) {
     final text = _contentController.text;
-    final selection = _contentController.selection;
+    var selection = _contentController.selection;
+    if (!selection.isValid || selection.baseOffset < 0) {
+      selection = TextSelection.collapsed(offset: text.length);
+    }
     final openTag = '[$tag]';
     final closeTag = '[/$tag]';
     List<int>? findEnclosingPair(String s, int rangeStart, int rangeEnd) {
@@ -227,15 +231,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   void _insertLinePrefix(String prefix) {
     final text = _contentController.text;
     final selection = _contentController.selection;
-    final beforeCursor = text.substring(0, selection.baseOffset);
+    final cursor = !selection.isValid || selection.baseOffset < 0
+        ? text.length
+        : selection.baseOffset;
+    final beforeCursor = text.substring(0, cursor);
     final lineStart = beforeCursor.lastIndexOf('\n') + 1;
     final newText =
         text.substring(0, lineStart) + prefix + text.substring(lineStart);
     _contentController.value = TextEditingValue(
       text: newText,
-      selection: TextSelection.collapsed(
-        offset: selection.baseOffset + prefix.length,
-      ),
+      selection: TextSelection.collapsed(offset: cursor + prefix.length),
     );
     _contentFocusNode.requestFocus();
   }
@@ -420,67 +425,69 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         ),
         body: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: TextField(
-                  controller: _titleController,
-                  style: AppTextStyles.googleSans(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Title',
-                    hintStyle: AppTextStyles.googleSans(
+          child: ResponsiveContent(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: TextField(
+                    controller: _titleController,
+                    style: AppTextStyles.googleSans(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: hintColor,
-                    ),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    isDense: true,
-                  ),
-                  maxLines: null,
-                ),
-              ),
-              _buildFormatToolbar(cardColor, textColor),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: TextField(
-                    controller: _contentController,
-                    focusNode: _contentFocusNode,
-                    style: AppTextStyles.googleSans(
-                      fontSize: 15,
-                      height: 1.6,
                       color: textColor,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Start typing...',
+                      hintText: 'Title',
                       hintStyle: AppTextStyles.googleSans(
-                        fontSize: 15,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
                         color: hintColor,
                       ),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(16),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       isDense: true,
                     ),
                     maxLines: null,
-                    expands: true,
-                    keyboardType: TextInputType.multiline,
                   ),
                 ),
-              ),
-            ],
+                _buildFormatToolbar(cardColor, textColor),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: TextField(
+                      controller: _contentController,
+                      focusNode: _contentFocusNode,
+                      style: AppTextStyles.googleSans(
+                        fontSize: 15,
+                        height: 1.6,
+                        color: textColor,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Start typing...',
+                        hintStyle: AppTextStyles.googleSans(
+                          fontSize: 15,
+                          color: hintColor,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.all(16),
+                        isDense: true,
+                      ),
+                      maxLines: null,
+                      expands: true,
+                      keyboardType: TextInputType.multiline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

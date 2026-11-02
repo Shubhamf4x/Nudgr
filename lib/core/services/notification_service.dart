@@ -8,8 +8,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 
-import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/color_constants.dart';
+import '../../core/platform/platform_capabilities.dart';
+import '../../core/theme/app_text_styles.dart';
 
 class NotificationItem {
   final String id;
@@ -65,6 +66,11 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   List<NotificationItem> _notifications = [];
   static bool _initialized = false;
+  static const String _notificationIdsKey = 'notification_ids';
+  static const int _reservedAndroidServiceId = 1001;
+  static const int _maxNotificationId = 2147483647;
+  final Map<String, int> _notificationIds = {};
+  bool _idsLoaded = false;
   NotificationService._();
   static NotificationService getInstance() {
     _instance ??= NotificationService._();
@@ -72,9 +78,69 @@ class NotificationService {
   }
 
   FlutterLocalNotificationsPlugin get localNotifications => _localNotifications;
+
+  Future<void> _ensureIdsLoaded() async {
+    if (_idsLoaded) return;
+    _idsLoaded = true;
+    try {
+      _prefs ??= await SharedPreferences.getInstance();
+    } catch (_) {
+      return;
+    }
+    try {
+      final jsonString = _prefs!.getString(_notificationIdsKey);
+      if (jsonString == null || jsonString.isEmpty) return;
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! Map) return;
+      decoded.forEach((key, value) {
+        if (value is int && value > 0 && value <= _maxNotificationId) {
+          _notificationIds['$key'] = value;
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<int> _allocateNotificationId(String key) async {
+    await _ensureIdsLoaded();
+    final existing = _notificationIds[key];
+    if (existing != null) return existing;
+    final used = {..._notificationIds.values, _reservedAndroidServiceId};
+    var candidate = key.hashCode.abs() % _maxNotificationId;
+    if (candidate == 0) candidate = 1;
+    while (used.contains(candidate)) {
+      candidate = candidate < _maxNotificationId ? candidate + 1 : 1;
+    }
+    _notificationIds[key] = candidate;
+    try {
+      await _prefs?.setString(
+        _notificationIdsKey,
+        jsonEncode(_notificationIds),
+      );
+    } catch (_) {}
+    return candidate;
+  }
+
+  Future<void> _releaseNotificationId(String key) async {
+    await _ensureIdsLoaded();
+    if (_notificationIds.remove(key) == null) return;
+    try {
+      await _prefs?.setString(
+        _notificationIdsKey,
+        jsonEncode(_notificationIds),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _cancelScheduled(int id) async {
+    if (!PlatformCapabilities.hasLocalNotifications) return;
+    try {
+      await _localNotifications.cancel(id);
+    } catch (_) {}
+  }
   Future<void> initialize() async {
     _prefs = await SharedPreferences.getInstance();
     restoreStoredNotifications();
+    if (!PlatformCapabilities.hasLocalNotifications) return;
     if (!_initialized) {
       try {
         tz_data.initializeTimeZones();
@@ -83,10 +149,7 @@ class NotificationService {
           tz.setLocalLocation(tz.getLocation(tzInfo.identifier));
         } catch (_) {
           try {
-            final offset = DateTime.now().timeZoneOffset;
-            final name =
-                'Etc/GMT${offset.isNegative ? '+' : '-'}${offset.inHours.abs()}';
-            tz.setLocalLocation(tz.getLocation(name));
+            tz.setLocalLocation(tz.getLocation('UTC'));
           } catch (_) {}
         }
         const androidSettings = AndroidInitializationSettings(
@@ -200,6 +263,7 @@ class NotificationService {
     tz.TZDateTime when,
     NotificationDetails details,
   ) async {
+    if (!PlatformCapabilities.hasLocalNotifications) return;
     try {
       await _localNotifications.zonedSchedule(
         id,
@@ -232,45 +296,41 @@ class NotificationService {
     String taskTitle,
     DateTime dueTime,
   ) async {
-    if (dueTime.isBefore(DateTime.now())) return;
-    final notificationId = taskId.hashCode.abs() % 2147483647;
-    await _zonedScheduleWithFallback(
-      notificationId,
-      'Task Due Now',
-      taskTitle,
-      tz.TZDateTime.from(dueTime, tz.local),
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          'task_reminders',
-          'Task Reminders',
-          channelDescription: 'Notifications for task due times',
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
-          enableVibration: true,
-          enableLights: true,
-          styleInformation: BigTextStyleInformation(''),
+    if (PlatformCapabilities.hasLocalNotifications && !dueTime.isBefore(DateTime.now())) {
+      final notificationId = await _allocateNotificationId('due:$taskId');
+      await _zonedScheduleWithFallback(
+        notificationId,
+        'Task Due Now',
+        taskTitle,
+        tz.TZDateTime.from(dueTime, tz.local),
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'task_reminders',
+            'Task Reminders',
+            channelDescription: 'Notifications for task due times',
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+            enableVibration: true,
+            enableLights: true,
+            styleInformation: BigTextStyleInformation(taskTitle),
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
         ),
-        iOS: const DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
-    );
-    await addNotification(
-      title: 'Task Due Now',
-      body: taskTitle,
-      type: 'task_due',
-      data: {'taskId': taskId, 'dueTime': dueTime.toIso8601String()},
-    );
+      );
+    }
   }
 
   Future<void> cancelTaskNotification(String taskId) async {
-    try {
-      final notificationId = taskId.hashCode.abs() % 2147483647;
-      await _localNotifications.cancel(notificationId);
-    } catch (_) {}
+    await _ensureIdsLoaded();
+    final id = _notificationIds['due:$taskId'];
+    await _cancelScheduled(taskId.hashCode.abs() % _maxNotificationId);
+    if (id != null) await _cancelScheduled(id);
+    await _releaseNotificationId('due:$taskId');
   }
 
   Future<void> scheduleTaskReminder(
@@ -278,37 +338,43 @@ class NotificationService {
     String taskTitle,
     DateTime reminderTime,
   ) async {
-    if (reminderTime.isBefore(DateTime.now())) return;
-    final notificationId = (taskId.hashCode.abs() % 2147483647) + 1;
-    await _zonedScheduleWithFallback(
-      notificationId,
-      'Task Reminder',
-      taskTitle,
-      tz.TZDateTime.from(reminderTime, tz.local),
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          'task_reminders',
-          'Task Reminders',
-          channelDescription: 'Notifications for task due times',
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
-          enableVibration: true,
-          enableLights: true,
+    if (PlatformCapabilities.hasLocalNotifications && !reminderTime.isBefore(DateTime.now())) {
+      final notificationId = await _allocateNotificationId('reminder:$taskId');
+      await _zonedScheduleWithFallback(
+        notificationId,
+        'Task Reminder',
+        taskTitle,
+        tz.TZDateTime.from(reminderTime, tz.local),
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'task_reminders',
+            'Task Reminders',
+            channelDescription: 'Notifications for task due times',
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+            enableVibration: true,
+            enableLights: true,
+            styleInformation: BigTextStyleInformation(taskTitle),
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
         ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
+      );
+    }
+  }
+
+  Future<void> cancelTaskReminder(String taskId) async {
+    await _ensureIdsLoaded();
+    final id = _notificationIds['reminder:$taskId'];
+    await _cancelScheduled(
+      (taskId.hashCode.abs() % _maxNotificationId) + 1,
     );
-    await addNotification(
-      title: 'Task Reminder',
-      body: taskTitle,
-      type: 'task_reminder',
-      data: {'taskId': taskId, 'reminderTime': reminderTime.toIso8601String()},
-    );
+    if (id != null) await _cancelScheduled(id);
+    await _releaseNotificationId('reminder:$taskId');
   }
 
   Future<void> scheduleFocusComplete(
@@ -328,6 +394,7 @@ class NotificationService {
   }
 
   static Future<void> requestPermissionOnce(BuildContext context) async {
+    if (!PlatformCapabilities.hasLocalNotifications) return;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool('notification_prompt_shown') ?? false) return;
     bool alreadyGranted = false;

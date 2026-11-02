@@ -1,16 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
-    id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
+    id("dev.flutter.flutter-gradle-plugin")
 }
-
-import java.util.Properties
 
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(keystorePropertiesFile.inputStream())
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
+val hasReleaseKeystore = keystorePropertiesFile.exists()
 
 android {
     namespace = "com.nudgr.nudgr"
@@ -23,8 +24,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    signingConfigs {
-        create("release") {
+    if (hasReleaseKeystore) {
+        signingConfigs.create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String?
             keyPassword = keystoreProperties["keyPassword"] as String?
             storeFile = file(keystoreProperties["storeFile"] as String? ?: "")
@@ -41,17 +42,22 @@ android {
     }
 
     buildTypes {
+        val releaseKeystore = if (hasReleaseKeystore) {
+            signingConfigs.getByName("release")
+        } else {
+            signingConfigs.getByName("debug")
+        }
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = releaseKeystore
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
@@ -63,7 +69,7 @@ kotlin {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
 
 flutter {
