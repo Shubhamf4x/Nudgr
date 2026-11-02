@@ -147,12 +147,9 @@ lib/
 ### Prerequisites
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) 3.24+ (built with 3.47)
 - Android SDK with a JDK 17 toolchain
-- A Firebase project. `android/app/google-services.json` in the repo is a **placeholder** for the `nudgr-d0911` demo project — replace it with a real one before running with Firebase:
-  1. Firebase console → **Project settings → Your apps → Add app → Android**.
-  2. Package name `com.nudgr.nudgr`.
-  3. Download `google-services.json` and save it over `android/app/google-services.json`.
-  4. Enable Google as a sign-in provider and register the debug SHA-1 under the Android app for Google sign-in to work.
-  5. Publish the Firestore rules (see below).
+- A Firebase project. `android/app/google-services.json` targets the `nudgr-d0911` demo project — if you fork to your own project, replace it (Firebase console → **Project settings → Your apps → Add app → Android**, package `com.nudgr.nudgr`, download and overwrite the file).
+- Enable Google as a sign-in provider and register the debug SHA-1 under the Android app for Google sign-in to work.
+- Publish the Firestore rules (see below).
 - iOS builds need macOS + Xcode; web builds need the Firebase web defines — both are covered in [`CROSS_PLATFORM_SETUP.md`](CROSS_PLATFORM_SETUP.md)
 
 ### Run

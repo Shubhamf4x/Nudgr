@@ -28,11 +28,10 @@ instead of failing silently.
 ## Android
 
 Android is the reference platform and needs no extra build configuration beyond
-the Android SDK. Before using Firebase from Android, replace the placeholder
-`android/app/google-services.json` (see the README prerequisites) — it ships
-targeting the `nudgr-d0911` demo project and must be regenerated from the
-Firebase console for any real run: **Project settings → Your apps → Add app →
-Android → package `com.nudgr.nudgr` → download `google-services.json`**.
+the Android SDK. `android/app/google-services.json` ships targeting the
+`nudgr-d0911` demo project; for your own Firebase project regenerate it from
+the console: **Project settings → Your apps → Add app → Android → package
+`com.nudgr.nudgr` → download `google-services.json`**.
 
 Step tracking uses a native foreground service (`StepTrackingService`) with the
 `ACTIVITY_RECOGNITION` runtime permission; the persistent notification uses the
